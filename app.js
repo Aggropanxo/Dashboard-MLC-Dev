@@ -15,12 +15,13 @@
   try {
     if (typeof firebase !== 'undefined') {
       if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-      db = firebase.database().ref('activos_criticos');
-      dbUsers = firebase.database().ref('usuarios_registrados');
-      dbAlertasTerreno = firebase.database().ref('alertas_terreno');
+      // Nodos aislados para el entorno de desarrollo y pruebas
+      db = firebase.database().ref('activos_criticos_dev');
+      dbUsers = firebase.database().ref('usuarios_registrados_dev');
+      dbAlertasTerreno = firebase.database().ref('alertas_terreno_dev');
     }
   } catch (err) {
-    console.warn("Firebase fallback:", err);
+    console.warn("Firebase Dev fallback:", err);
   }
 
   const FAENAS = Object.freeze([
@@ -309,7 +310,7 @@
     if (bounds.length) state.mapaSite.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
   }
 
-  // Recepción en tiempo real desde Firebase
+  // Recepción en tiempo real desde Firebase (Rama DEV)
   if (db) {
     db.on('value', (snap) => {
       const raw = snap.val();
@@ -375,7 +376,7 @@
         toast.className = 'toast-terreno-alert';
         toast.innerHTML = `
           <div class="toast-terreno-header">
-            <span>🚨 NUEVO REPORTE EN TERRENO</span>
+            <span>🚨 [DEV] NUEVO REPORTE EN TERRENO</span>
             <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:transparent; border:none; color:#fff; font-size:1.2rem; cursor:pointer;">&times;</button>
           </div>
           <div class="toast-terreno-body">
@@ -405,7 +406,7 @@
       state.currentScreen = num;
       document.querySelectorAll('.screen-view').forEach((el) => el.classList.remove('active'));
       document.getElementById(`screen-${num}`)?.classList.add('active');
-      const titles = { 1: 'Vista Pública (Global)', 2: `Faena: ${state.faenaSeleccionada || 'Operativa'}`, 3: 'Consola SuperAdmin' };
+      const titles = { 1: 'Vista Pública (Global - DEV)', 2: `Faena: ${state.faenaSeleccionada || 'Operativa (DEV)'}`, 3: 'Consola SuperAdmin (DEV)' };
       document.getElementById('headerScreenTitle').innerText = titles[num] || 'CIO';
       if (num !== 2) state.siteMapVisible = false;
       refresh();
@@ -489,7 +490,6 @@
       `).join('') : '<div class="label-muted" style="padding:14px; font-style:italic;">No hay reportes de ronda para este activo.</div>';
     },
 
-    // Generador de Informe Técnico Oficial para Jefatura
     exportarReporteTerrenoPDF: (id) => {
       const eq = state.equipos.find((e) => e.id === id);
       if (!eq) return;
@@ -514,7 +514,6 @@
             .header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e3a8a; padding-bottom: 14px; margin-bottom: 20px; }
             .header-report h1 { margin: 0; font-size: 1.4rem; color: #1e3a8a; text-transform: uppercase; }
             .header-report p { margin: 2px 0 0 0; font-size: 0.8rem; color: #6b7280; font-weight: bold; }
-            .logo-header { height: 42px; }
             .badge-sev { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: bold; color: #fff; background: ${SEV_COLOR[sevGlobal] || '#4b5563'}; text-transform: uppercase; }
             .data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin-bottom: 20px; font-size: 0.85rem; }
             .data-item strong { display: block; font-size: 0.7rem; color: #4b5563; text-transform: uppercase; }
@@ -536,7 +535,7 @@
 
           <div class="header-report">
             <div>
-              <h1>INFORME DE CONDICIÓN & HALLAZGOS DE TERRENO</h1>
+              <h1>INFORME DE CONDICIÓN & HALLAZGOS DE TERRENO [DEV]</h1>
               <p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO</p>
             </div>
             <div>
@@ -579,7 +578,7 @@
           `).join('') : '<div style="font-size:0.85rem; color:#6b7280; font-style:italic;">No se registran eventos tácticos de terreno para este activo.</div>'}
 
           <div style="margin-top:40px; font-size:0.75rem; color:#6b7280; text-align:center; border-top:1px solid #e5e7eb; padding-top:10px;">
-            Documento emitido por el Centro Integrado de Operaciones (CIO) - CPF Ingeniería Ltda.
+            Documento emitido por el Centro Integrado de Operaciones (CIO) - CPF Ingeniería Ltda. [Ambiente Dev]
           </div>
         </body>
         </html>
@@ -604,7 +603,6 @@
           : `<span class="banner-contador-alerta al-dia">✅ RUTA AL DÍA: Última medición ${aud.texto} (dentro de ciclo)</span>`;
       }
 
-      // Panel con botón de exportar reporte técnico oficial
       const diagBox = document.getElementById('detDiagnosticoBox');
       if (diagBox) {
         diagBox.innerHTML = `
@@ -701,11 +699,11 @@
       if (tabRegister) tabRegister.classList.toggle('is-active', isReg);
 
       if (isReg) {
-        title.innerText = 'Crear Cuenta de Operador';
+        title.innerText = 'Crear Cuenta de Operador (DEV)';
         desc.innerText = 'Regístrate y selecciona tu faena base para habilitar la edición de condición.';
         btn.innerText = 'Registrarse y Entrar';
       } else {
-        title.innerText = 'Acceso Operador CIO';
+        title.innerText = 'Acceso Operador CIO (DEV)';
         desc.innerText = 'Ingresa tus credenciales autorizadas por CPF para gestionar condición de activos.';
         btn.innerText = 'Ingresar al Sistema';
       }
@@ -737,7 +735,7 @@
             faenaAsignada: selectedSite,
             creadoEn: new Date().toISOString()
           }).then(() => {
-            alert(`✅ Cuenta registrada exitosamente.\nFaena ligada: ${selectedSite}`);
+            alert(`✅ Cuenta DEV registrada exitosamente.\nFaena ligada: ${selectedSite}`);
             loginLocal(fullname, selectedSite);
           }).catch(err => alert("Error: " + err.message));
         } else {
@@ -767,9 +765,9 @@
         state.faenaAsignada = faena;
         document.body.classList.add('user-authenticated');
         document.getElementById('labelUsuarioBtn').innerText = nombre.split(' ')[0];
-        document.getElementById('dropUserInfo').innerText = `Activo: ${nombre} | Faena: ${faena}`;
+        document.getElementById('dropUserInfo').innerText = `Activo (DEV): ${nombre} | Faena: ${faena}`;
         document.getElementById('modalAuth').close();
-        alert(`✅ Bienvenido ${nombre}.\nFaena asignada vinculada: ${faena}.`);
+        alert(`✅ Bienvenido ${nombre} al Entorno DEV.`);
       }
     },
 
@@ -784,7 +782,7 @@
     },
 
     solicitarPermisoSuperAdmin: () => {
-      const p = prompt("🔑 Clave SuperAdmin:");
+      const p = prompt("🔑 Clave SuperAdmin (DEV):");
       if (p === "Moncon2026") {
         state.isSuperAdmin = true;
         window.CIO.goScreen(3);
@@ -796,22 +794,22 @@
     renderScreen3Global: () => renderScreen3(),
 
     exportarReporteGerenciaAlta: () => {
-      const txt = `REPORTE ALTA GERENCIA CIO - CMP\nTotal: ${state.equipos.length}\nFecha: ${new Date().toISOString()}`;
+      const txt = `REPORTE ALTA GERENCIA CIO - CMP [DEV]\nTotal: ${state.equipos.length}\nFecha: ${new Date().toISOString()}`;
       const blob = new Blob([txt], { type: 'text/plain' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `Reporte_Global_${Date.now()}.txt`;
+      a.download = `Reporte_DEV_${Date.now()}.txt`;
       a.click();
     },
 
     exportarReporteGerenciaPorFaena: () => {
       const target = document.getElementById('superAdminFilterSite')?.value || FAENAS[0];
       const count = state.equipos.filter((e) => normalizarFaena(e.siteId) === target).length;
-      const txt = `REPORTE FAENA [${target}]\nTotal Activos: ${count}\nFecha: ${new Date().toISOString()}`;
+      const txt = `REPORTE FAENA [${target}] [DEV]\nTotal Activos: ${count}\nFecha: ${new Date().toISOString()}`;
       const blob = new Blob([txt], { type: 'text/plain' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `Reporte_${target.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+      a.download = `Reporte_${target.replace(/[^a-zA-Z0-9]/g, '_')}_DEV.txt`;
       a.click();
     },
 
@@ -1036,7 +1034,7 @@
     },
 
     eliminarEquipo: () => {
-      if (confirm('¿Eliminar activo?') && db && state.equipoSeleccionado) {
+      if (confirm('¿Eliminar activo en DEV?') && db && state.equipoSeleccionado) {
         db.child(state.equipoSeleccionado.id).remove();
         document.getElementById('modalEdicion').close();
       }
@@ -1078,7 +1076,7 @@
             count++;
           }
         });
-        alert(`✅ Carga masiva exitosa: ${count} activos en ${target}.`);
+        alert(`✅ Carga masiva exitosa (DEV): ${count} activos en ${target}.`);
       };
       reader.readAsArrayBuffer(file);
       e.target.value = '';
