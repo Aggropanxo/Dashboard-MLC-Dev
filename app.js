@@ -164,7 +164,7 @@
             rms: '4.0',
             severidad: 'Rojo',
             paresSap: [ { aviso: '123456', om: '123456' } ],
-            analisis: '[IA - Criticidad Alta]: Energía vibratoria crítica en Motor M1 - Lado Libre (4.0 mm/s). Soltura mecánica estructural u holgura en alojamiento de rodamiento.',
+            analisis: 'Evaluación técnica según ISO 20816-3: Nivel vibratorio en Zona D en Motor M1 - Lado Libre (4.0 mm/s). Soltura mecánica estructural u holgura en alojamiento de rodamiento.',
             recomendacion: '1) Inspección termográfica en descansos y reapriete de pernos basales.',
             espectros: []
           },
@@ -174,7 +174,7 @@
             rms: '11.0',
             severidad: 'Rojo',
             paresSap: [ { aviso: '445566666', om: '4521444444' } ],
-            analisis: '[IA - Criticidad Alta]: Energía vibratoria crítica en Reductor G1 - Entrada Rápida (11.0 mm/s). Modulación en frecuencias de engrane compatible con desgaste de dentado.',
+            analisis: 'Evaluación técnica según ISO 20816-3: Nivel vibratorio crítico en Reductor G1 - Entrada Rápida (11.0 mm/s). Modulación en frecuencias de engrane compatible con desgaste de dentado.',
             recomendacion: '1) Inspección boroscópica en piñón/corona y muestreo de aceite para ferrografía.',
             espectros: []
           },
@@ -184,7 +184,7 @@
             rms: '1.0',
             severidad: 'Verde',
             paresSap: [],
-            analisis: '[IA - Normal]: Comportamiento dinámico de Motor M2 en Lado Acople satisfactorio (RMS: 1.0 mm/s).',
+            analisis: 'Comportamiento dinámico de Motor M2 en Lado Acople satisfactorio bajo norma ISO 20816-3 (RMS: 1.0 mm/s, Zona A/B).',
             recomendacion: 'Mantener frecuencia de medición mensual estándar (30 días).',
             espectros: []
           }
@@ -331,7 +331,7 @@
     }
   }
 
-  // PANTALLA 3: NIVEL 3 - TARJETAS DASHBOARD INTERACTIVAS CON FORMATO EQUIPO
+  // PANTALLA 3: NIVEL 3
   function renderScreen3() {
     if (!state.equipoIdNivel3) {
       window.CIO.goScreen(2);
@@ -365,8 +365,8 @@
       var paresHtml = '';
       if (saps.pares.length > 0) {
         paresHtml = saps.pares.map(function(p) {
-          return '<span style="background:rgba(30,58,138,0.3); border:1px solid #3b82f6; padding:3px 8px; border-radius:5px; margin-right:6px; margin-bottom:4px; display:inline-block; font-size:0.75rem;">' +
-            '<strong>' + sanitize(p.componente) + ':</strong> <span style="color:#60a5fa;">AV ' + sanitize(p.aviso) + '</span> ➔ <span style="color:#34d399;">OM ' + sanitize(p.om) + '</span>' +
+          return '<span style="background:var(--box-sap-bg); border:1px solid var(--box-sap-border); padding:3px 8px; border-radius:5px; margin-right:6px; margin-bottom:4px; display:inline-block; font-size:0.75rem;">' +
+            '<strong>' + sanitize(p.componente) + ':</strong> <span style="color:#2563eb;">AV ' + sanitize(p.aviso) + '</span> ➔ <span style="color:#059669;">OM ' + sanitize(p.om) + '</span>' +
           '</span>';
         }).join('');
       } else {
@@ -387,7 +387,6 @@
         '</div>';
     }
 
-    // Grilla Nivel 3 con el MISMO DISEÑO DE TARJETA QUE EN LAS PANTALLAS ANTERIORES
     var grid = document.getElementById('n3GridCards');
     if (!grid) return;
     grid.innerHTML = '';
@@ -405,18 +404,17 @@
       var cantEspectros = (c.espectros && c.espectros.length > 0) ? c.espectros.length : 0;
       var badgeFotos = cantEspectros > 0 ? ('<span class="badge-field-floating">📈 ' + cantEspectros + ' Espectro(s)</span>') : '';
       var sapsCount = (c.paresSap && c.paresSap.length > 0) ? c.paresSap.length : 0;
-      var badgeSap = sapsCount > 0 ? ('<div style="font-size:0.58rem; color:#60a5fa; font-weight:700; margin-top:2px;">SAP: ' + sapsCount + ' Par(es)</div>') : '';
+      var badgeSap = sapsCount > 0 ? ('<div style="font-size:0.58rem; color:#2563eb; font-weight:700; margin-top:2px;">SAP: ' + sapsCount + ' Par(es)</div>') : '';
 
       card.innerHTML = badgeFotos +
-        '<span class="eq-type" style="color:#60a5fa; font-weight:bold;">' + sanitize(c.nombre || 'Componente') + '</span>' +
-        '<div class="eq-tag code-font" style="font-size:0.88rem; color:#ffffff;">' + sanitize(c.punto || 'Punto General') + '</div>' +
+        '<span class="eq-type" style="color:#2563eb; font-weight:bold;">' + sanitize(c.nombre || 'Componente') + '</span>' +
+        '<div class="eq-tag code-font" style="font-size:0.88rem;">' + sanitize(c.punto || 'Punto General') + '</div>' +
         '<span class="eq-type" style="color:' + SEV_COLOR[s] + '; font-weight:bold;">' + s.toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)</span>' +
         badgeSap;
 
       grid.appendChild(card);
     });
 
-    // Tarjeta Histórica de Terreno manteniendo el mismo tamaño de tarjeta
     var myReports = state.alertasTerreno
       .filter(function(a) { return matchTags(a.tag, tagValue); })
       .sort(function(a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
@@ -425,10 +423,10 @@
     cardTerreno.className = 'card-equipo card-terreno-dashboard';
     cardTerreno.onclick = function() { window.CIO.abrirModalHistoricoTerreno(); };
 
-    cardTerreno.innerHTML = '<span class="badge-field-floating" style="background:#38bdf8; color:#090a0f;">' + myReports.length + ' Reportes</span>' +
-      '<span class="eq-type" style="color:#38bdf8; font-weight:bold;">RONDA EN PLANTA</span>' +
-      '<div class="eq-tag code-font" style="font-size:0.88rem; color:#38bdf8;">📸 Terreno</div>' +
-      '<span class="eq-type" style="color:#ffffff;">Ver Historial Completo</span>';
+    cardTerreno.innerHTML = '<span class="badge-field-floating" style="background:#0284c7; color:#ffffff;">' + myReports.length + ' Reportes</span>' +
+      '<span class="eq-type" style="color:#0284c7; font-weight:bold;">RONDA EN PLANTA</span>' +
+      '<div class="eq-tag code-font" style="font-size:0.88rem; color:#0284c7;">📸 Terreno</div>' +
+      '<span class="eq-type">Ver Historial Completo</span>';
 
     grid.appendChild(cardTerreno);
   }
@@ -815,7 +813,7 @@
     },
 
     // ========================================================================
-    // MODAL DE DETALLE COMPLETO DEL COMPONENTE AL HACER CLIC EN SU TARJETA
+    // DETALLE DEL COMPONENTE AL HACER CLIC EN LA TARJETA
     // ========================================================================
     abrirDetalleComponenteModal: function(idx) {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
@@ -833,14 +831,13 @@
       badgeSev.innerText = s.toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)';
       badgeSev.style.color = col;
       badgeSev.style.borderColor = col;
-      badgeSev.style.background = 'rgba(0,0,0,0.3)';
+      badgeSev.style.background = 'rgba(0,0,0,0.06)';
 
-      // Pares SAP
       var sapBox = document.getElementById('detCompParesSapBox');
       if (c.paresSap && c.paresSap.length > 0) {
-        sapBox.innerHTML = '<span class="label-muted" style="color:#60a5fa; margin-bottom:4px; display:block;">Órdenes SAP Asignadas a este Punto:</span>' +
+        sapBox.innerHTML = '<span class="label-muted" style="color:#1d4ed8; margin-bottom:4px; display:block;">Órdenes SAP Asignadas a este Punto:</span>' +
           c.paresSap.map(function(p) {
-            return '<span style="display:inline-block; margin-right:14px; margin-top:4px;"><strong>Aviso:</strong> <span class="code-font" style="color:#60a5fa;">' + sanitize(p.aviso || 'S/A') + '</span> ➔ <strong>OM:</strong> <span class="code-font" style="color:#34d399;">' + sanitize(p.om || 'S/OM') + '</span></span>';
+            return '<span style="display:inline-block; margin-right:14px; margin-top:4px;"><strong>Aviso:</strong> <span class="code-font" style="color:#1d4ed8;">' + sanitize(p.aviso || 'S/A') + '</span> ➔ <strong>OM:</strong> <span class="code-font" style="color:#059669;">' + sanitize(p.om || 'S/OM') + '</span></span>';
           }).join('');
       } else {
         sapBox.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">No hay Avisos / Órdenes SAP vinculadas a este punto específico.</span>';
@@ -849,7 +846,6 @@
       document.getElementById('detCompAnalisisTxt').innerText = c.analisis || 'Sin análisis de vibraciones registrado.';
       document.getElementById('detCompRecomTxt').innerText = c.recomendacion || 'Mantener monitoreo de vibraciones rutinario.';
 
-      // Galería de Espectros
       var galeria = document.getElementById('detCompGaleriaFotos');
       if (c.espectros && c.espectros.length > 0) {
         galeria.innerHTML = c.espectros.map(function(src) {
@@ -858,7 +854,7 @@
             '</div>';
         }).join('');
       } else {
-        galeria.innerHTML = '<div style="grid-column: 1/-1; font-size:0.82rem; color:var(--text-muted); font-style:italic; padding:10px 0;">No se han adjuntado espectros FFT o termografías a este punto.</div>';
+        galeria.innerHTML = '<div style="grid-column: 1/-1; font-size:0.82rem; color:var(--text-muted); font-style:italic; padding:10px 0;">No se han adjuntado espectros FFT o fotos a este punto.</div>';
       }
 
       document.getElementById('modalDetalleComponente').showModal();
@@ -871,7 +867,7 @@
     },
 
     // ========================================================================
-    // MODAL DE EDICIÓN CON CARGA MÚLTIPLE DE ESPECTROS/FOTOS
+    // EDICIÓN DE COMPONENTE CON ANÁLISIS DUAL ISO 20816-3 Y ESPECTROS
     // ========================================================================
     abrirEditorComponenteIndividual: function(idx) {
       if (!state.usuarioActivo) {
@@ -897,6 +893,8 @@
       document.getElementById('indCompSev').value = c.severidad || 'Verde';
       document.getElementById('indCompAnalisis').value = c.analisis || '';
       document.getElementById('indCompRecom').value = c.recomendacion || '';
+      document.getElementById('indSugAnalisis').value = '';
+      document.getElementById('indSugRecom').value = '';
 
       var paresBox = document.getElementById('indParesSapContainer');
       paresBox.innerHTML = '';
@@ -951,7 +949,6 @@
       container.appendChild(row);
     },
 
-    // PROCESAR CARGA DE MÚLTIPLES FOTOS / ESPECTROS CON COMPRESIÓN LOCAL
     procesarSubidaEspectros: function(event) {
       var files = Array.from(event.target.files);
       if (!files || files.length === 0) return;
@@ -1014,39 +1011,79 @@
       window.CIO.renderMiniaturasEspectrosEdicion();
     },
 
-    ejecutarIAComponenteIndividual: function() {
+    // CÁLCULO NORMATIVO DINÁMICO ISO 20816-3 (SIN PALABRAS ARTIFICIALES)
+    generarDictamenTecnicoIso: function() {
       var nom = document.getElementById('indCompNombre').value.trim() || 'Componente';
-      var punto = document.getElementById('indCompPunto').value.trim() || 'Punto';
-      var rms = document.getElementById('indCompRms').value.trim() || '2.0';
-      var sev = document.getElementById('indCompSev').value;
+      var punto = document.getElementById('indCompPunto').value.trim() || 'Punto de medición';
+      var rms = parseFloat(document.getElementById('indCompRms').value) || 0;
+      var textoAnalista = document.getElementById('indCompAnalisis').value.trim();
 
       var diag = '';
       var recom = '';
 
-      if (sev === 'Rojo') {
-        if (nom.toLowerCase().indexOf('motor') !== -1 || nom.toLowerCase().indexOf('m') !== -1) {
-          diag = '[IA - Criticidad Alta en ' + nom + ' - ' + punto + ']: Nivel RMS crítico (' + rms + ' mm/s). Predominio armónico a 1X y 2X axial compatible con desalineación angular severa o entrehierro excéntrico.';
-          recom = '1) Chequear alineamiento láser motor-reductor. 2) Medir resistencia de aislamiento y temperatura de descansos.';
-        } else if (nom.toLowerCase().indexOf('reductor') !== -1 || nom.toLowerCase().indexOf('g') !== -1) {
-          diag = '[IA - Criticidad Alta en ' + nom + ' - ' + punto + ']: Nivel RMS crítico (' + rms + ' mm/s). Modulación en frecuencias de engrane (GMF) indicativa de desgaste severo en dentado o desalineación interna.';
-          recom = '1) Detención programada para boroscopía de piñón/corona. 2) Toma de muestra de aceite para ferrografía analítica.';
-        } else if (nom.toLowerCase().indexOf('polea') !== -1) {
-          diag = '[IA - Criticidad Alta en ' + nom + ' - ' + punto + ']: Nivel RMS (' + rms + ' mm/s) con energía en alta frecuencia (PeakVue) consistente con daño en pista de rodamiento de soporte.';
-          recom = '1) Reemplazo de rodamiento en próxima ventana operativa. 2) Verificar apriete de fijaciones y estado de sellos laberínticos.';
-        } else {
-          diag = '[IA - Criticidad Alta en ' + nom + ' - ' + punto + ']: Energía vibratoria crítica (' + rms + ' mm/s). Posible soltura mecánica estructural o holgura basal.';
-          recom = '1) Inspección termográfica inmediata y reapriete de pernos basales.';
-        }
-      } else if (sev === 'Naranja') {
-        diag = '[IA - Alerta en ' + nom + ' - ' + punto + ']: Nivel RMS (' + rms + ' mm/s) en zona de degradación incipiente. Sugiere desbalanceo dinámico o lubricación deficiente.';
-        recom = '1) Reducir frecuencia de monitoreo a 7 días. 2) Relubricar con grasa recomendada verificando temperatura.';
+      if (rms >= 7.1) {
+        diag = 'Condición Crítica según ISO 20816-3 (Zona D) en ' + nom + ' (' + punto + ') con velocidad RMS de ' + rms.toFixed(1) + ' mm/s. ' +
+               'Nivel vibratorio severo con riesgo inminente de daño mecánico. ' +
+               (textoAnalista ? 'Evidencia técnica observada: ' + textoAnalista : 'Indica severa desalineación, soltura estructural o degradación avanzada en pistas de rodamiento.');
+        recom = '1) Planificar detención correctiva urgente para chequeo de fijaciones y alineamiento láser de precisión. 2) Efectuar inspección termográfica inmediata en descansos y acople. 3) Toma de muestra de lubricante para ferrografía analítica.';
+      } else if (rms >= 4.5) {
+        diag = 'Condición Inadmisible según ISO 20816-3 (Límite Zona D) en ' + nom + ' (' + punto + ') registrando ' + rms.toFixed(1) + ' mm/s RMS. ' +
+               'Energía vibratoria por encima de los umbrales de operación continua permitidos. ' +
+               (textoAnalista ? 'Observación complementaria: ' + textoAnalista : 'Patrón consistente con desbalanceo dinámico o fatiga en elementos rodantes.');
+        recom = '1) Programar intervención a corto plazo para corrección mecánica. 2) Chequear apriete de pernos basales y estado de sellos. 3) Reducir frecuencia de monitoreo a 7 días.';
+      } else if (rms >= 2.8) {
+        diag = 'Condición de Alerta según ISO 20816-3 (Zona C) en ' + nom + ' (' + punto + ') con ' + rms.toFixed(1) + ' mm/s RMS. ' +
+               'Parámetros fuera de rango óptimo, admisible únicamente para operación limitada en el tiempo. ' +
+               (textoAnalista ? 'Nota de inspección: ' + textoAnalista : 'Sugiere desgaste incipiente o deficiencia de lubricación.');
+        recom = '1) Relubricar descanso/rodamiento según especificación y monitorear estabilización de temperatura. 2) Realizar seguimiento espectral en la próxima ruta quincenal.';
       } else {
-        diag = '[IA - Normal]: Comportamiento dinámico de ' + nom + ' (' + punto + ') dentro de tolerancia admisible (RMS: ' + rms + ' mm/s).';
-        recom = 'Mantener frecuencia de medición mensual estándar (30 días).';
+        diag = 'Condición Admisible y Satisfactoria según ISO 20816-3 (Zona A/B) en ' + nom + ' (' + punto + ') registrando ' + rms.toFixed(1) + ' mm/s RMS. ' +
+               'El comportamiento cinemático y dinámico se mantiene dentro de los límites de tolerancia para operación continua sin restricciones.';
+        recom = 'Mantener la frecuencia de medición rutinaria estándar cada 30 días de acuerdo al plan matriz de predictivo.';
       }
 
-      document.getElementById('indCompAnalisis').value = diag;
-      document.getElementById('indCompRecom').value = recom;
+      document.getElementById('indSugAnalisis').value = diag;
+      document.getElementById('indSugRecom').value = recom;
+
+      var selSev = document.getElementById('indCompSev');
+      if (selSev && rms >= 4.5 && selSev.value !== 'Rojo') {
+        selSev.value = 'Rojo';
+      } else if (selSev && rms >= 2.8 && rms < 4.5 && selSev.value === 'Verde') {
+        selSev.value = 'Amarillo';
+      }
+    },
+
+    adoptarDiagnosticoSugerido: function() {
+      var sug = document.getElementById('indSugAnalisis').value;
+      if (!sug) {
+        alert("Primero presiona 'Generar Sugerencia Técnica (ISO 20816-3)'.");
+        return;
+      }
+      document.getElementById('indCompAnalisis').value = sug;
+    },
+
+    adoptarRecomendacionSugerida: function() {
+      var sug = document.getElementById('indSugRecom').value;
+      if (!sug) {
+        alert("Primero presiona 'Generar Sugerencia Técnica (ISO 20816-3)'.");
+        return;
+      }
+      document.getElementById('indCompRecom').value = sug;
+    },
+
+    evaluarIsoRmsEnVivo: function() {
+      var val = parseFloat(document.getElementById('indCompRms').value);
+      if (isNaN(val)) return;
+      var selSev = document.getElementById('indCompSev');
+      if (!selSev) return;
+
+      if (val >= 4.5) {
+        selSev.value = 'Rojo';
+      } else if (val >= 2.8) {
+        selSev.value = 'Amarillo';
+      } else {
+        selSev.value = 'Verde';
+      }
     },
 
     guardarComponenteIndividual: function() {
@@ -1121,7 +1158,7 @@
                 '<span>🕒 <strong>Reporte #' + (myReports.length - i) + '</strong> | Fecha: ' + (r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D') + '</span>' +
                 '<span style="color:' + (SEV_COLOR[r.severidad] || '#fff') + '; font-weight:bold; font-size:0.85rem;">' + (r.severidad || 'Seguimiento') + '</span>' +
               '</div>' +
-              '<div style="font-size:0.92rem; color:#fff; line-height:1.4; margin-top:6px;">' + sanitize(r.detalle) + '</div>' +
+              '<div style="font-size:0.92rem; color:inherit; line-height:1.4; margin-top:6px;">' + sanitize(r.detalle) + '</div>' +
               fotoHtml +
             '</article>';
         }).join('');
@@ -1197,8 +1234,8 @@
         tag: 'MH' + Math.floor(1000 + Math.random() * 9000),
         tipo: 'Activo Crítico',
         componentes: [
-          { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.', espectros: [] },
-          { nombre: 'Reductor G1', punto: 'Entrada Rápida', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.', espectros: [] }
+          { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal bajo norma ISO 20816-3.', recomendacion: 'Ruta mensual.', espectros: [] },
+          { nombre: 'Reductor G1', punto: 'Entrada Rápida', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal bajo norma ISO 20816-3.', recomendacion: 'Ruta mensual.', espectros: [] }
         ],
         fechaMedicion: new Date().toISOString().split('T')[0],
         fechaHallazgo: new Date().toISOString().split('T')[0],
@@ -1232,7 +1269,7 @@
       var saps = consolidarSAPs(eq.componentes);
       document.getElementById('infAvisosSap').value = saps.avisosStr !== 'Sin Avisos' ? saps.avisosStr : '';
       document.getElementById('infOmSap').value = saps.omsStr !== 'Sin OM' ? saps.omsStr : '';
-      document.getElementById('infResumenGeneral').value = 'Se realiza evaluación de condición dinámica al tren motriz del activo ' + tagValue + '. Condición global evaluada: ' + calcMaxSev(eq.componentes).toUpperCase() + '.';
+      document.getElementById('infResumenGeneral').value = 'Se realiza evaluación de condición dinámica al tren motriz del activo ' + tagValue + ' según estándar ISO 20816-3. Condición global evaluada: ' + calcMaxSev(eq.componentes).toUpperCase() + '.';
 
       var cont = document.getElementById('infComponentesContainer');
       cont.innerHTML = '';
@@ -1242,7 +1279,7 @@
         card.className = 'card-component-editor';
         card.style.padding = '12px 16px';
         card.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
-            '<strong style="color:#60a5fa;">' + sanitize(c.nombre || 'Componente') + ' - ' + sanitize(c.punto || 'Punto') + '</strong>' +
+            '<strong style="color:#2563eb;">' + sanitize(c.nombre || 'Componente') + ' - ' + sanitize(c.punto || 'Punto') + '</strong>' +
             '<span style="font-weight:bold; color:' + (SEV_COLOR[c.severidad] || '#fff') + ';">' + (c.severidad || 'Verde') + ' (' + (c.rms || '0.0') + ' mm/s)</span>' +
           '</div>' +
           '<div style="margin-bottom:8px;">' +
@@ -1460,8 +1497,8 @@
                 fechaHallazgo: '',
                 estatusHallazgo: 'Abierto',
                 componentes: [
-                  { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.', espectros: [] },
-                  { nombre: 'Reductor G1', punto: 'Entrada Rápida', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.', espectros: [] }
+                  { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal bajo norma ISO 20816-3.', recomendacion: 'Ruta mensual.', espectros: [] },
+                  { nombre: 'Reductor G1', punto: 'Entrada Rápida', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal bajo norma ISO 20816-3.', recomendacion: 'Ruta mensual.', espectros: [] }
                 ]
               };
 
