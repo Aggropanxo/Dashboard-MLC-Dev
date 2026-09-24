@@ -225,7 +225,7 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 .screen-view.active { display: block; }
 
 .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; width: 100%; }
-.grid-equipos { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; width: 100%; }
+.grid-equipos { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 14px; width: 100%; }
 
 .card-area {
   background: var(--glass-card);
@@ -248,19 +248,20 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   box-shadow: 0 18px 40px -10px rgba(0,0,0,0.85), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
 }
 
+/* Tarjeta de Equipo y Componente Estándar */
 .card-equipo {
-  background: rgba(22, 24, 32, 0.65);
+  background: rgba(22, 24, 32, 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
-  border-radius: 10px;
-  padding: 14px 10px;
+  border-radius: 11px;
+  padding: 14px 12px;
   position: relative;
   cursor: pointer;
   text-align: center;
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-  min-height: 94px;
+  min-height: 105px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -271,11 +272,22 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+/* Tarjeta Interactiva de Terreno */
+.card-terreno-dashboard {
+  background: linear-gradient(145deg, rgba(16, 28, 48, 0.85) 0%, rgba(12, 18, 30, 0.85) 100%) !important;
+  border-left: 5px solid #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}
+
+.card-terreno-dashboard:hover {
+  box-shadow: 0 8px 25px rgba(56, 189, 248, 0.3) !important;
+}
+
 .badge-field-floating {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  background: rgba(59, 130, 246, 0.3);
+  top: 5px;
+  right: 5px;
+  background: rgba(59, 130, 246, 0.35);
   color: #93c5fd;
   border: 1px solid rgba(59, 130, 246, 0.6);
   backdrop-filter: blur(6px);
@@ -288,8 +300,8 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 
 .badge-vencido-floating {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: 5px;
+  left: 5px;
   background: rgba(239, 68, 68, 0.35);
   color: #fca5a5;
   border: 1px solid rgba(239, 68, 68, 0.8);
@@ -318,8 +330,8 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 
 .label-muted { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
 .value-strong { font-size: 0.9rem; font-weight: 700; color: var(--text-main); }
-.eq-tag { font-size: 0.95rem; font-weight: 800; margin: 3px 0; color: #ffffff; letter-spacing: 0.5px; }
-.eq-type { font-size: 0.58rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+.eq-tag { font-size: 0.98rem; font-weight: 800; margin: 3px 0; color: #ffffff; letter-spacing: 0.5px; }
+.eq-type { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
 
 /* Barra de Faena */
 .site-nav-bar {
@@ -370,7 +382,7 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 }
 
 .modal-content {
-  background: rgba(18, 20, 28, 0.92);
+  background: rgba(18, 20, 28, 0.94);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -386,7 +398,7 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 }
 
 .modal-content.modal-lg {
-  max-width: 1180px;
+  max-width: 1100px;
   max-height: 94vh;
   padding: 30px;
 }
@@ -424,49 +436,55 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   margin: 14px 0 18px 0;
 }
 
-/* ==========================================================================
-   NIVEL 3: GRILLA DE TARJETAS INTERACTIVAS (COMPONENTES + TERRENO)
-   ========================================================================== */
-.grid-nivel3-cards {
+.detalle-grid-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
-  width: 100%;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 20px;
 }
 
-.card-nivel3-comp {
-  background: rgba(20, 23, 34, 0.8);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transition: all 0.2s ease;
+@media (max-width: 860px) {
+  .detalle-grid-layout { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   GALERÍA DE ESPECTROS Y FOTOS ADJUNTAS
+   ========================================================================== */
+.galeria-espectros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.item-espectro-preview {
   position: relative;
-  min-height: 240px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  background: #000;
+  aspect-ratio: 4 / 3;
 }
 
-.card-nivel3-comp:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 14px 34px rgba(0,0,0,0.7);
+.item-espectro-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  cursor: zoom-in;
 }
 
-/* Tarjeta de Terreno Diferenciada */
-.card-nivel3-terreno {
-  background: linear-gradient(145deg, rgba(16, 28, 48, 0.85) 0%, rgba(12, 18, 30, 0.85) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  border-left: 5px solid #38bdf8 !important;
+.btn-borrar-espectro {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(220, 38, 38, 0.85);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 0.65rem;
   cursor: pointer;
-}
-
-.card-nivel3-terreno:hover {
-  border-color: #38bdf8;
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.25);
+  font-weight: bold;
 }
 
 .card-reporte-terreno-lg {
@@ -534,7 +552,6 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 .form-grid label { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px; display: block; }
 
-/* Control de inputs y textareas para evitar cajas deformadas */
 input, select, textarea {
   width: 100%;
   padding: 10px 12px;
@@ -548,14 +565,22 @@ input, select, textarea {
   resize: vertical;
 }
 
-textarea {
-  min-height: 75px;
-  line-height: 1.4;
-}
+textarea { min-height: 75px; line-height: 1.4; }
 
 .span-2 { grid-column: span 2; }
 .coord-inputs { display: flex; gap: 10px; }
 .modal-footer-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--glass-border); }
+
+.card-component-editor {
+  background: rgba(14, 16, 26, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-left: 5px solid #3b82f6;
+  border-radius: 12px;
+  padding: 18px 20px;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  margin-bottom: 12px;
+}
 
 .banner-contador-alerta {
   display: inline-flex;
@@ -590,3 +615,105 @@ textarea {
 .modal-title-heading { margin: 4px 0 0 0; font-size: 1.4rem; }
 .section-heading { margin-bottom: 10px; }
 .edition-title { margin-top: 0; }
+
+/* ==========================================================================
+   MODAL DE AUTENTICACIÓN MEJORADO
+   ========================================================================== */
+.modal-auth-box {
+  max-width: 440px !important;
+  padding: 30px 28px !important;
+  background: rgba(18, 20, 30, 0.94) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+}
+
+.auth-segmented-control {
+  display: flex;
+  background: rgba(10, 12, 18, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.auth-segment-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 9px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.auth-segment-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+.auth-segment-btn.is-active {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+}
+
+.auth-modal-header { margin-bottom: 18px; }
+.auth-modal-header h3 { margin: 0 0 6px 0; font-size: 1.25rem; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
+.auth-modal-header p { margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
+
+.auth-form-vertical { display: flex; flex-direction: column; gap: 14px; }
+.auth-field-group { display: flex; flex-direction: column; gap: 6px; }
+.auth-field-group label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
+
+.auth-input-wrapper { position: relative; display: flex; align-items: center; width: 100%; }
+.auth-input-icon { position: absolute; left: 14px; font-size: 1rem; color: #94a3b8; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+
+.auth-input-control {
+  width: 100% !important;
+  padding: 12px 14px 12px 42px !important;
+  background: rgba(12, 14, 22, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 9px !important;
+  color: #ffffff !important;
+  font-size: 0.9rem !important;
+  font-family: inherit !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+}
+
+.auth-input-control:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+  background: rgba(15, 18, 28, 0.95) !important;
+}
+
+.btn-auth-submit {
+  margin-top: 8px;
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+  transition: all 0.2s ease;
+}
+
+.btn-auth-submit:hover {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.6);
+  transform: translateY(-1px);
+}
