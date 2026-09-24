@@ -88,7 +88,6 @@
     };
   }
 
-  // 1. EL ACTIVO TOMA EL COLOR MÁS CRÍTICO
   function calcMaxSev(comps) {
     if (!comps || !comps.length) return 'Plomo';
     var max = 1;
@@ -102,7 +101,6 @@
     return maxSev;
   }
 
-  // 2. CONSOLIDACIÓN DE PARES SAP (AVISO ➔ OM)
   function consolidarSAPs(comps) {
     var pares = [];
     var avisosUnicos = [];
@@ -288,7 +286,6 @@
       container.innerHTML = '';
 
       var eqsArea = eqsFaena.filter(function(e) { return (e.area || 'Sin Área') === state.areaSeleccionada; });
-      // El activo hereda el color más crítico para ordenar
       eqsArea.sort(function(a, b) { return SEV_PESO[calcMaxSev(b.componentes)] - SEV_PESO[calcMaxSev(a.componentes)]; });
 
       var navHeader = document.createElement('div');
@@ -696,7 +693,6 @@
         : ('<span class="banner-contador-alerta al-dia" style="font-size:0.7rem; padding:4px 8px;">✅ Medición vigente: ' + aud.texto + '</span>');
     },
 
-    // APERTURA DE MODAL CON COLOR HEREDADO Y LISTADO ORDENADO DE PARES SAP
     abrirDetalle: function(id) {
       state.equipoIdModal = id;
       var eq = state.equipos.find(function(e) { return e.id === id; });
@@ -719,7 +715,6 @@
       var sevGlobal = calcMaxSev(eq.componentes);
       var saps = consolidarSAPs(eq.componentes);
 
-      // Bloque Superior: Resumen Consolidado
       var diagBox = document.getElementById('detDiagnosticoBox');
       if (diagBox) {
         var paresHtml = '';
@@ -747,7 +742,6 @@
           '</div>';
       }
 
-      // Bloque Izquierdo: Despliegue de Componentes con sus pares SAP
       var list = document.getElementById('detComponentesList');
       if (list) {
         var comps = (eq.componentes || []).slice().sort(function(a, b) {
@@ -818,7 +812,6 @@
       if (modalDet) modalDet.close();
     },
 
-    // 3. VISUALIZACIÓN DE HALLAZGOS DE TERRENO CON FOTOS
     renderBitacoraTerreno: function(eq) {
       var terList = document.getElementById('detTerrenoList');
       if (!terList) return;
@@ -847,7 +840,6 @@
       terList.innerHTML = htmlReports.join('');
     },
 
-    // 4. EDITOR DE INFORME TÉCNICO INTERACTIVO PRE-IMPRESIÓN (MODO USUARIO)
     abrirEditorInformeModal: function() {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Debes iniciar sesión con tu cuenta de usuario para emitir o editar informes ejecutivos.");
@@ -868,7 +860,7 @@
       var cont = document.getElementById('infComponentesContainer');
       cont.innerHTML = '';
 
-      (eq.componentes || []).forEach(function(c, idx) {
+      (eq.componentes || []).forEach(function(c) {
         var card = document.createElement('div');
         card.className = 'card-component-editor';
         card.style.padding = '12px 16px';
@@ -890,7 +882,7 @@
       document.getElementById('modalEditorInforme').showModal();
     },
 
-    // 5. EMISIÓN FINAL DEL INFORME EDITADO A PDF
+    // INFORME OFICIAL CON LOGO CPF INTEGRADO
     emitirInformeFinalImpresion: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
       if (!eq) return;
@@ -903,7 +895,6 @@
       var aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
       var sevGlobal = calcMaxSev(eq.componentes);
 
-      // Extraer datos editados de componentes
       var compCards = document.querySelectorAll('#infComponentesContainer .card-component-editor');
       var compsHtml = '';
 
@@ -931,7 +922,6 @@
           '</div>';
       });
 
-      // Hallazgos de terreno a incluir
       var myReports = state.alertasTerreno
         .filter(function(a) { return matchTags(a.tag, tagValue); })
         .sort(function(a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
@@ -981,9 +971,14 @@
             '<button class="btn-print" style="background:#4b5563;" onclick="window.close()">Cerrar</button>' +
           '</div>' +
           '<div class="header-report">' +
-            '<div>' +
-              '<h1>INFORME OFICIAL DE MONITOREO TREN MOTRIZ</h1>' +
-              '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO | CIO</p>' +
+            '<div style="display: flex; align-items: center; gap: 16px;">' +
+              '<div style="background: #ffffff; padding: 6px 14px; border-radius: 8px; border: 1px solid #d1d5db; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">' +
+                '<img src="logo-cpf.png" alt="Logo CPF" style="height: 48px; width: auto; object-fit: contain; display: block;" onerror="this.style.display=\'none\'" />' +
+              '</div>' +
+              '<div>' +
+                '<h1>INFORME OFICIAL DE MONITOREO TREN MOTRIZ</h1>' +
+                '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO | CIO</p>' +
+              '</div>' +
             '</div>' +
             '<div><span class="badge-sev">CONDICIÓN: ' + sevGlobal + '</span></div>' +
           '</div>' +
@@ -1090,7 +1085,6 @@
       if (modalEd) modalEd.showModal();
     },
 
-    // AÑADIR COMPONENTE CON SUB-LISTA DINÁMICA DE PARES SAP (AVISO ➔ OM)
     agregarFormComponente: function(data) {
       data = data || {};
       var cont = document.getElementById('edComponentesContainer');
@@ -1149,7 +1143,6 @@
           window.CIO.insertarFilaParSapEnContenedor(paresBox, p.aviso, p.om);
         });
       } else {
-        // Al menos una fila vacía para ingresar fácilmente
         window.CIO.insertarFilaParSapEnContenedor(paresBox, '', '');
       }
 
