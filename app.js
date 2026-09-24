@@ -44,12 +44,14 @@
     equipoSeleccionado: null,
     equipoIdNivel3: null,
     componenteIndexEdit: -1,
+    componenteIndexDetalle: -1,
     siteMapVisible: false,
     authMode: 'login',
     mapaSite: null,
     capaSite: null,
     equipos: [],
-    alertasTerreno: []
+    alertasTerreno: [],
+    tempEspectrosEdicion: []
   };
 
   function sanitize(str) {
@@ -112,7 +114,11 @@
         var av = p.aviso ? p.aviso.trim() : '';
         var om = p.om ? p.om.trim() : '';
         if (av || om) {
-          pares.push({ componente: c.nombre || 'Componente', aviso: av || 'S/A', om: om || 'S/OM' });
+          pares.push({
+            componente: (c.nombre || 'Componente') + (c.punto ? ' (' + c.punto + ')' : ''),
+            aviso: av || 'S/A',
+            om: om || 'S/OM'
+          });
           if (av && avisosUnicos.indexOf(av) === -1) avisosUnicos.push(av);
           if (om && omsUnicas.indexOf(om) === -1) omsUnicas.push(om);
         }
@@ -153,28 +159,34 @@
         estatusHallazgo: sevRand === 'Rojo' ? 'Abierto' : 'Cerrado / Normal',
         componentes: [
           {
-            nombre: 'M1 (Motor)',
+            nombre: 'Motor M1',
+            punto: 'Lado Libre (NDE)',
             rms: '4.0',
             severidad: 'Rojo',
             paresSap: [ { aviso: '123456', om: '123456' } ],
-            analisis: '[IA - Criticidad Alta]: Energía vibratoria crítica en M1 (4 mm/s). Posible soltura mecánica estructural o holgura basal.',
-            recomendacion: '1) Inspección termográfica inmediata y reapriete de pernos basales.'
+            analisis: '[IA - Criticidad Alta]: Energía vibratoria crítica en Motor M1 - Lado Libre (4.0 mm/s). Soltura mecánica estructural u holgura en alojamiento de rodamiento.',
+            recomendacion: '1) Inspección termográfica en descansos y reapriete de pernos basales.',
+            espectros: []
           },
           {
-            nombre: 'G1 (Reductor)',
+            nombre: 'Reductor G1',
+            punto: 'Entrada Rápida',
             rms: '11.0',
             severidad: 'Rojo',
             paresSap: [ { aviso: '445566666', om: '4521444444' } ],
-            analisis: '[IA - Criticidad Alta]: Energía vibratoria crítica en G1 (11 mm/s). Posible soltura mecánica estructural o holgura basal.',
-            recomendacion: '1) Inspección termográfica inmediata y reapriete de pernos basales.'
+            analisis: '[IA - Criticidad Alta]: Energía vibratoria crítica en Reductor G1 - Entrada Rápida (11.0 mm/s). Modulación en frecuencias de engrane compatible con desgaste de dentado.',
+            recomendacion: '1) Inspección boroscópica en piñón/corona y muestreo de aceite para ferrografía.',
+            espectros: []
           },
           {
-            nombre: 'M2 (Polea / Soporte)',
+            nombre: 'Motor M2',
+            punto: 'Lado Acople (DE)',
             rms: '1.0',
             severidad: 'Verde',
             paresSap: [],
-            analisis: '[IA - Normal]: Comportamiento dinámico de M2 dentro de tolerancia admisible (RMS: 1 mm/s).',
-            recomendacion: 'Mantener frecuencia de medición mensual estándar (30 días).'
+            analisis: '[IA - Normal]: Comportamiento dinámico de Motor M2 en Lado Acople satisfactorio (RMS: 1.0 mm/s).',
+            recomendacion: 'Mantener frecuencia de medición mensual estándar (30 días).',
+            espectros: []
           }
         ]
       });
@@ -184,7 +196,7 @@
 
   state.equipos = generarSeedLocal();
 
-  // PANTALLA 1
+  // PANTALLA 1: FAENAS
   function renderScreen1() {
     var container = document.getElementById('viewScreen1Content');
     if (!container) return;
@@ -227,7 +239,7 @@
     });
   }
 
-  // PANTALLA 2
+  // PANTALLA 2: ÁREAS Y EQUIPOS
   function renderScreen2() {
     var target = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
     var titleEl = document.getElementById('screen2SiteTitle');
@@ -303,7 +315,6 @@
 
         var card = document.createElement('article');
         card.className = 'card-equipo sev-' + s.toLowerCase() + ' ' + (s === 'Rojo' || s === 'Naranja' ? 'anim-' + s.toLowerCase() : '');
-        // Clic en la tarjeta abre el NIVEL 3 nativo como nueva pantalla
         card.onclick = function() { window.CIO.irANivel3Equipo(eq.id); };
 
         var badgeTerreno = fieldReports.length > 0 ? ('<span class="badge-field-floating">💬 Ronda (' + fieldReports.length + ')</span>') : '';
@@ -320,7 +331,7 @@
     }
   }
 
-  // PANTALLA 3: NIVEL 3 NATIVO EN PANTALLA COMPLETA
+  // PANTALLA 3: NIVEL 3 - TARJETAS DASHBOARD INTERACTIVAS CON FORMATO EQUIPO
   function renderScreen3() {
     if (!state.equipoIdNivel3) {
       window.CIO.goScreen(2);
@@ -348,7 +359,7 @@
     var sevGlobal = calcMaxSev(eq.componentes);
     var saps = consolidarSAPs(eq.componentes);
 
-    // Banner Superior
+    // Banner Superior Consolidado
     var diagBox = document.getElementById('n3DiagnosticoBox');
     if (diagBox) {
       var paresHtml = '';
@@ -376,7 +387,7 @@
         '</div>';
     }
 
-    // Grilla de Tarjetas Nivel 3 (Componentes + Terreno)
+    // Grilla Nivel 3 con el MISMO DISEÑO DE TARJETA QUE EN LAS PANTALLAS ANTERIORES
     var grid = document.getElementById('n3GridCards');
     if (!grid) return;
     grid.innerHTML = '';
@@ -386,81 +397,38 @@
     });
 
     comps.forEach(function(c, idx) {
-      var col = SEV_COLOR[c.severidad] || '#6b7280';
+      var s = c.severidad || 'Verde';
       var card = document.createElement('article');
-      card.className = 'card-nivel3-comp';
-      card.style.borderLeft = '5px solid ' + col;
+      card.className = 'card-equipo sev-' + s.toLowerCase() + ' ' + (s === 'Rojo' || s === 'Naranja' ? 'anim-' + s.toLowerCase() : '');
+      card.onclick = function() { window.CIO.abrirDetalleComponenteModal(idx); };
 
-      var paresHtml = '';
-      if (c.paresSap && c.paresSap.length > 0) {
-        paresHtml = '<div style="background:rgba(20,25,35,0.7); padding:6px 8px; border-radius:6px; font-size:0.75rem; margin:8px 0;">' +
-          c.paresSap.map(function(p) {
-            return '<div><strong>Aviso:</strong> <span class="code-font" style="color:#60a5fa;">' + sanitize(p.aviso || 'S/A') + '</span> ➔ <strong>OM:</strong> <span class="code-font" style="color:#34d399;">' + sanitize(p.om || 'S/OM') + '</span></div>';
-          }).join('') +
-        '</div>';
-      }
+      var cantEspectros = (c.espectros && c.espectros.length > 0) ? c.espectros.length : 0;
+      var badgeFotos = cantEspectros > 0 ? ('<span class="badge-field-floating">📈 ' + cantEspectros + ' Espectro(s)</span>') : '';
+      var sapsCount = (c.paresSap && c.paresSap.length > 0) ? c.paresSap.length : 0;
+      var badgeSap = sapsCount > 0 ? ('<div style="font-size:0.58rem; color:#60a5fa; font-weight:700; margin-top:2px;">SAP: ' + sapsCount + ' Par(es)</div>') : '';
 
-      card.innerHTML = '<div>' +
-          '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">' +
-            '<div>' +
-              '<span class="label-muted">Componente</span>' +
-              '<h4 style="margin:2px 0 0 0; font-size:1.1rem; color:#fff;">' + sanitize(c.nombre || 'Componente') + '</h4>' +
-            '</div>' +
-            '<span style="font-weight:800; font-size:0.85rem; color:' + col + '; background:rgba(0,0,0,0.3); padding:4px 8px; border-radius:5px; border:1px solid ' + col + ';">' +
-              (c.severidad || 'Verde').toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)' +
-            '</span>' +
-          '</div>' +
-          paresHtml +
-          '<div style="margin-top:8px; font-size:0.82rem; color:#e5e7eb; line-height:1.35;">' +
-            '<strong>Diagnóstico:</strong> ' + sanitize(c.analisis || 'Sin análisis registrado.') +
-          '</div>' +
-          '<div style="margin-top:6px; font-size:0.82rem; color:#a7f3d0; line-height:1.35;">' +
-            '<strong>Recomendación:</strong> ' + sanitize(c.recomendacion || 'Mantener ruta rutinaria.') +
-          '</div>' +
-        '</div>' +
-        '<div style="margin-top:14px; display:flex; justify-content:flex-end; border-top:1px solid var(--glass-border); padding-top:10px;">' +
-          '<button type="button" class="btn-base btn-primary auth-only" onclick="window.CIO.abrirEditorComponenteIndividual(' + idx + ')">' +
-            '✏️ Editar este Componente' +
-          '</button>' +
-        '</div>';
+      card.innerHTML = badgeFotos +
+        '<span class="eq-type" style="color:#60a5fa; font-weight:bold;">' + sanitize(c.nombre || 'Componente') + '</span>' +
+        '<div class="eq-tag code-font" style="font-size:0.88rem; color:#ffffff;">' + sanitize(c.punto || 'Punto General') + '</div>' +
+        '<span class="eq-type" style="color:' + SEV_COLOR[s] + '; font-weight:bold;">' + s.toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)</span>' +
+        badgeSap;
 
       grid.appendChild(card);
     });
 
-    // Tarjeta de Terreno integrada
+    // Tarjeta Histórica de Terreno manteniendo el mismo tamaño de tarjeta
     var myReports = state.alertasTerreno
       .filter(function(a) { return matchTags(a.tag, tagValue); })
       .sort(function(a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
 
     var cardTerreno = document.createElement('article');
-    cardTerreno.className = 'card-nivel3-comp card-nivel3-terreno';
+    cardTerreno.className = 'card-equipo card-terreno-dashboard';
     cardTerreno.onclick = function() { window.CIO.abrirModalHistoricoTerreno(); };
 
-    var ultReporte = myReports.length > 0 ? myReports[0] : null;
-    var ultFecha = ultReporte && ultReporte.timestamp ? new Date(ultReporte.timestamp).toLocaleDateString() : 'Sin registros';
-    var ultSev = ultReporte ? ultReporte.severidad : 'Normal';
-
-    cardTerreno.innerHTML = '<div>' +
-        '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">' +
-          '<div>' +
-            '<span class="label-muted" style="color:#38bdf8;">Ronda en Planta & Terreno</span>' +
-            '<h4 style="margin:2px 0 0 0; font-size:1.1rem; color:#38bdf8;">📸 Bitácora de Terreno</h4>' +
-          '</div>' +
-          '<span style="font-weight:800; font-size:0.85rem; color:#38bdf8; background:rgba(56,189,248,0.15); padding:4px 8px; border-radius:5px; border:1px solid rgba(56,189,248,0.4);">' +
-            myReports.length + ' Hallazgos' +
-          '</span>' +
-        '</div>' +
-        '<div style="margin:10px 0; font-size:0.84rem; color:#e2e8f0; line-height:1.4;">' +
-          (ultReporte ? ('<strong>Último reporte (' + ultFecha + '):</strong> ' + sanitize(ultReporte.detalle)) : 'No se registran hallazgos de ronda en terreno para este activo.') +
-        '</div>' +
-        (ultReporte && ultReporte.fotoBase64 ? ('<div style="font-size:0.75rem; color:#38bdf8; font-weight:bold;">📷 Contiene evidencia fotográfica adjunta</div>') : '') +
-      '</div>' +
-      '<div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(56,189,248,0.2); padding-top:10px;">' +
-        '<span style="font-size:0.75rem; color:var(--text-muted);">Condición: <strong style="color:' + (SEV_COLOR[ultSev] || '#fff') + ';">' + ultSev + '</strong></span>' +
-        '<button type="button" class="btn-base" style="border-color:#38bdf8; color:#38bdf8; background:rgba(56,189,248,0.1);">' +
-          '🔍 Abrir Historial Completo ➔' +
-        '</button>' +
-      '</div>';
+    cardTerreno.innerHTML = '<span class="badge-field-floating" style="background:#38bdf8; color:#090a0f;">' + myReports.length + ' Reportes</span>' +
+      '<span class="eq-type" style="color:#38bdf8; font-weight:bold;">RONDA EN PLANTA</span>' +
+      '<div class="eq-tag code-font" style="font-size:0.88rem; color:#38bdf8;">📸 Terreno</div>' +
+      '<span class="eq-type" style="color:#ffffff;">Ver Historial Completo</span>';
 
     grid.appendChild(cardTerreno);
   }
@@ -533,7 +501,7 @@
     }
   }
 
-  // Recepción en tiempo real desde Firebase DEV
+  // Sincronización en tiempo real desde Firebase DEV
   if (db) {
     db.on('value', function(snap) {
       var raw = snap.val();
@@ -554,8 +522,8 @@
             lat: item.lat || '',
             lng: item.lng || '',
             componentes: item.componentes || [
-              { nombre: 'Motor Eléctrico', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '' },
-              { nombre: 'Reductor', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '' }
+              { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '', espectros: [] },
+              { nombre: 'Reductor G1', punto: 'Entrada Rápida', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '', espectros: [] }
             ],
             fechaMedicion: item.fechaMedicion || item.fecha || '',
             fechaHallazgo: item.fechaHallazgo || '',
@@ -599,7 +567,7 @@
       document.querySelectorAll('.screen-view').forEach(function(el) { el.classList.remove('active'); });
       var sc = document.getElementById('screen-' + num);
       if (sc) sc.classList.add('active');
-      var titles = { 1: 'Vista Pública (Global - DEV)', 2: 'Faena: ' + (state.faenaSeleccionada || 'Operativa (DEV)'), 3: 'Nivel 3: Tren Motriz & Componentes', 4: 'Consola SuperAdmin (DEV)' };
+      var titles = { 1: 'Vista Pública (Global - DEV)', 2: 'Faena: ' + (state.faenaSeleccionada || 'Operativa (DEV)'), 3: 'Nivel 3: Tren Motriz & Puntos de Inspección', 4: 'Consola SuperAdmin (DEV)' };
       var headerTitle = document.getElementById('headerScreenTitle');
       if (headerTitle) headerTitle.innerText = titles[num] || 'CIO';
       if (num !== 2) state.siteMapVisible = false;
@@ -637,7 +605,6 @@
       window.CIO.goScreen(1);
     },
 
-    // TRANSICIÓN AL NIVEL 3 COMO PANTALLA COMPLETA
     irANivel3Equipo: function(id) {
       state.equipoIdNivel3 = id;
       window.CIO.goScreen(3);
@@ -782,7 +749,7 @@
       }
     },
 
-    cerrarSesionUsuario: function() {
+    cerrarSesionUsuario: () => {
       state.usuarioActivo = null;
       state.faenaAsignada = null;
       document.body.classList.remove('user-authenticated');
@@ -795,7 +762,7 @@
       window.CIO.goScreen(1);
     },
 
-    solicitarPermisoSuperAdmin: function() {
+    solicitarPermisoSuperAdmin: () => {
       var p = prompt("🔑 Clave SuperAdmin (DEV):");
       if (p === "Moncon2026") {
         state.isSuperAdmin = true;
@@ -805,11 +772,11 @@
       }
     },
 
-    renderScreen4Global: function() {
+    renderScreen4Global: () => {
       renderScreen4();
     },
 
-    exportarReporteGerenciaAlta: function() {
+    exportarReporteGerenciaAlta: () => {
       var txt = 'REPORTE ALTA GERENCIA CIO - CMP [DEV]\nTotal: ' + state.equipos.length + '\nFecha: ' + new Date().toISOString();
       var blob = new Blob([txt], { type: 'text/plain' });
       var a = document.createElement('a');
@@ -818,7 +785,7 @@
       a.click();
     },
 
-    exportarReporteGerenciaPorFaena: function() {
+    exportarReporteGerenciaPorFaena: () => {
       var filterEl = document.getElementById('superAdminFilterSite');
       var target = filterEl ? filterEl.value : FAENAS[0];
       var count = state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }).length;
@@ -830,7 +797,7 @@
       a.click();
     },
 
-    auditarDiasMedicionForm: function() {
+    auditarDiasMedicionForm: () => {
       var medEl = document.getElementById('edFechaMedicion');
       var val = medEl ? medEl.value : '';
       var box = document.getElementById('edFeedbackContadorDias');
@@ -847,7 +814,65 @@
         : ('<span class="banner-contador-alerta al-dia" style="font-size:0.7rem; padding:4px 8px;">✅ Medición vigente: ' + aud.texto + '</span>');
     },
 
-    // EDICIÓN INDIVIDUAL DE UN COMPONENTE
+    // ========================================================================
+    // MODAL DE DETALLE COMPLETO DEL COMPONENTE AL HACER CLIC EN SU TARJETA
+    // ========================================================================
+    abrirDetalleComponenteModal: function(idx) {
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
+      if (!eq || !eq.componentes || !eq.componentes[idx]) return;
+
+      state.componenteIndexDetalle = idx;
+      var c = eq.componentes[idx];
+      var s = c.severidad || 'Verde';
+      var col = SEV_COLOR[s] || '#22c55e';
+
+      document.getElementById('detCompTagHeader').innerText = (eq.tag || 'EQUIPO') + ' | TREN MOTRIZ';
+      document.getElementById('detCompTitle').innerText = (c.nombre || 'Componente') + ' - ' + (c.punto || 'Punto');
+      
+      var badgeSev = document.getElementById('detCompBadgeSev');
+      badgeSev.innerText = s.toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)';
+      badgeSev.style.color = col;
+      badgeSev.style.borderColor = col;
+      badgeSev.style.background = 'rgba(0,0,0,0.3)';
+
+      // Pares SAP
+      var sapBox = document.getElementById('detCompParesSapBox');
+      if (c.paresSap && c.paresSap.length > 0) {
+        sapBox.innerHTML = '<span class="label-muted" style="color:#60a5fa; margin-bottom:4px; display:block;">Órdenes SAP Asignadas a este Punto:</span>' +
+          c.paresSap.map(function(p) {
+            return '<span style="display:inline-block; margin-right:14px; margin-top:4px;"><strong>Aviso:</strong> <span class="code-font" style="color:#60a5fa;">' + sanitize(p.aviso || 'S/A') + '</span> ➔ <strong>OM:</strong> <span class="code-font" style="color:#34d399;">' + sanitize(p.om || 'S/OM') + '</span></span>';
+          }).join('');
+      } else {
+        sapBox.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">No hay Avisos / Órdenes SAP vinculadas a este punto específico.</span>';
+      }
+
+      document.getElementById('detCompAnalisisTxt').innerText = c.analisis || 'Sin análisis de vibraciones registrado.';
+      document.getElementById('detCompRecomTxt').innerText = c.recomendacion || 'Mantener monitoreo de vibraciones rutinario.';
+
+      // Galería de Espectros
+      var galeria = document.getElementById('detCompGaleriaFotos');
+      if (c.espectros && c.espectros.length > 0) {
+        galeria.innerHTML = c.espectros.map(function(src) {
+          return '<div class="item-espectro-preview">' +
+              '<img src="' + src + '" alt="Espectro FFT" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" title="Clic para ampliar" />' +
+            '</div>';
+        }).join('');
+      } else {
+        galeria.innerHTML = '<div style="grid-column: 1/-1; font-size:0.82rem; color:var(--text-muted); font-style:italic; padding:10px 0;">No se han adjuntado espectros FFT o termografías a este punto.</div>';
+      }
+
+      document.getElementById('modalDetalleComponente').showModal();
+    },
+
+    editarComponenteDesdeDetalleModal: function() {
+      var idx = state.componenteIndexDetalle;
+      document.getElementById('modalDetalleComponente').close();
+      window.CIO.abrirEditorComponenteIndividual(idx);
+    },
+
+    // ========================================================================
+    // MODAL DE EDICIÓN CON CARGA MÚLTIPLE DE ESPECTROS/FOTOS
+    // ========================================================================
     abrirEditorComponenteIndividual: function(idx) {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Debes iniciar sesión para editar componentes.");
@@ -859,12 +884,15 @@
 
       state.componenteIndexEdit = idx;
       var c = (eq.componentes && eq.componentes[idx]) ? eq.componentes[idx] : {
-        nombre: 'Nuevo Componente', rms: '2.0', severidad: 'Verde', paresSap: [], analisis: '', recomendacion: ''
+        nombre: 'Motor M1', punto: 'Lado Libre (NDE)', rms: '2.0', severidad: 'Verde', paresSap: [], analisis: '', recomendacion: '', espectros: []
       };
+
+      state.tempEspectrosEdicion = (c.espectros || []).slice();
 
       document.getElementById('edCompIndex').value = idx;
       document.getElementById('edCompModalTitle').innerText = 'Editar: ' + (c.nombre || 'Componente');
       document.getElementById('indCompNombre').value = c.nombre || '';
+      document.getElementById('indCompPunto').value = c.punto || '';
       document.getElementById('indCompRms').value = c.rms || '2.0';
       document.getElementById('indCompSev').value = c.severidad || 'Verde';
       document.getElementById('indCompAnalisis').value = c.analisis || '';
@@ -880,6 +908,7 @@
         window.CIO.insertarFilaParSapEnContenedor(paresBox, '', '');
       }
 
+      window.CIO.renderMiniaturasEspectrosEdicion();
       document.getElementById('modalEditarComponenteIndividual').showModal();
     },
 
@@ -894,12 +923,14 @@
       eq.componentes = eq.componentes || [];
       var nuevoIdx = eq.componentes.length;
       eq.componentes.push({
-        nombre: 'Nuevo Componente ' + (nuevoIdx + 1),
+        nombre: 'Nuevo Componente',
+        punto: 'Lado Libre',
         rms: '2.0',
         severidad: 'Verde',
         paresSap: [],
         analisis: '',
-        recomendacion: ''
+        recomendacion: '',
+        espectros: []
       });
 
       window.CIO.abrirEditorComponenteIndividual(nuevoIdx);
@@ -920,8 +951,72 @@
       container.appendChild(row);
     },
 
+    // PROCESAR CARGA DE MÚLTIPLES FOTOS / ESPECTROS CON COMPRESIÓN LOCAL
+    procesarSubidaEspectros: function(event) {
+      var files = Array.from(event.target.files);
+      if (!files || files.length === 0) return;
+
+      var canvas = document.getElementById('resizeCanvas');
+      var ctx = canvas.getContext('2d');
+      var procesados = 0;
+
+      files.forEach(function(file) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onload = function() {
+            var MAX_WIDTH = 750;
+            var width = img.width;
+            var height = img.height;
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+
+            var base64 = canvas.toDataURL('image/jpeg', 0.65);
+            state.tempEspectrosEdicion.push(base64);
+            procesados++;
+
+            if (procesados === files.length) {
+              window.CIO.renderMiniaturasEspectrosEdicion();
+            }
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      event.target.value = '';
+    },
+
+    renderMiniaturasEspectrosEdicion: function() {
+      var cont = document.getElementById('previewEspectrosContainer');
+      if (!cont) return;
+
+      if (state.tempEspectrosEdicion.length === 0) {
+        cont.innerHTML = '<div style="grid-column: 1/-1; font-size:0.75rem; color:var(--text-muted); font-style:italic;">No hay espectros o fotos cargadas para este punto.</div>';
+        return;
+      }
+
+      cont.innerHTML = state.tempEspectrosEdicion.map(function(src, i) {
+        return '<div class="item-espectro-preview">' +
+            '<img src="' + src + '" alt="Espectro" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" />' +
+            '<button type="button" class="btn-borrar-espectro" onclick="window.CIO.eliminarFotoEspectroEdicion(' + i + ')">&times;</button>' +
+          '</div>';
+      }).join('');
+    },
+
+    eliminarFotoEspectroEdicion: function(index) {
+      state.tempEspectrosEdicion.splice(index, 1);
+      window.CIO.renderMiniaturasEspectrosEdicion();
+    },
+
     ejecutarIAComponenteIndividual: function() {
       var nom = document.getElementById('indCompNombre').value.trim() || 'Componente';
+      var punto = document.getElementById('indCompPunto').value.trim() || 'Punto';
       var rms = document.getElementById('indCompRms').value.trim() || '2.0';
       var sev = document.getElementById('indCompSev').value;
 
@@ -929,24 +1024,24 @@
       var recom = '';
 
       if (sev === 'Rojo') {
-        if (nom.toLowerCase().indexOf('motor') !== -1 || nom.toLowerCase().indexOf('m1') !== -1) {
-          diag = '[IA - Criticidad Alta en ' + nom + ']: Nivel RMS crítico (' + rms + ' mm/s). Predominio de armónico 1X y 2X axial compatible con desalineación angular severa o entrehierro excéntrico.';
+        if (nom.toLowerCase().indexOf('motor') !== -1 || nom.toLowerCase().indexOf('m') !== -1) {
+          diag = '[IA - Criticidad Alta en ' + nom + ' - ' + punto + ']: Nivel RMS crítico (' + rms + ' mm/s). Predominio armónico a 1X y 2X axial compatible con desalineación angular severa o entrehierro excéntrico.';
           recom = '1) Chequear alineamiento láser motor-reductor. 2) Medir resistencia de aislamiento y temperatura de descansos.';
-        } else if (nom.toLowerCase().indexOf('reductor') !== -1 || nom.toLowerCase().indexOf('g1') !== -1) {
-          diag = '[IA - Criticidad Alta en ' + nom + ']: Nivel RMS crítico (' + rms + ' mm/s). Modulación en frecuencias de engrane (GMF) indicativa de desgaste severo en dentado o desalineación interna.';
+        } else if (nom.toLowerCase().indexOf('reductor') !== -1 || nom.toLowerCase().indexOf('g') !== -1) {
+          diag = '[IA - Criticidad Alta en ' + nom + ' - ' + punto + ']: Nivel RMS crítico (' + rms + ' mm/s). Modulación en frecuencias de engrane (GMF) indicativa de desgaste severo en dentado o desalineación interna.';
           recom = '1) Detención programada para boroscopía de piñón/corona. 2) Toma de muestra de aceite para ferrografía analítica.';
         } else if (nom.toLowerCase().indexOf('polea') !== -1) {
-          diag = '[IA - Criticidad Alta en ' + nom + ']: Nivel RMS (' + rms + ' mm/s) con energía en alta frecuencia (PeakVue) consistente con daño en pista de rodamiento.';
+          diag = '[IA - Criticidad Alta en ' + nom + ' - ' + punto + ']: Nivel RMS (' + rms + ' mm/s) con energía en alta frecuencia (PeakVue) consistente con daño en pista de rodamiento de soporte.';
           recom = '1) Reemplazo de rodamiento en próxima ventana operativa. 2) Verificar apriete de fijaciones y estado de sellos laberínticos.';
         } else {
-          diag = '[IA - Criticidad Alta]: Energía vibratoria crítica en ' + nom + ' (' + rms + ' mm/s). Posible soltura mecánica estructural o holgura basal.';
+          diag = '[IA - Criticidad Alta en ' + nom + ' - ' + punto + ']: Energía vibratoria crítica (' + rms + ' mm/s). Posible soltura mecánica estructural o holgura basal.';
           recom = '1) Inspección termográfica inmediata y reapriete de pernos basales.';
         }
       } else if (sev === 'Naranja') {
-        diag = '[IA - Alerta en ' + nom + ']: Nivel RMS (' + rms + ' mm/s) en zona de degradación incipiente. Sugiere desbalanceo dinámico o lubricación deficiente.';
+        diag = '[IA - Alerta en ' + nom + ' - ' + punto + ']: Nivel RMS (' + rms + ' mm/s) en zona de degradación incipiente. Sugiere desbalanceo dinámico o lubricación deficiente.';
         recom = '1) Reducir frecuencia de monitoreo a 7 días. 2) Relubricar con grasa recomendada verificando temperatura.';
       } else {
-        diag = '[IA - Normal]: Comportamiento dinámico de ' + nom + ' dentro de tolerancia admisible (RMS: ' + rms + ' mm/s).';
+        diag = '[IA - Normal]: Comportamiento dinámico de ' + nom + ' (' + punto + ') dentro de tolerancia admisible (RMS: ' + rms + ' mm/s).';
         recom = 'Mantener frecuencia de medición mensual estándar (30 días).';
       }
 
@@ -972,11 +1067,13 @@
 
       eq.componentes[idx] = {
         nombre: document.getElementById('indCompNombre').value.trim() || 'Componente',
+        punto: document.getElementById('indCompPunto').value.trim() || 'Punto',
         rms: document.getElementById('indCompRms').value.trim() || '2.0',
         severidad: document.getElementById('indCompSev').value,
         paresSap: pares,
         analisis: document.getElementById('indCompAnalisis').value.trim(),
-        recomendacion: document.getElementById('indCompRecom').value.trim()
+        recomendacion: document.getElementById('indCompRecom').value.trim(),
+        espectros: state.tempEspectrosEdicion.slice()
       };
 
       if (db) {
@@ -992,7 +1089,7 @@
       if (!eq) return;
 
       var idx = parseInt(document.getElementById('edCompIndex').value, 10);
-      if (confirm('¿Eliminar este componente del activo?')) {
+      if (confirm('¿Eliminar este componente y su punto asociado?')) {
         eq.componentes.splice(idx, 1);
         if (db) {
           db.child(eq.id).child('componentes').set(eq.componentes);
@@ -1002,7 +1099,6 @@
       }
     },
 
-    // VISOR HISTÓRICO DE TERRENO
     abrirModalHistoricoTerreno: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
@@ -1039,7 +1135,6 @@
       win.document.write('<body style="margin:0; background:#0a0a0c; display:flex; justify-content:center; align-items:center; height:100vh;"><img src="' + base64Data + '" style="max-width:98%; max-height:98%; object-fit:contain; border-radius:6px; box-shadow:0 0 30px rgba(0,0,0,0.8);" /></body>');
     },
 
-    // EDICIÓN GENERAL DEL ACTIVO (CABECERA)
     editarDatosGeneralesActivo: function() {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Inicia sesión para editar datos del activo.");
@@ -1102,8 +1197,8 @@
         tag: 'MH' + Math.floor(1000 + Math.random() * 9000),
         tipo: 'Activo Crítico',
         componentes: [
-          { nombre: 'M1 (Motor)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.' },
-          { nombre: 'G1 (Reductor)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.' }
+          { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.', espectros: [] },
+          { nombre: 'Reductor G1', punto: 'Entrada Rápida', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.', espectros: [] }
         ],
         fechaMedicion: new Date().toISOString().split('T')[0],
         fechaHallazgo: new Date().toISOString().split('T')[0],
@@ -1122,7 +1217,6 @@
       }
     },
 
-    // INFORME TÉCNICO EDITABLE PRE-IMPRESIÓN (CON LOGO CPF)
     abrirEditorInformeModal: function() {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Debes iniciar sesión con tu cuenta de usuario para emitir o editar informes ejecutivos.");
@@ -1148,15 +1242,15 @@
         card.className = 'card-component-editor';
         card.style.padding = '12px 16px';
         card.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
-            '<strong style="color:#60a5fa;">Componente: ' + sanitize(c.nombre || 'Componente') + '</strong>' +
+            '<strong style="color:#60a5fa;">' + sanitize(c.nombre || 'Componente') + ' - ' + sanitize(c.punto || 'Punto') + '</strong>' +
             '<span style="font-weight:bold; color:' + (SEV_COLOR[c.severidad] || '#fff') + ';">' + (c.severidad || 'Verde') + ' (' + (c.rms || '0.0') + ' mm/s)</span>' +
           '</div>' +
           '<div style="margin-bottom:8px;">' +
-            '<label style="font-size:0.7rem; color:var(--text-muted);">Diagnóstico Técnico del Componente (Editable):</label>' +
+            '<label style="font-size:0.7rem; color:var(--text-muted);">Diagnóstico Técnico del Punto (Editable):</label>' +
             '<textarea class="inf-c-analisis" rows="2">' + sanitize(c.analisis || '') + '</textarea>' +
           '</div>' +
           '<div>' +
-            '<label style="font-size:0.7rem; color:var(--text-muted);">Recomendación Operativa / Mantención (Editable):</label>' +
+            '<label style="font-size:0.7rem; color:var(--text-muted);">Recomendación Mecánica / Operativa (Editable):</label>' +
             '<textarea class="inf-c-recom" rows="2">' + sanitize(c.recomendacion || '') + '</textarea>' +
           '</div>';
         cont.appendChild(card);
@@ -1165,6 +1259,7 @@
       document.getElementById('modalEditorInforme').showModal();
     },
 
+    // INFORME OFICIAL CON LOGO CPF Y FOTOS DE ESPECTROS INCLUIDAS
     emitirInformeFinalImpresion: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
@@ -1193,14 +1288,24 @@
           '</div>';
         }
 
-        compsHtml += '<div style="border:1px solid #e5e7eb; border-left:5px solid ' + col + '; border-radius:6px; padding:12px 14px; margin-bottom:12px; page-break-inside:avoid;">' +
+        var espectrosImpresionHtml = '';
+        if (c.espectros && c.espectros.length > 0) {
+          espectrosImpresionHtml = '<div style="margin-top:10px;"><strong style="font-size:0.8rem; color:#4b5563;">Espectro(s) de Respaldo:</strong><div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:6px;">' +
+            c.espectros.map(function(src) {
+              return '<img src="' + src + '" style="max-width:280px; max-height:190px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" alt="Espectro FFT">';
+            }).join('') +
+          '</div></div>';
+        }
+
+        compsHtml += '<div style="border:1px solid #e5e7eb; border-left:5px solid ' + col + '; border-radius:6px; padding:12px 14px; margin-bottom:14px; page-break-inside:avoid;">' +
             '<div style="display:flex; justify-content:space-between; font-weight:bold; font-size:0.95rem; margin-bottom:6px;">' +
-              '<span>' + sanitize(c.nombre || 'Componente') + '</span>' +
+              '<span>' + sanitize(c.nombre || 'Componente') + ' | ' + sanitize(c.punto || 'Punto') + '</span>' +
               '<span style="color:' + col + ';">' + (c.severidad || 'Verde').toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)</span>' +
             '</div>' +
             sapsHtml +
             '<div style="font-size:0.88rem; color:#1f2937; margin-bottom:6px; line-height:1.4;"><strong>Diagnóstico Técnico:</strong><br>' + sanitize(analisisTxt || 'Sin análisis registrado.') + '</div>' +
             '<div style="font-size:0.88rem; color:#065f46; line-height:1.4;"><strong>Recomendación Mecánica:</strong><br>' + sanitize(recomTxt || 'Mantener monitoreo.') + '</div>' +
+            espectrosImpresionHtml +
           '</div>';
       });
 
@@ -1211,7 +1316,7 @@
       var reportsHtml = '';
       if (myReports.length > 0) {
         myReports.forEach(function(r, i) {
-          var imgTag = r.fotoBase64 ? ('<div><img src="' + r.fotoBase64 + '" style="max-width:320px; max-height:220px; border-radius:4px; margin-top:8px; border:1px solid #ccc;" alt="Evidencia"></div>') : '';
+          var imgTag = r.fotoBase64 ? ('<div><img src="' + r.fotoBase64 + '" style="max-width:300px; max-height:200px; border-radius:4px; margin-top:8px; border:1px solid #ccc;" alt="Evidencia"></div>') : '';
           reportsHtml += '<div style="border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; margin-bottom:10px; page-break-inside:avoid;">' +
               '<div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#6b7280; margin-bottom:4px;">' +
                 '<span><strong>Reporte #' + (myReports.length - i) + '</strong> | ' + (r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D') + '</span>' +
@@ -1277,7 +1382,7 @@
           '</div>' +
           '<div class="section-title">1. Resumen Ejecutivo & Conclusiones Generales</div>' +
           '<div class="box-conclusion">' + sanitize(conclusionGeneral) + '</div>' +
-          '<div class="section-title">2. Diagnóstico Técnico por Componente & Avisos Asignados</div>' +
+          '<div class="section-title">2. Diagnóstico Técnico por Componente, Puntos & Espectros</div>' +
           compsHtml +
           '<div class="section-title">3. Bitácora de Inspecciones y Hallazgos en Terreno (' + myReports.length + ')</div>' +
           reportsHtml +
@@ -1355,8 +1460,8 @@
                 fechaHallazgo: '',
                 estatusHallazgo: 'Abierto',
                 componentes: [
-                  { nombre: 'M1 (Motor)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.' },
-                  { nombre: 'G1 (Reductor)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.' }
+                  { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.', espectros: [] },
+                  { nombre: 'Reductor G1', punto: 'Entrada Rápida', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.', espectros: [] }
                 ]
               };
 
