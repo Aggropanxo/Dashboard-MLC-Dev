@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CIO - Centro Integrado de Operaciones | CMP</title>
+  <title>CIO - Centro Integrado de Operaciones [DEV]</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;700&display=swap" />
@@ -23,7 +23,7 @@
         <img src="logo-cpf.png" alt="CPF" class="logo-img" onerror="this.outerHTML='<span class=\x27logo-text\x27>CPF</span>'">
       </div>
       <div class="brand-info">
-        <h1>CIO - <span id="headerScreenTitle">Vista Pública (Global)</span></h1>
+        <h1>CIO - <span id="headerScreenTitle">Vista Pública (Global - DEV)</span></h1>
         <p>Compañía Minera del Pacífico (CMP)</p>
       </div>
     </div>
@@ -105,7 +105,6 @@
           <button type="button" class="btn-base btn-success" onclick="window.CIO.abrirEdicionGlobalNuevo()">➕ Crear Activo Global</button>
           <button type="button" class="btn-base btn-primary" onclick="window.CIO.exportarReporteGerenciaAlta()">📊 Reporte Alta Gerencia</button>
           <button type="button" class="btn-base btn-warning" onclick="window.CIO.exportarReporteGerenciaPorFaena()">📑 Reporte por Faena</button>
-          <button type="button" class="btn-base btn-primary" onclick="window.CIO.toggleMapModal()">🗺️ Mapa Georreferenciado</button>
         </nav>
       </header>
 
@@ -120,9 +119,6 @@
         </select>
       </div>
 
-      <section id="viewMapGlobalContainer" class="map-global-wrapper">
-        <div id="view-map" class="map-view-box"></div>
-      </section>
       <section id="viewScreen3Global" class="grid-equipos"></section>
     </section>
   </main>
@@ -144,13 +140,11 @@
       <section id="detDiagnosticoBox" class="diagnostico-activo-panel"></section>
 
       <div class="detalle-grid-layout">
-        <!-- Columna Izquierda: Spots Oficiales -->
         <section>
           <h3 class="label-muted section-heading">📊 Monitoreo / Spots Oficiales (ISO / RMS)</h3>
           <div id="detComponentesList" class="spots-list"></div>
         </section>
 
-        <!-- Columna Derecha: Bitácora de Terreno Ampliada -->
         <section>
           <h3 class="label-muted label-field section-heading">💬 Bitácora de Terreno & Evidencia Fotográfica</h3>
           <div id="detTerrenoList" class="field-list"></div>
@@ -159,19 +153,11 @@
     </div>
   </dialog>
 
-  <!-- Modal Visor Foto Pantalla Completa -->
-  <dialog id="modalVisorFoto" class="modal-dialog-lightbox" onclick="this.close()">
-    <figure class="lightbox-content">
-      <img id="imgVisorFull" src="" alt="Evidencia de terreno ampliada" />
-    </figure>
-  </dialog>
-
-  <!-- Modal Autenticación Glassmorphism -->
+  <!-- Modal Autenticación -->
   <dialog id="modalAuth" class="modal-dialog">
     <div class="modal-content modal-auth-box">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalAuth').close()" aria-label="Cerrar modal">&times;</button>
       
-      <!-- Selector de pestañas -->
       <nav class="auth-tabs-segmented">
         <button type="button" id="tabBtnLogin" class="auth-tab-btn is-active" onclick="window.CIO.setAuthMode('login')">Iniciar Sesión</button>
         <button type="button" id="tabBtnRegister" class="auth-tab-btn" onclick="window.CIO.setAuthMode('register')">Crear Cuenta</button>
@@ -184,7 +170,7 @@
       
       <form class="auth-form-vertical" onsubmit="event.preventDefault(); window.CIO.handleAuthSubmission();">
         
-        <div id="boxFullName" class="auth-input-group is-hidden" hidden style="display: none !important;">
+        <div id="boxFullName" class="auth-input-group" style="display: none !important;">
           <label for="authFullname">Nombre y Apellido</label>
           <div class="auth-input-wrapper">
             <span class="auth-input-icon">👤</span>
@@ -208,7 +194,7 @@
           </div>
         </div>
 
-        <div id="boxFaenaSite" class="auth-input-group is-hidden" hidden style="display: none !important;">
+        <div id="boxFaenaSite" class="auth-input-group" style="display: none !important;">
           <label for="authSelectedSite" style="color:var(--accent-color);">📍 Faena Asignada (Escritura)</label>
           <div class="auth-input-wrapper">
             <span class="auth-input-icon">🏭</span>
@@ -229,7 +215,7 @@
     </div>
   </dialog>
 
-  <!-- Modal Configuración de Activo con Auditoría de Rutas, SAP y Asistente IA -->
+  <!-- Modal Edición / Creación Fullscreen -->
   <dialog id="modalEdicion" class="modal-fullscreen-dialog">
     <div class="fullscreen-inner">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEdicion').close()">&times;</button>
@@ -242,7 +228,6 @@
         <div><label for="edTag">Tag</label><input type="text" id="edTag" class="code-font" required /></div>
         <div><label for="edTipo">Clase</label><input type="text" id="edTipo" /></div>
         
-        <!-- Estado y Gestión SAP -->
         <div>
           <label for="edEstatusHallazgo">Estatus de Hallazgo</label>
           <select id="edEstatusHallazgo">
@@ -256,9 +241,8 @@
         <div><label for="edAvisoSap">Aviso SAP</label><input type="text" id="edAvisoSap" placeholder="Ej: 10054321" class="code-font" /></div>
         <div><label for="edOmSap">OM SAP (Orden Mantenimiento)</label><input type="text" id="edOmSap" placeholder="Ej: 40012984" class="code-font" /></div>
 
-        <!-- Fechas y Auditoría de Ronda -->
         <div>
-          <label for="edFechaMedicion">Fecha de Medición (Vibración/Termografía)</label>
+          <label for="edFechaMedicion">Fecha de Medición</label>
           <input type="date" id="edFechaMedicion" onchange="window.CIO.auditarDiasMedicionForm()" required />
           <div id="edFeedbackContadorDias" style="margin-top:6px;"></div>
         </div>
@@ -275,7 +259,6 @@
           </div>
         </div>
 
-        <!-- SECCIÓN DE ANÁLISIS EXPERTO VS INTELIGENCIA ARTIFICIAL GENERATIVA -->
         <div class="span-2 ia-engine-box">
           <div class="ia-header-banner">
             <div>
@@ -284,7 +267,7 @@
                 <span class="badge-ia">IA Generativa Experta</span>
               </h3>
               <p style="margin:4px 0 0 0; font-size:0.75rem; color:var(--text-muted);">
-                Compara y selecciona el dictamen: criterio del analista humano vs. evaluación espectral computada por IA.
+                Compara y selecciona el dictamen: criterio del especialista vs. evaluación espectral computada por IA.
               </p>
             </div>
             <button type="button" class="btn-base btn-primary" onclick="window.CIO.ejecutarGeneracionIA()">
@@ -292,25 +275,22 @@
             </button>
           </div>
 
-          <!-- Selector de Modo de Análisis -->
           <nav class="auth-tabs-segmented" style="margin:16px 0 12px 0;">
             <button type="button" id="tabAnalistaHumano" class="auth-tab-btn is-active" onclick="window.CIO.seleccionarPestanaAnalisis('humano')">👨‍🔧 Análisis del Experto</button>
             <button type="button" id="tabAnalisisIA" class="auth-tab-btn" onclick="window.CIO.seleccionarPestanaAnalisis('ia')">🤖 Diagnóstico IA Generativa</button>
           </nav>
 
-          <!-- Pestaña 1: Entrada Humana -->
           <div id="panelAnalisisHumano">
             <div style="margin-bottom:12px;">
               <label for="edAnalisisHumano">Análisis Técnico del Especialista</label>
-              <textarea id="edAnalisisHumano" rows="3" placeholder="Describe espectro FFT, armónicos 1X/2X, PeakVue o severidad ISO detectada..."></textarea>
+              <textarea id="edAnalisisHumano" rows="3" placeholder="Describe espectro FFT, armónicos 1X/2X, PeakVue o severidad ISO..."></textarea>
             </div>
             <div>
               <label for="edRecomendacionHumano">Recomendación Mecánica / Operativa</label>
-              <textarea id="edRecomendacionHumano" rows="2" placeholder="Acciones preventivas, lubricación, corrección de alineación, cambio de componente..."></textarea>
+              <textarea id="edRecomendacionHumano" rows="2" placeholder="Acciones preventivas, lubricación, corrección de alineamiento..."></textarea>
             </div>
           </div>
 
-          <!-- Pestaña 2: Generación Asistida por IA -->
           <div id="panelAnalisisIA" style="display:none;">
             <div style="margin-bottom:12px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -326,15 +306,9 @@
               </div>
               <textarea id="edRecomendacionIA" rows="2" readonly style="background:rgba(20,35,30,0.85); border-color:#10b981; color:#a7f3d0;"></textarea>
             </div>
-            <div style="margin-top:10px; display:flex; justify-content:flex-end;">
-              <button type="button" class="btn-base btn-success" onclick="window.CIO.adoptarDiagnosticoIA('todo')">
-                ✅ Adoptar Análisis y Recomendación de la IA
-              </button>
-            </div>
           </div>
         </div>
 
-        <!-- Spots Oficiales -->
         <div class="span-2 form-actions-top">
           <button type="button" class="btn-base btn-success" onclick="window.CIO.agregarFormComponente()">+ Añadir Spot Oficial</button>
         </div>
