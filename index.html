@@ -118,7 +118,7 @@
       <!-- Banner de Resumen Ejecutivo y Pares SAP del Equipo -->
       <section id="n3DiagnosticoBox" class="diagnostico-activo-panel" style="margin-bottom:18px;"></section>
 
-      <!-- Grilla Dashboard de Tarjetas de Componentes (Mismo nivel visual que pantallas anteriores) -->
+      <!-- Grilla Dashboard de Tarjetas de Componentes -->
       <div class="view-section-header">
         <h2 style="font-size:0.88rem; color:#93c5fd;">⚙️ Puntos de Medición del Tren Motriz & Bitácora de Terreno</h2>
       </div>
@@ -154,9 +154,9 @@
     </section>
   </main>
 
-  <!-- MODAL: DETALLE COMPLETO DEL COMPONENTE / PUNTO AL HACER CLIC EN SU TARJETA -->
+  <!-- MODAL: DETALLE COMPLETO DEL COMPONENTE / PUNTO -->
   <dialog id="modalDetalleComponente" class="modal-dialog">
-    <div class="modal-content modal-lg" style="border-top: 4px solid #3b82f6;">
+    <div class="modal-content modal-lg" style="border-top: 4px solid #2563eb;">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalDetalleComponente').close()">&times;</button>
       
       <header class="modal-header">
@@ -171,100 +171,135 @@
       </header>
 
       <!-- Resumen de Pares SAP del punto -->
-      <div id="detCompParesSapBox" style="background:rgba(20,25,38,0.7); border:1px solid var(--glass-border); border-radius:8px; padding:10px 14px; margin:14px 0;"></div>
+      <div id="detCompParesSapBox" style="background:var(--box-sap-bg); border:1px solid var(--box-sap-border); border-radius:8px; padding:10px 14px; margin:14px 0;"></div>
 
       <div class="detalle-grid-layout">
         <div>
-          <h3 class="label-muted section-heading" style="color:#60a5fa;">📊 Diagnóstico de Vibraciones & Recomendación</h3>
-          <div style="background:var(--input-bg); border:1px solid var(--glass-border); border-radius:8px; padding:14px; margin-bottom:12px;">
+          <h3 class="label-muted section-heading" style="color:#2563eb;">📊 Diagnóstico de Vibraciones & Recomendación</h3>
+          <div style="background:var(--box-diag-bg); border:1px solid var(--glass-border); border-radius:8px; padding:14px; margin-bottom:12px;">
             <span class="label-muted">Diagnóstico Técnico del Punto:</span>
-            <div id="detCompAnalisisTxt" style="font-size:0.88rem; color:#f3f4f6; margin-top:4px; line-height:1.4;"></div>
+            <div id="detCompAnalisisTxt" style="font-size:0.88rem; color:var(--box-diag-text); margin-top:4px; line-height:1.4;"></div>
           </div>
-          <div style="background:var(--input-bg); border:1px solid var(--glass-border); border-radius:8px; padding:14px;">
-            <span class="label-muted" style="color:#34d399;">Recomendación Mecánica / Mantención:</span>
-            <div id="detCompRecomTxt" style="font-size:0.88rem; color:#a7f3d0; margin-top:4px; line-height:1.4;"></div>
+          <div style="background:var(--box-recom-bg); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:14px;">
+            <span class="label-muted" style="color:#059669;">Recomendación Mecánica / Mantención:</span>
+            <div id="detCompRecomTxt" style="font-size:0.88rem; color:var(--box-recom-text); margin-top:4px; line-height:1.4;"></div>
           </div>
         </div>
 
-        <!-- Galería de Espectros y Fotos de Respaldo del Punto -->
+        <!-- Galería de Espectros y Fotos de Respaldo -->
         <div>
-          <h3 class="label-muted section-heading" style="color:#38bdf8;">📈 Espectros de Vibración & Respaldo Fotográfico</h3>
+          <h3 class="label-muted section-heading" style="color:#0284c7;">📈 Espectros de Vibración & Respaldo Fotográfico</h3>
           <div id="detCompGaleriaFotos" class="galeria-espectros-grid"></div>
         </div>
       </div>
     </div>
   </dialog>
 
-  <!-- MODAL INDIVIDUAL: EDITAR UN COMPONENTE, SU PUNTO Y SUBIR VARIOS ESPECTROS/FOTOS -->
+  <!-- MODAL INDIVIDUAL: CONFIGURACIÓN DE PUNTO, ANÁLISIS DUAL ISO 20816-3 Y ESPECTROS -->
   <dialog id="modalEditarComponenteIndividual" class="modal-dialog">
-    <div class="modal-content modal-lg" style="border-top: 4px solid #3b82f6;">
+    <div class="modal-content modal-lg" style="border-top: 4px solid #2563eb;">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEditarComponenteIndividual').close()">&times;</button>
       <header class="modal-header">
         <div>
           <span class="label-muted">Configuración de Punto & Espectros</span>
-          <h2 id="edCompModalTitle" style="margin:2px 0 0 0; font-size:1.25rem;">Editar Componente</h2>
+          <h2 id="edCompModalTitle" style="margin:2px 0 0 0; font-size:1.3rem;">Editar Componente</h2>
         </div>
       </header>
 
       <form id="formCompIndividual" onsubmit="event.preventDefault(); window.CIO.guardarComponenteIndividual();" style="margin-top:14px;">
         <input type="hidden" id="edCompIndex" value="-1" />
 
-        <div class="form-grid" style="margin-bottom:12px;">
+        <div class="form-grid" style="margin-bottom:14px;">
           <div>
             <label>Componente</label>
             <input type="text" id="indCompNombre" placeholder="Ej: Motor M1, Reductor G1, Polea Motriz" required />
           </div>
           <div>
-            <label style="color:#38bdf8;">Punto / Lado de Medición</label>
+            <label style="color:#0284c7;">Punto / Lado de Medición</label>
             <input type="text" id="indCompPunto" placeholder="Ej: Lado Libre (NDE), Lado Acople (DE)" required />
           </div>
           <div>
             <label>RMS Global (mm/s)</label>
-            <input type="text" id="indCompRms" placeholder="Ej: 4.2" required />
+            <input type="text" id="indCompRms" placeholder="Ej: 4.2" oninput="window.CIO.evaluarIsoRmsEnVivo()" required />
           </div>
           <div>
             <label>Severidad del Punto</label>
             <select id="indCompSev">
-              <option value="Rojo">🔴 Rojo (Crítico)</option>
-              <option value="Naranja">🟠 Naranja (Alerta)</option>
-              <option value="Amarillo">🟡 Amarillo (Seguimiento)</option>
-              <option value="Verde">🟢 Verde (Normal)</option>
+              <option value="Rojo">🔴 Rojo (Crítico / Zona D)</option>
+              <option value="Naranja">🟠 Naranja (Alerta / Zona C-D)</option>
+              <option value="Amarillo">🟡 Amarillo (Advertencia / Zona C)</option>
+              <option value="Verde">🟢 Verde (Admisible / Zona A-B)</option>
             </select>
           </div>
         </div>
 
-        <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
-          <button type="button" class="btn-base btn-primary" onclick="window.CIO.ejecutarIAComponenteIndividual()">
-            ✨ Generar Diagnóstico IA para este Punto
-          </button>
-        </div>
-
         <!-- Pares SAP de este Componente / Punto -->
-        <div style="background:rgba(20,25,35,0.7); border:1px solid var(--glass-border); border-radius:8px; padding:10px 14px; margin-bottom:14px;">
+        <div class="sap-pairs-panel" style="margin-bottom:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span class="label-muted" style="color:#60a5fa;">Pares SAP (Aviso SAP ➔ Orden OM)</span>
-            <button type="button" class="btn-base btn-success" style="font-size:0.65rem; padding:2px 8px;" onclick="window.CIO.agregarFilaParSapIndividual()">
+            <span class="label-muted" style="color:#1d4ed8;">Órdenes SAP Asignadas a este Punto (Aviso ➔ OM)</span>
+            <button type="button" class="btn-base btn-success" style="font-size:0.68rem; padding:3px 10px;" onclick="window.CIO.agregarFilaParSapIndividual()">
               + Añadir Par SAP
             </button>
           </div>
           <div id="indParesSapContainer"></div>
         </div>
 
-        <div style="margin-bottom:12px;">
-          <label style="color:#94a3b8; display:block; margin-bottom:4px;">Diagnóstico Técnico de Vibraciones</label>
-          <textarea id="indCompAnalisis" rows="3" placeholder="Describe patrones FFT, armónicos 1X/2X, modulación o PeakVue para este punto..."></textarea>
-        </div>
+        <!-- SECCIÓN COMPARATIVA: ANÁLISIS DEL ESPECIALISTA VS. PROPUESTA ISO 20816-3 -->
+        <div class="dual-analysis-container" style="margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <span class="label-muted" style="font-size:0.75rem; color:var(--text-main); font-weight:800;">Evaluación Técnica del Estado Dinámico</span>
+              <div style="font-size:0.75rem; color:var(--text-muted);">Compara tu dictamen de terreno con el estándar de severidad ISO 20816-3 antes de guardar.</div>
+            </div>
+            <button type="button" class="btn-base btn-primary" onclick="window.CIO.generarDictamenTecnicoIso()">
+              ✨ Generar Sugerencia Técnica (ISO 20816-3)
+            </button>
+          </div>
 
-        <div style="margin-bottom:14px;">
-          <label style="color:#94a3b8; display:block; margin-bottom:4px;">Recomendación Mecánica / Operativa</label>
-          <textarea id="indCompRecom" rows="2" placeholder="Acciones preventivas, lubricación, corrección de huelgos o alineamiento..."></textarea>
+          <div class="dual-analysis-grid">
+            <!-- Columna 1: Criterio del Analista (Definitivo) -->
+            <div class="analysis-box-analista">
+              <div class="analysis-box-header" style="color:#1e3a8a;">
+                <span>👨‍🔧 Dictamen del Analista (Oficial a Reportar)</span>
+              </div>
+              <div style="margin-bottom:10px;">
+                <label style="font-size:0.68rem;">Diagnóstico Técnico del Punto</label>
+                <textarea id="indCompAnalisis" rows="3" placeholder="Describe patrones FFT, frecuencias armónicas o condición detectada..."></textarea>
+              </div>
+              <div>
+                <label style="font-size:0.68rem; color:#065f46;">Recomendación Mecánica / Operativa</label>
+                <textarea id="indCompRecom" rows="2" placeholder="Acciones preventivas, lubricación, corrección de alineamiento o chequeo..."></textarea>
+              </div>
+            </div>
+
+            <!-- Columna 2: Sugerencia Técnica Normativa ISO 20816-3 -->
+            <div class="analysis-box-sugerencia">
+              <div class="analysis-box-header" style="color:#0369a1;">
+                <span>📐 Dictamen Normativo Basado en ISO 20816-3</span>
+              </div>
+              <div style="margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                  <label style="font-size:0.68rem;">Diagnóstico Sugerido</label>
+                  <button type="button" class="btn-adoptar" onclick="window.CIO.adoptarDiagnosticoSugerido()">📥 Adoptar</button>
+                </div>
+                <textarea id="indSugAnalisis" rows="3" readonly placeholder="Presiona 'Generar Sugerencia Técnica' para calcular según valor RMS y componente..."></textarea>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                  <label style="font-size:0.68rem; color:#065f46;">Recomendación Sugerida</label>
+                  <button type="button" class="btn-adoptar" onclick="window.CIO.adoptarRecomendacionSugerida()">📥 Adoptar</button>
+                </div>
+                <textarea id="indSugRecom" rows="2" readonly placeholder="Recomendación basada en severidad dinámica..."></textarea>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- SUBIDA DE MÚLTIPLES ESPECTROS / FOTOS DE RESPALDO -->
-        <div style="background:rgba(20,25,35,0.7); border:1px solid var(--glass-border); border-radius:8px; padding:12px 14px; margin-bottom:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div class="espectros-upload-panel" style="margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
             <div>
-              <span class="label-muted" style="color:#38bdf8;">📈 Espectros FFT / Gráficos / Evidencias Fotográficas</span>
+              <span class="label-muted" style="color:#0284c7;">📈 Espectros FFT / Gráficos / Evidencias Fotográficas</span>
               <div style="font-size:0.7rem; color:var(--text-muted);">Puedes seleccionar varias imágenes a la vez (PNG, JPG).</div>
             </div>
             <button type="button" class="btn-base btn-primary" onclick="document.getElementById('inputSubirEspectros').click()">
@@ -278,7 +313,7 @@
 
         <footer class="modal-footer-actions">
           <button type="button" class="btn-base btn-danger" onclick="window.CIO.eliminarComponenteActual()">🗑️ Eliminar Punto</button>
-          <button type="submit" class="btn-base btn-success">💾 Guardar Cambios</button>
+          <button type="submit" class="btn-base btn-success" style="padding:10px 22px;">💾 Guardar Cambios</button>
         </footer>
       </form>
     </div>
@@ -389,7 +424,7 @@
         </div>
 
         <div id="boxFaenaSite" class="auth-field-group" style="display: none !important;">
-          <label for="authSelectedSite" style="color:#93c5fd;">📍 Faena Asignada (Escritura)</label>
+          <label for="authSelectedSite" style="color:var(--accent-color);">📍 Faena Asignada (Escritura)</label>
           <div class="auth-input-wrapper">
             <span class="auth-input-icon">🏭</span>
             <select id="authSelectedSite" class="auth-input-control">
@@ -460,6 +495,6 @@
   </dialog>
 
   <canvas id="resizeCanvas" style="display:none;"></canvas>
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>
