@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIO - Centro Integrado de Operaciones | CMP</title>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;700&display=swap" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+
+  <!-- Cabecera Principal -->
+  <header class="app-header">
+    <div class="brand" onclick="window.CIO.goScreen(1)">
+      <div class="brand-logo">
+        <img src="logo-cpf.png" alt="CPF" class="logo-img" onerror="this.outerHTML='<span class=\x27logo-text\x27>CPF</span>'">
+      </div>
+      <div class="brand-info">
+        <h1>CIO - <span id="headerScreenTitle">Vista Pública (Global)</span></h1>
+        <p>Compañía Minera del Pacífico (CMP)</p>
+      </div>
+    </div>
+
+    <nav class="header-nav">
+      <button type="button" class="btn-base" onclick="window.CIO.toggleTheme()">☀️ / 🌙</button>
+      <div class="user-dropdown-wrapper" id="userMenuWrapper">
+        <button type="button" class="btn-base btn-primary" id="btnUsuarioMenu" onclick="window.CIO.handleUserBtnClick()">
+          👤 <span id="labelUsuarioBtn">Entrar</span> ▾
+        </button>
+        <menu class="dropdown-menu" id="userDropdownMenu">
+          <li class="menu-item-info" id="dropUserInfo">Invitado (Solo Lectura)</li>
+          <li>
+            <button type="button" class="btn-menu-logout" id="dropLogoutBtn" onclick="window.CIO.cerrarSesionUsuario()">
+              🚪 Cerrar Sesión
+            </button>
+          </li>
+        </menu>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Ticker Informativo -->
+  <aside class="mining-ticker" aria-label="Indicadores de Faena">
+    <span class="ticker-item">💵 <strong>USD/CLP:</strong> 945.72</span>
+    <span class="ticker-divider"></span>
+    <span class="ticker-item">⛏️ <strong>Fe 62%:</strong> 98.02 USD/t</span>
+    <span class="ticker-divider"></span>
+    <span class="ticker-item">💱 <strong>Hierro/CLP:</strong> 92,700 CLP/t</span>
+    <span class="ticker-divider"></span>
+    <span class="ticker-item">☀️ <strong>Clima:</strong> 22°C (Vallenar)</span>
+  </aside>
+
+  <!-- Contenedor Principal de Pantallas -->
+  <main class="views-wrapper">
+    <!-- Pantalla 1: Vista Global de Faenas -->
+    <section id="screen-1" class="screen-view active">
+      <div class="view-section-header">
+        <h2>Visualización Global de Faenas y Áreas (Solo Lectura)</h2>
+      </div>
+      <section id="viewScreen1Content" class="grid-container"></section>
+    </section>
+
+    <!-- Pantalla 2: Vista de Faena y Áreas -->
+    <section id="screen-2" class="screen-view">
+      <header class="site-nav-bar">
+        <div class="site-nav-left">
+          <button type="button" class="btn-back-nav" onclick="window.CIO.stepBackScreen2()">
+            ⬅️ <span id="labelStepBack">Volver a Global</span>
+          </button>
+          <div>
+            <span class="label-muted" id="subBreadcrumbSite">Faena Operativa</span>
+            <h2 id="screen2SiteTitle" class="site-title-heading">Faena Seleccionada</h2>
+          </div>
+        </div>
+        
+        <nav class="site-actions">
+          <span class="badge-faena" id="badgeFaenaAsignada">Faena</span>
+          <button type="button" class="btn-base btn-success auth-only" onclick="document.getElementById('excelSiteUpload').click()">📂 Carga Masiva</button>
+          <input type="file" id="excelSiteUpload" accept=".xlsx, .xls" class="visually-hidden" onchange="window.CIO.procesarCargaExcelFaena(event)">
+          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.abrirEdicionEquipoNuevoAuth()">➕ Crear Activo</button>
+          <button type="button" class="btn-base btn-primary" onclick="window.CIO.toggleSiteMapTab()">🗺️ <span id="labelToggleSiteMap">Ver Mapa de Faena</span></button>
+          <button type="button" class="btn-base btn-warning auth-only" onclick="window.CIO.solicitarPermisoSuperAdmin()">🛡️ SuperAdmin</button>
+        </nav>
+      </header>
+
+      <section id="view-site-map" class="map-view-box"></section>
+      <section id="viewScreen2Container" class="grid-container"></section>
+    </section>
+
+    <!-- Pantalla 3: SuperAdmin Global -->
+    <section id="screen-3" class="screen-view">
+      <header class="superadmin-bar">
+        <div>
+          <button type="button" class="btn-back-nav" onclick="window.CIO.goScreen(2)">⬅️ Salir SuperAdmin</button>
+          <h2 class="superadmin-title">⚡ Consola Global SuperAdmin</h2>
+        </div>
+        <nav class="superadmin-actions">
+          <button type="button" class="btn-base btn-success" onclick="window.CIO.abrirEdicionGlobalNuevo()">➕ Crear Activo Global</button>
+          <button type="button" class="btn-base btn-primary" onclick="window.CIO.exportarReporteGerenciaAlta()">📊 Reporte Alta Gerencia</button>
+          <button type="button" class="btn-base btn-warning" onclick="window.CIO.exportarReporteGerenciaPorFaena()">📑 Reporte por Faena</button>
+          <button type="button" class="btn-base btn-primary" onclick="window.CIO.toggleMapModal()">🗺️ Mapa Georreferenciado</button>
+        </nav>
+      </header>
+
+      <div class="filter-box">
+        <select id="superAdminFilterSite" class="filter-select" onchange="window.CIO.renderScreen3Global()">
+          <option value="TODAS">Ver Todas las Faenas</option>
+          <option value="Planta, Mina los Colorados">Planta, Mina los Colorados</option>
+          <option value="Mina, Mina los Colorados">Mina, Mina los Colorados</option>
+          <option value="Planta de Pellets">Planta de Pellets</option>
+          <option value="Planta, Mina el Romeral">Planta, Mina el Romeral</option>
+          <option value="Mina, Mina el Romeral">Mina, Mina el Romeral</option>
+        </select>
+      </div>
+
+      <section id="viewMapGlobalContainer" class="map-global-wrapper">
+        <div id="view-map" class="map-view-box"></div>
+      </section>
+      <section id="viewScreen3Global" class="grid-equipos"></section>
+    </section>
+  </main>
+
+  <!-- Modal Detalle Activo Gran Formato -->
+  <dialog id="modalDetalleActivo" class="modal-dialog">
+    <div class="modal-content modal-lg">
+      <button type="button" class="modal-close-btn" onclick="window.CIO.cerrarModalDetalle()">&times;</button>
+      <header class="modal-header">
+        <div>
+          <span class="label-muted" id="detSiteTag">FAENA / TAG</span>
+          <h2 id="detTitle" class="modal-title-heading">Detalle Activo</h2>
+          <div id="detContadorMedicionBanner" style="margin-top:6px;"></div>
+        </div>
+        <button type="button" class="btn-base btn-primary auth-only" id="btnEditarDesdeDetalle" onclick="window.CIO.editarActivoActualDesdeDetalle()">✏️ Editar Activo Oficial</button>
+      </header>
+
+      <!-- Panel de diagnóstico y SAP -->
+      <section id="detDiagnosticoBox" class="diagnostico-activo-panel"></section>
+
+      <div class="detalle-grid-layout">
+        <!-- Columna Izquierda: Spots Oficiales -->
+        <section>
+          <h3 class="label-muted section-heading">📊 Monitoreo / Spots Oficiales (ISO / RMS)</h3>
+          <div id="detComponentesList" class="spots-list"></div>
+        </section>
+
+        <!-- Columna Derecha: Bitácora de Terreno Ampliada -->
+        <section>
+          <h3 class="label-muted label-field section-heading">💬 Bitácora de Terreno & Evidencia Fotográfica</h3>
+          <div id="detTerrenoList" class="field-list"></div>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal Visor Foto Pantalla Completa -->
+  <dialog id="modalVisorFoto" class="modal-dialog-lightbox" onclick="this.close()">
+    <figure class="lightbox-content">
+      <img id="imgVisorFull" src="" alt="Evidencia de terreno ampliada" />
+    </figure>
+  </dialog>
+
+  <!-- Modal Autenticación Glassmorphism -->
+  <dialog id="modalAuth" class="modal-dialog">
+    <div class="modal-content modal-auth-box">
+      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalAuth').close()" aria-label="Cerrar modal">&times;</button>
+      
+      <!-- Selector de pestañas -->
+      <nav class="auth-tabs-segmented">
+        <button type="button" id="tabBtnLogin" class="auth-tab-btn is-active" onclick="window.CIO.setAuthMode('login')">Iniciar Sesión</button>
+        <button type="button" id="tabBtnRegister" class="auth-tab-btn" onclick="window.CIO.setAuthMode('register')">Crear Cuenta</button>
+      </nav>
+
+      <div class="auth-header">
+        <h3 id="authModalHeaderTitle">Acceso Operador CIO</h3>
+        <p id="authModalHeaderDesc">Ingresa tus credenciales autorizadas por CPF para gestionar condición de activos.</p>
+      </div>
+      
+      <form class="auth-form-vertical" onsubmit="event.preventDefault(); window.CIO.handleAuthSubmission();">
+        
+        <div id="boxFullName" class="auth-input-group is-hidden" hidden style="display: none !important;">
+          <label for="authFullname">Nombre y Apellido</label>
+          <div class="auth-input-wrapper">
+            <span class="auth-input-icon">👤</span>
+            <input type="text" id="authFullname" class="auth-input-field" placeholder="Ej: Francisco Leiva" autocomplete="name" />
+          </div>
+        </div>
+
+        <div class="auth-input-group">
+          <label for="authUsername">Usuario / Correo Corporativo</label>
+          <div class="auth-input-wrapper">
+            <span class="auth-input-icon">✉️</span>
+            <input type="text" id="authUsername" class="auth-input-field" placeholder="ej: fleiva@cpf.cl" required autocomplete="username" />
+          </div>
+        </div>
+
+        <div class="auth-input-group">
+          <label for="authPassword">Contraseña</label>
+          <div class="auth-input-wrapper">
+            <span class="auth-input-icon">🔒</span>
+            <input type="password" id="authPassword" class="auth-input-field" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+        </div>
+
+        <div id="boxFaenaSite" class="auth-input-group is-hidden" hidden style="display: none !important;">
+          <label for="authSelectedSite" style="color:var(--accent-color);">📍 Faena Asignada (Escritura)</label>
+          <div class="auth-input-wrapper">
+            <span class="auth-input-icon">🏭</span>
+            <select id="authSelectedSite" class="auth-input-field">
+              <option value="Planta, Mina los Colorados">Planta, Mina los Colorados</option>
+              <option value="Mina, Mina los Colorados">Mina, Mina los Colorados</option>
+              <option value="Planta de Pellets">Planta de Pellets</option>
+              <option value="Planta, Mina el Romeral">Planta, Mina el Romeral</option>
+              <option value="Mina, Mina el Romeral">Mina, Mina el Romeral</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" id="authSubmitActionBtn" class="auth-submit-btn">
+          Ingresar al Sistema
+        </button>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Modal Configuración de Activo con Auditoría de Rutas, SAP y Asistente IA -->
+  <dialog id="modalEdicion" class="modal-fullscreen-dialog">
+    <div class="fullscreen-inner">
+      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEdicion').close()">&times;</button>
+      <h2 class="edition-title">Configuración de Activo & Diagnóstico Predictivo</h2>
+      
+      <form class="form-grid" onsubmit="event.preventDefault(); window.CIO.guardarEquipo();">
+        <div><label for="edSiteId">Faena</label><input type="text" id="edSiteId" class="code-font" readonly /></div>
+        <div><label for="edDomain">Dominio</label><select id="edDomain"><option value="planta">🏭 Planta</option><option value="mina">⛏️ Mina</option></select></div>
+        <div><label for="edArea">Área</label><input type="text" id="edArea" required /></div>
+        <div><label for="edTag">Tag</label><input type="text" id="edTag" class="code-font" required /></div>
+        <div><label for="edTipo">Clase</label><input type="text" id="edTipo" /></div>
+        
+        <!-- Estado y Gestión SAP -->
+        <div>
+          <label for="edEstatusHallazgo">Estatus de Hallazgo</label>
+          <select id="edEstatusHallazgo">
+            <option value="Abierto">🔴 Abierto</option>
+            <option value="En Ejecución">🟠 En Ejecución</option>
+            <option value="En Espera de Parada">🟡 En Espera de Parada</option>
+            <option value="Cerrado / Normal">🟢 Cerrado / Normal</option>
+          </select>
+        </div>
+
+        <div><label for="edAvisoSap">Aviso SAP</label><input type="text" id="edAvisoSap" placeholder="Ej: 10054321" class="code-font" /></div>
+        <div><label for="edOmSap">OM SAP (Orden Mantenimiento)</label><input type="text" id="edOmSap" placeholder="Ej: 40012984" class="code-font" /></div>
+
+        <!-- Fechas y Auditoría de Ronda -->
+        <div>
+          <label for="edFechaMedicion">Fecha de Medición (Vibración/Termografía)</label>
+          <input type="date" id="edFechaMedicion" onchange="window.CIO.auditarDiasMedicionForm()" required />
+          <div id="edFeedbackContadorDias" style="margin-top:6px;"></div>
+        </div>
+        <div>
+          <label for="edFechaHallazgo">Fecha de Hallazgo</label>
+          <input type="date" id="edFechaHallazgo" />
+        </div>
+
+        <div class="span-2">
+          <label>Georreferencia (Latitud, Longitud)</label>
+          <div class="coord-inputs">
+            <input type="text" id="edLat" placeholder="-28.2880" />
+            <input type="text" id="edLng" placeholder="-70.8125" />
+          </div>
+        </div>
+
+        <!-- SECCIÓN DE ANÁLISIS EXPERTO VS INTELIGENCIA ARTIFICIAL GENERATIVA -->
+        <div class="span-2 ia-engine-box">
+          <div class="ia-header-banner">
+            <div>
+              <h3 style="margin:0; font-size:1.05rem; display:flex; align-items:center; gap:8px;">
+                <span>🧠 Asistente de Análisis Predictivo & Recomendación</span>
+                <span class="badge-ia">IA Generativa Experta</span>
+              </h3>
+              <p style="margin:4px 0 0 0; font-size:0.75rem; color:var(--text-muted);">
+                Compara y selecciona el dictamen: criterio del analista humano vs. evaluación espectral computada por IA.
+              </p>
+            </div>
+            <button type="button" class="btn-base btn-primary" onclick="window.CIO.ejecutarGeneracionIA()">
+              ✨ Generar Diagnóstico IA
+            </button>
+          </div>
+
+          <!-- Selector de Modo de Análisis -->
+          <nav class="auth-tabs-segmented" style="margin:16px 0 12px 0;">
+            <button type="button" id="tabAnalistaHumano" class="auth-tab-btn is-active" onclick="window.CIO.seleccionarPestanaAnalisis('humano')">👨‍🔧 Análisis del Experto</button>
+            <button type="button" id="tabAnalisisIA" class="auth-tab-btn" onclick="window.CIO.seleccionarPestanaAnalisis('ia')">🤖 Diagnóstico IA Generativa</button>
+          </nav>
+
+          <!-- Pestaña 1: Entrada Humana -->
+          <div id="panelAnalisisHumano">
+            <div style="margin-bottom:12px;">
+              <label for="edAnalisisHumano">Análisis Técnico del Especialista</label>
+              <textarea id="edAnalisisHumano" rows="3" placeholder="Describe espectro FFT, armónicos 1X/2X, PeakVue o severidad ISO detectada..."></textarea>
+            </div>
+            <div>
+              <label for="edRecomendacionHumano">Recomendación Mecánica / Operativa</label>
+              <textarea id="edRecomendacionHumano" rows="2" placeholder="Acciones preventivas, lubricación, corrección de alineación, cambio de componente..."></textarea>
+            </div>
+          </div>
+
+          <!-- Pestaña 2: Generación Asistida por IA -->
+          <div id="panelAnalisisIA" style="display:none;">
+            <div style="margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label for="edAnalisisIA" style="color:#60a5fa;">Diagnóstico Espectral Computado por IA</label>
+                <button type="button" class="btn-base" style="font-size:0.68rem; padding:3px 8px;" onclick="window.CIO.adoptarDiagnosticoIA('analisis')">📥 Usar este Análisis</button>
+              </div>
+              <textarea id="edAnalisisIA" rows="3" readonly style="background:rgba(20,25,40,0.85); border-color:#3b82f6; color:#93c5fd;"></textarea>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label for="edRecomendacionIA" style="color:#34d399;">Recomendación Predictiva Sugerida por IA</label>
+                <button type="button" class="btn-base" style="font-size:0.68rem; padding:3px 8px;" onclick="window.CIO.adoptarDiagnosticoIA('recomendacion')">📥 Usar esta Recomendación</button>
+              </div>
+              <textarea id="edRecomendacionIA" rows="2" readonly style="background:rgba(20,35,30,0.85); border-color:#10b981; color:#a7f3d0;"></textarea>
+            </div>
+            <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+              <button type="button" class="btn-base btn-success" onclick="window.CIO.adoptarDiagnosticoIA('todo')">
+                ✅ Adoptar Análisis y Recomendación de la IA
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spots Oficiales -->
+        <div class="span-2 form-actions-top">
+          <button type="button" class="btn-base btn-success" onclick="window.CIO.agregarFormComponente()">+ Añadir Spot Oficial</button>
+        </div>
+        <div id="edComponentesContainer" class="span-2 spots-list"></div>
+
+        <footer class="span-2 modal-footer-actions">
+          <button type="button" class="btn-base btn-danger" onclick="window.CIO.eliminarEquipo()">🗑️ Eliminar</button>
+          <button type="submit" class="btn-base btn-success">💾 Guardar Activo</button>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
