@@ -370,13 +370,13 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 }
 
 .modal-content {
-  background: rgba(18, 20, 28, 0.9);
+  background: rgba(18, 20, 28, 0.92);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   width: 90vw;
-  max-width: 640px;
+  max-width: 680px;
   position: relative;
   box-shadow: 0 30px 70px rgba(0, 0, 0, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.1);
   max-height: 90vh;
@@ -413,8 +413,7 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 .modal-close-btn:hover { color: #fff; background: rgba(60, 65, 85, 0.9); }
 .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 10px; }
 .label-field { color: var(--accent-color); font-weight: 700; margin-bottom: 8px; }
-.spots-list, .field-list { display: flex; flex-direction: column; gap: 12px; }
-.field-list { max-height: 52vh; overflow-y: auto; }
+.field-list { max-height: 52vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
 
 /* Panel de Resumen Principal */
 .diagnostico-activo-panel {
@@ -447,7 +446,7 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   justify-content: space-between;
   transition: all 0.2s ease;
   position: relative;
-  min-height: 220px;
+  min-height: 240px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
 }
 
@@ -492,7 +491,7 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   cursor: zoom-in;
 }
 
-/* Modal Fullscreen & Configuración de Activo */
+/* Modal Fullscreen & Inputs */
 .modal-fullscreen-dialog { width: 100vw; height: 100vh; }
 
 .fullscreen-inner {
@@ -532,9 +531,11 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 }
 
 .span-inner-2 { grid-column: span 2; }
-.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 .form-grid label { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px; display: block; }
-.form-grid input, .form-grid select, .form-grid textarea {
+
+/* Control de inputs y textareas para evitar cajas deformadas */
+input, select, textarea {
   width: 100%;
   padding: 10px 12px;
   border-radius: 7px;
@@ -544,33 +545,17 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   font-size: 0.88rem;
   font-family: inherit;
   box-sizing: border-box;
+  resize: vertical;
+}
+
+textarea {
+  min-height: 75px;
+  line-height: 1.4;
 }
 
 .span-2 { grid-column: span 2; }
 .coord-inputs { display: flex; gap: 10px; }
-.modal-footer-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--glass-border); }
-
-.card-component-editor {
-  background: rgba(14, 16, 26, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-left: 5px solid #3b82f6;
-  border-radius: 12px;
-  padding: 18px 20px;
-  position: relative;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-}
-
-.card-component-header {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr auto;
-  gap: 12px;
-  align-items: flex-end;
-  margin-bottom: 12px;
-}
-
-@media (max-width: 768px) {
-  .card-component-header { grid-template-columns: 1fr 1fr; }
-}
+.modal-footer-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--glass-border); }
 
 .banner-contador-alerta {
   display: inline-flex;
