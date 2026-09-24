@@ -62,7 +62,7 @@
     <!-- Pantalla 1: Vista Global de Faenas -->
     <section id="screen-1" class="screen-view active">
       <div class="view-section-header">
-        <h2>Visualización Global de Faenas y Áreas (Solo Lectura)</h2>
+        <h2>Visualización Global de Faenas y Criticidad Máxima</h2>
       </div>
       <section id="viewScreen1Content" class="grid-container"></section>
     </section>
@@ -133,23 +133,70 @@
           <h2 id="detTitle" class="modal-title-heading">Detalle Activo</h2>
           <div id="detContadorMedicionBanner" style="margin-top:6px;"></div>
         </div>
-        <button type="button" class="btn-base btn-primary auth-only" id="btnEditarDesdeDetalle" onclick="window.CIO.editarActivoActualDesdeDetalle()">✏️ Editar Activo Oficial</button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-base btn-primary auth-only" id="btnEditarDesdeDetalle" onclick="window.CIO.editarActivoActualDesdeDetalle()">✏️ Editar Activo</button>
+          <button type="button" class="btn-base btn-success auth-only" id="btnInformeEditable" onclick="window.CIO.abrirEditorInformeModal()">📄 Generar Informe Editable</button>
+        </div>
       </header>
 
-      <!-- Panel de diagnóstico y SAP -->
+      <!-- Panel de Datos Principales, Criticidad y Consolidado SAP -->
       <section id="detDiagnosticoBox" class="diagnostico-activo-panel"></section>
 
       <div class="detalle-grid-layout">
+        <!-- Columna Izquierda: Tren Motriz & Componentes con Análisis y sus Avisos SAP -->
         <section>
-          <h3 class="label-muted section-heading">📊 Monitoreo / Spots Oficiales (ISO / RMS)</h3>
+          <h3 class="label-muted section-heading">⚙️ Componentes / Tren Motriz (Diagnósticos & SAP)</h3>
           <div id="detComponentesList" class="spots-list"></div>
         </section>
 
+        <!-- Columna Derecha: Bitácora de Terreno Ampliada -->
         <section>
-          <h3 class="label-muted label-field section-heading">💬 Bitácora de Terreno & Evidencia Fotográfica</h3>
+          <h3 class="label-muted label-field section-heading">💬 Hallazgos en Terreno & Evidencia Fotográfica</h3>
           <div id="detTerrenoList" class="field-list"></div>
         </section>
       </div>
+    </div>
+  </dialog>
+
+  <!-- Modal Editor de Informe Pre-Impresión (Solo Usuarios Autenticados) -->
+  <dialog id="modalEditorInforme" class="modal-dialog">
+    <div class="modal-content modal-lg" style="border-top: 4px solid #16a34a;">
+      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEditorInforme').close()">&times;</button>
+      <header class="modal-header">
+        <div>
+          <span class="label-muted">Editor Ejecutivo de Informe Técnico</span>
+          <h2 id="infModalTitle" style="margin:2px 0 0 0; font-size:1.3rem;">Edición de Informe antes de Imprimir</h2>
+          <p style="margin:4px 0 0 0; font-size:0.75rem; color:var(--text-muted);">
+            Puedes complementar análisis, ingresar avisos adicionales o redactar observaciones antes de generar el PDF final.
+          </p>
+        </div>
+      </header>
+
+      <form id="formEditorInforme" onsubmit="event.preventDefault(); window.CIO.emitirInformeFinalImpresion();" style="margin-top:16px;">
+        <div class="form-grid" style="margin-bottom:14px;">
+          <div>
+            <label>Avisos SAP a Incluir en Portada</label>
+            <input type="text" id="infAvisosSap" class="code-font" placeholder="Ej: 10054321, 10054399" />
+          </div>
+          <div>
+            <label>Órdenes OM SAP a Incluir en Portada</label>
+            <input type="text" id="infOmSap" class="code-font" placeholder="Ej: 40012984, 40013000" />
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label>Conclusión / Resumen General del Especialista (Portada)</label>
+          <textarea id="infResumenGeneral" rows="3" placeholder="Redacta la conclusión ejecutiva del estado general del equipo..."></textarea>
+        </div>
+
+        <h3 class="label-muted" style="margin-bottom:10px; color:#93c5fd;">Componentes del Tren Motriz a Reportar (Editables)</h3>
+        <div id="infComponentesContainer" class="components-stack-container" style="max-height:40vh; overflow-y:auto; padding-right:6px;"></div>
+
+        <footer class="modal-footer-actions">
+          <button type="button" class="btn-base" onclick="document.getElementById('modalEditorInforme').close()">Cancelar</button>
+          <button type="submit" class="btn-base btn-success" style="padding:10px 20px;">🖨️ Generar & Imprimir PDF Oficial</button>
+        </footer>
+      </form>
     </div>
   </dialog>
 
@@ -165,11 +212,10 @@
 
       <div class="auth-header">
         <h3 id="authModalHeaderTitle">Acceso Operador CIO</h3>
-        <p id="authModalHeaderDesc">Ingresa tus credenciales autorizadas por CPF para gestionar condición de activos.</p>
+        <p id="authModalHeaderDesc">Ingresa tus credenciales autorizadas por CPF para gestionar condición y emitir informes.</p>
       </div>
       
       <form class="auth-form-vertical" onsubmit="event.preventDefault(); window.CIO.handleAuthSubmission();">
-        
         <div id="boxFullName" class="auth-input-group" style="display: none !important;">
           <label for="authFullname">Nombre y Apellido</label>
           <div class="auth-input-wrapper">
@@ -219,110 +265,72 @@
   <dialog id="modalEdicion" class="modal-fullscreen-dialog">
     <div class="fullscreen-inner">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEdicion').close()">&times;</button>
-      <h2 class="edition-title">Configuración de Activo & Diagnóstico Predictivo</h2>
+      <h2 class="edition-title">Configuración de Activo & Tren Motriz</h2>
       
       <form class="form-grid" onsubmit="event.preventDefault(); window.CIO.guardarEquipo();">
-        <div><label for="edSiteId">Faena</label><input type="text" id="edSiteId" class="code-font" readonly /></div>
-        <div><label for="edDomain">Dominio</label><select id="edDomain"><option value="planta">🏭 Planta</option><option value="mina">⛏️ Mina</option></select></div>
-        <div><label for="edArea">Área</label><input type="text" id="edArea" required /></div>
-        <div><label for="edTag">Tag</label><input type="text" id="edTag" class="code-font" required /></div>
-        <div><label for="edTipo">Clase</label><input type="text" id="edTipo" /></div>
-        
-        <div>
-          <label for="edEstatusHallazgo">Estatus de Hallazgo</label>
-          <select id="edEstatusHallazgo">
-            <option value="Abierto">🔴 Abierto</option>
-            <option value="En Ejecución">🟠 En Ejecución</option>
-            <option value="En Espera de Parada">🟡 En Espera de Parada</option>
-            <option value="Cerrado / Normal">🟢 Cerrado / Normal</option>
-          </select>
-        </div>
-
-        <div><label for="edAvisoSap">Aviso SAP</label><input type="text" id="edAvisoSap" placeholder="Ej: 10054321" class="code-font" /></div>
-        <div><label for="edOmSap">OM SAP (Orden Mantenimiento)</label><input type="text" id="edOmSap" placeholder="Ej: 40012984" class="code-font" /></div>
-
-        <div>
-          <label for="edFechaMedicion">Fecha de Medición</label>
-          <input type="date" id="edFechaMedicion" onchange="window.CIO.auditarDiasMedicionForm()" required />
-          <div id="edFeedbackContadorDias" style="margin-top:6px;"></div>
-        </div>
-        <div>
-          <label for="edFechaHallazgo">Fecha de Hallazgo</label>
-          <input type="date" id="edFechaHallazgo" />
-        </div>
-
-        <div class="span-2">
-          <label>Georreferencia (Latitud, Longitud)</label>
-          <div class="coord-inputs">
-            <input type="text" id="edLat" placeholder="-28.2880" />
-            <input type="text" id="edLng" placeholder="-70.8125" />
+        <!-- BLOQUE 1: INFORMACIÓN PRINCIPAL DEL EQUIPO -->
+        <div class="span-2 main-info-section">
+          <h3 class="section-divider-title">📋 1. Información Principal del Activo</h3>
+          <div class="form-grid-inner">
+            <div><label for="edSiteId">Faena</label><input type="text" id="edSiteId" class="code-font" readonly /></div>
+            <div><label for="edDomain">Dominio</label><select id="edDomain"><option value="planta">🏭 Planta</option><option value="mina">⛏️ Mina</option></select></div>
+            <div><label for="edArea">Área</label><input type="text" id="edArea" required /></div>
+            <div><label for="edTag">Tag Equipo</label><input type="text" id="edTag" class="code-font" required /></div>
+            <div><label for="edTipo">Clase / Tipo</label><input type="text" id="edTipo" /></div>
+            <div>
+              <label for="edEstatusHallazgo">Estatus General</label>
+              <select id="edEstatusHallazgo">
+                <option value="Abierto">🔴 Abierto</option>
+                <option value="En Ejecución">🟠 En Ejecución</option>
+                <option value="En Espera de Parada">🟡 En Espera de Parada</option>
+                <option value="Cerrado / Normal">🟢 Cerrado / Normal</option>
+              </select>
+            </div>
+            <div>
+              <label for="edFechaMedicion">Última Fecha de Medición</label>
+              <input type="date" id="edFechaMedicion" onchange="window.CIO.auditarDiasMedicionForm()" required />
+              <div id="edFeedbackContadorDias" style="margin-top:6px;"></div>
+            </div>
+            <div>
+              <label for="edFechaHallazgo">Fecha de Hallazgo</label>
+              <input type="date" id="edFechaHallazgo" />
+            </div>
+            <div class="span-inner-2">
+              <label>Georreferencia (Latitud, Longitud)</label>
+              <div class="coord-inputs">
+                <input type="text" id="edLat" placeholder="-28.2880" />
+                <input type="text" id="edLng" placeholder="-70.8125" />
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="span-2 ia-engine-box">
-          <div class="ia-header-banner">
+        <!-- BLOQUE 2: COMPONENTES CON PARES AVISO/OM SAP ORDENADOS -->
+        <div class="span-2" style="margin-top: 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
             <div>
-              <h3 style="margin:0; font-size:1.05rem; display:flex; align-items:center; gap:8px;">
-                <span>🧠 Asistente de Análisis Predictivo & Recomendación</span>
-                <span class="badge-ia">IA Generativa Experta</span>
-              </h3>
+              <h3 class="section-divider-title" style="margin:0;">⚙️ 2. Componentes (Motor, Reductor, Poleas) y Pares SAP</h3>
               <p style="margin:4px 0 0 0; font-size:0.75rem; color:var(--text-muted);">
-                Compara y selecciona el dictamen: criterio del especialista vs. evaluación espectral computada por IA.
+                Cada aviso SAP va emparejado con su orden OM SAP correspondiente. Puedes añadir varios pares por componente.
               </p>
             </div>
-            <button type="button" class="btn-base btn-primary" onclick="window.CIO.ejecutarGeneracionIA()">
-              ✨ Generar Diagnóstico IA
+            <button type="button" class="btn-base btn-success" onclick="window.CIO.agregarFormComponente()">
+              ➕ Añadir Componente
             </button>
           </div>
 
-          <nav class="auth-tabs-segmented" style="margin:16px 0 12px 0;">
-            <button type="button" id="tabAnalistaHumano" class="auth-tab-btn is-active" onclick="window.CIO.seleccionarPestanaAnalisis('humano')">👨‍🔧 Análisis del Experto</button>
-            <button type="button" id="tabAnalisisIA" class="auth-tab-btn" onclick="window.CIO.seleccionarPestanaAnalisis('ia')">🤖 Diagnóstico IA Generativa</button>
-          </nav>
-
-          <div id="panelAnalisisHumano">
-            <div style="margin-bottom:12px;">
-              <label for="edAnalisisHumano">Análisis Técnico del Especialista</label>
-              <textarea id="edAnalisisHumano" rows="3" placeholder="Describe espectro FFT, armónicos 1X/2X, PeakVue o severidad ISO..."></textarea>
-            </div>
-            <div>
-              <label for="edRecomendacionHumano">Recomendación Mecánica / Operativa</label>
-              <textarea id="edRecomendacionHumano" rows="2" placeholder="Acciones preventivas, lubricación, corrección de alineamiento..."></textarea>
-            </div>
-          </div>
-
-          <div id="panelAnalisisIA" style="display:none;">
-            <div style="margin-bottom:12px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <label for="edAnalisisIA" style="color:#60a5fa;">Diagnóstico Espectral Computado por IA</label>
-                <button type="button" class="btn-base" style="font-size:0.68rem; padding:3px 8px;" onclick="window.CIO.adoptarDiagnosticoIA('analisis')">📥 Usar este Análisis</button>
-              </div>
-              <textarea id="edAnalisisIA" rows="3" readonly style="background:rgba(20,25,40,0.85); border-color:#3b82f6; color:#93c5fd;"></textarea>
-            </div>
-            <div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <label for="edRecomendacionIA" style="color:#34d399;">Recomendación Predictiva Sugerida por IA</label>
-                <button type="button" class="btn-base" style="font-size:0.68rem; padding:3px 8px;" onclick="window.CIO.adoptarDiagnosticoIA('recomendacion')">📥 Usar esta Recomendación</button>
-              </div>
-              <textarea id="edRecomendacionIA" rows="2" readonly style="background:rgba(20,35,30,0.85); border-color:#10b981; color:#a7f3d0;"></textarea>
-            </div>
-          </div>
+          <!-- Contenedor dinámico de componentes -->
+          <div id="edComponentesContainer" class="components-stack-container"></div>
         </div>
-
-        <div class="span-2 form-actions-top">
-          <button type="button" class="btn-base btn-success" onclick="window.CIO.agregarFormComponente()">+ Añadir Spot Oficial</button>
-        </div>
-        <div id="edComponentesContainer" class="span-2 spots-list"></div>
 
         <footer class="span-2 modal-footer-actions">
-          <button type="button" class="btn-base btn-danger" onclick="window.CIO.eliminarEquipo()">🗑️ Eliminar</button>
-          <button type="submit" class="btn-base btn-success">💾 Guardar Activo</button>
+          <button type="button" class="btn-base btn-danger" onclick="window.CIO.eliminarEquipo()">🗑️ Eliminar Activo</button>
+          <button type="submit" class="btn-base btn-success">💾 Guardar Configuración</button>
         </footer>
       </form>
     </div>
   </dialog>
 
-  <!-- Script con versión de rotura de caché -->
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
