@@ -24,7 +24,7 @@
   --panel-bg: rgba(14, 16, 24, 0.7);
   --ticker-bg: rgba(16, 18, 24, 0.55);
 
-  /* Bloques de detalle en modal */
+  /* Bloques de detalle en modal - Modo Oscuro */
   --box-diag-bg: rgba(15, 16, 22, 0.75);
   --box-diag-text: #f3f4f6;
   --box-recom-bg: rgba(6, 78, 59, 0.25);
@@ -504,9 +504,7 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   .detalle-grid-layout { grid-template-columns: 1fr; }
 }
 
-/* ==========================================================================
-   GALERÍA DE ESPECTROS Y FOTOS ADJUNTAS
-   ========================================================================== */
+/* Galería de Espectros */
 .galeria-espectros-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -683,6 +681,83 @@ textarea { min-height: 75px; line-height: 1.4; }
 .modal-title-heading { margin: 4px 0 0 0; font-size: 1.4rem; font-weight: 800; }
 .section-heading { margin-bottom: 10px; }
 .edition-title { margin-top: 0; }
+
+/* ==========================================================================
+   PANEL DUAL DE ANÁLISIS TÉCNICO (ANALISTA vs. ISO 20816-3)
+   ========================================================================== */
+.dual-analysis-container {
+  background: var(--panel-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--glass-shadow);
+}
+
+.dual-analysis-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 860px) {
+  .dual-analysis-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.analysis-box-analista,
+.analysis-box-sugerencia {
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.analysis-box-analista {
+  border-left: 4px solid #2563eb;
+}
+
+.analysis-box-sugerencia {
+  border-left: 4px solid #0284c7;
+  background: rgba(2, 132, 199, 0.04);
+}
+
+.analysis-box-header {
+  font-size: 0.75rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-adoptar {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-adoptar:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.sap-pairs-panel,
+.espectros-upload-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: var(--glass-shadow);
+}
 
 /* ==========================================================================
    MODAL DE AUTENTICACIÓN
@@ -958,7 +1033,6 @@ body.light-mode .menu-item-info {
   border-color: #f1f5f9 !important;
 }
 
-/* Modal de Autenticación en Modo Claro */
 body.light-mode .modal-auth-box {
   background: rgba(255, 255, 255, 0.98) !important;
   border-color: #cbd5e1 !important;
@@ -1001,4 +1075,20 @@ body.light-mode .auth-input-control {
 body.light-mode .auth-input-control:focus {
   border-color: #2563eb !important;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+body.light-mode .analysis-box-sugerencia textarea {
+  background: #f8fafc !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-mode .analysis-box-analista textarea {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+
+body.light-mode .analysis-box-header {
+  color: #0f172a !important;
 }
