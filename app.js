@@ -103,7 +103,7 @@
 
   function calcularDiasDesdeMedicion(fechaStr) {
     if (!fechaStr) return { dias: null, vencido: true, texto: 'Sin fecha registrada' };
-    const partes = fechaStr.split('-');
+    const partes = String(fechaStr).split('-');
     if (partes.length !== 3) return { dias: null, vencido: true, texto: 'Fecha no válida' };
     
     const fechaMed = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
@@ -212,7 +212,7 @@
             </div>
           </article>
         `;
-      }).join('') || '<div class="label-muted">Sin áreas registradas.</div>';
+      }).join('') || '<div class="label-muted">Sin áreas registradas. Realiza una Carga Masiva.</div>';
     } else {
       container.className = 'grid-equipos';
       const eqsArea = eqsFaena.filter((e) => (e.area || 'Sin Área') === state.areaSeleccionada);
@@ -239,7 +239,7 @@
           <article class="card-equipo sev-${s.toLowerCase()} ${anim}" onclick="window.CIO.abrirDetalle('${eq.id}')">
             ${badge}
             ${badgeVencido}
-            <span class="eq-type">${sanitize(eq.area)}</span>
+            <span class="eq-type">${sanitize(eq.tipo || eq.area)}</span>
             <div class="eq-tag code-font">${sanitize(tagValue)}</div>
             <span class="eq-type" style="color:${SEV_COLOR[s]}">${s.toUpperCase()}</span>
           </article>
@@ -327,7 +327,7 @@
             siteId: normalizarFaena(detectedSite),
             area: detectedArea,
             tag: detectedTag,
-            tipo: item.tipo || item.Tipo || 'Activo',
+            tipo: item.tipo || item.Tipo || item['Tipo equipo'] || 'Activo',
             componentes: item.componentes || item.spots || [],
             fechaMedicion: item.fechaMedicion || item.fecha || '',
             fechaHallazgo: item.fechaHallazgo || '',
@@ -569,11 +569,10 @@
           ${myReports.length > 0 ? myReports.map((r, i) => `
             <div class="report-card">
               <div class="report-card-header">
-                <span><strong>Hallazgo #${myReports.length - i}</strong> | Fecha: ${r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D'}</span>
-                <span style="font-weight:bold; color:${SEV_COLOR[r.severidad] || '#000'};">Severidad: ${r.severidad}</span>
+                <span><strong>Hallazgo #${myReports.length - i}</strong> \vert{} Fecha:${r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D'}</span>
+                <span style="font-weight:bold; color:${SEV_COLOR[r.severidad] \vert{}\vert{} '#000'};">Severidad: ${r.severidad}</span>
               </div>
-              <div style="font-size:0.9rem; margin-top:4px;">${sanitize(r.detalle)}</div>
-              ${r.fotoBase64 ? `<div><img src="${r.fotoBase64}" class="img-report" alt="Evidencia"></div>` : ''}
+              <div style="font-size:0.9rem; margin-top:4px;">${sanitize(r.detalle)}</div>${r.fotoBase64 ? `<div><img src="${r.fotoBase64}" class="img-report" alt="Evidencia"></div>` : ''}
             </div>
           `).join('') : '<div style="font-size:0.85rem; color:#6b7280; font-style:italic;">No se registran eventos tácticos de terreno para este activo.</div>'}
 
@@ -1047,37 +1046,108 @@
       window.CIO.abrirEdicion(idToEdit);
     },
 
+    // PROCESADOR DE CARGA MASIVA EXCEL BLINDADO
     procesarCargaExcelFaena: (e) => {
       const file = e.target.files[0];
       if (!file || !db) return;
-      const target = state.faenaSeleccionada || FAENAS[0];
+
+      const targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
       const reader = new FileReader();
+
       reader.onload = (evt) => {
-        const data = new Uint8Array(evt.target.result);
-        const wb = XLSX.read(data, { type: 'array' });
-        const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-        let count = 0;
-        json.forEach((row) => {
-          const rowTag = row.Tag || row.tag || row.TAG || row.Equipo || row.equipo;
-          if (row && rowTag) {
-            const id = 'EQ_EXCEL_' + Date.now() + '_' + count;
-            db.child(id).set({
-              siteId: target,
-              domain: 'planta',
-              area: row.Area || row.area || row.AREA || 'General',
-              tag: rowTag,
-              tipo: row.Tipo || row.tipo || 'Activo',
-              lat: row.Lat || row.lat || '',
-              lng: row.Lng || row.lng || '',
-              fechaMedicion: new Date().toISOString().split('T')[0],
-              estatusHallazgo: 'Abierto',
-              componentes: [{ nombre: 'Spot Masivo', severidad: 'Verde' }]
-            });
-            count++;
+        try {
+          const data = new Uint8Array(evt.target.result);
+          // cellDates: true permite parsear objetos Date reales de Excel
+          const wb = XLSX.read(data, { type: 'array', cellDates: true });
+          const firstSheetName = wb.SheetNames[0];
+          const worksheet = wb.Sheets[firstSheetName];
+          const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+          if (!rawRows || rawRows.length === 0) {
+            alert("⚠️ La planilla seleccionada no contiene filas o está vacía.");
+            return;
           }
-        });
-        alert(`✅ Carga masiva exitosa (DEV): ${count} activos en ${target}.`);
+
+          let cargados = 0;
+          const actualizaciones = {};
+
+          rawRows.forEach((row, idx) => {
+            // Normalización de claves ignorando mayúsculas, minúsculas y espacios
+            const normalizedRow = {};
+            Object.keys(row).forEach(k => {
+              normalizedRow[k.trim().toUpperCase()] = row[k];
+            });
+
+            // Extracción según las columnas exactas del archivo: EQUIPO, AREA, Tipo equipo, ULTIMA FECHA
+            const rawTag = normalizedRow['EQUIPO'] || normalizedRow['TAG'] || normalizedRow['ACTIVO'] || normalizedRow['NOMBRE'];
+            const rawArea = normalizedRow['AREA'] || normalizedRow['ÁREA'] || 'Área General';
+            const rawTipo = normalizedRow['TIPO EQUIPO'] || normalizedRow['TIPO'] || normalizedRow['CLASE'] || 'Activo';
+            const rawFecha = normalizedRow['ULTIMA FECHA'] || normalizedRow['FECHA MEDICION'] || normalizedRow['FECHA'];
+
+            if (rawTag && String(rawTag).trim() !== '') {
+              const tagStr = String(rawTag).trim();
+              const areaStr = String(rawArea).trim() || 'General';
+              const tipoStr = String(rawTipo).trim() || 'Activo';
+
+              // Formateo de fecha de medición a YYYY-MM-DD
+              let fechaMedicionFinal = '';
+              if (rawFecha instanceof Date && !isNaN(rawFecha.getTime())) {
+                fechaMedicionFinal = rawFecha.toISOString().split('T')[0];
+              } else if (typeof rawFecha === 'string' && rawFecha.trim() !== '') {
+                const dateParsed = new Date(rawFecha);
+                if (!isNaN(dateParsed.getTime())) {
+                  fechaMedicionFinal = dateParsed.toISOString().split('T')[0];
+                }
+              }
+
+              // Sanitización estricta de ID para Firebase (elimina '/', '.', '#', '$', '[', ']')
+              const safeTagId = tagStr.replace(/[\/\.\#\$\[\]]/g, '_');
+              const recordId = `EQ_${safeTagId}`;
+
+              actualizaciones[recordId] = {
+                siteId: targetSite,
+                domain: areaStr.toUpperCase().includes('MINA') ? 'mina' : 'planta',
+                area: areaStr,
+                tag: tagStr,
+                tipo: tipoStr,
+                lat: '',
+                lng: '',
+                fechaMedicion: fechaMedicionFinal,
+                fechaHallazgo: '',
+                estatusHallazgo: 'Abierto',
+                avisoSap: '',
+                omSap: '',
+                analisis: '',
+                recomendacion: '',
+                analisisIA: '',
+                recomendacionIA: '',
+                componentes: [{ nombre: 'Spot Principal', severidad: 'Verde', rms: '2.0', om: '' }]
+              };
+
+              cargados++;
+            }
+          });
+
+          if (cargados === 0) {
+            alert("⚠️ No se pudieron identificar equipos válidos en la planilla. Verifica que exista la columna 'EQUIPO' o 'TAG'.");
+            return;
+          }
+
+          // Carga atómica masiva en Firebase en un solo disparo
+          db.update(actualizaciones)
+            .then(() => {
+              alert(`✅ Carga masiva exitosa: ${cargados} equipos importados y actualizados en ${targetSite}.`);
+            })
+            .catch((err) => {
+              alert(`❌ Error al guardar en Firebase: ${err.message}`);
+            });
+
+        } catch (err) {
+          console.error("Error procesando Excel:", err);
+          alert(`❌ Error al leer el archivo Excel: ${err.message}`);
+        }
       };
+
       reader.readAsArrayBuffer(file);
       e.target.value = '';
     }
