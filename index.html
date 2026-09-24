@@ -94,7 +94,7 @@
       <section id="viewScreen2Container" class="grid-container"></section>
     </section>
 
-    <!-- PANTALLA 3: NIVEL 3 - DASHBOARD COMPLETO DE COMPONENTES DEL EQUIPO -->
+    <!-- PANTALLA 3: NIVEL 3 - DASHBOARD DE COMPONENTES Y PUNTOS DE MEDICIÓN -->
     <section id="screen-3" class="screen-view">
       <header class="site-nav-bar">
         <div class="site-nav-left">
@@ -109,7 +109,7 @@
         </div>
 
         <nav class="site-actions">
-          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.agregarNuevoComponenteDirecto()">➕ Añadir Componente</button>
+          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.agregarNuevoComponenteDirecto()">➕ Añadir Componente/Punto</button>
           <button type="button" class="btn-base btn-primary auth-only" onclick="window.CIO.editarDatosGeneralesActivo()">✏️ Editar Datos Equipo</button>
           <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.abrirEditorInformeModal()">📄 Generar Informe Editable</button>
         </nav>
@@ -118,9 +118,9 @@
       <!-- Banner de Resumen Ejecutivo y Pares SAP del Equipo -->
       <section id="n3DiagnosticoBox" class="diagnostico-activo-panel" style="margin-bottom:18px;"></section>
 
-      <!-- Grilla de Tarjetas Interactivas de Componentes + Terreno -->
+      <!-- Grilla de Tarjetas Interactivas de Componentes + Puntos + Terreno -->
       <div class="view-section-header">
-        <h2 style="font-size:0.88rem; color:#93c5fd;">⚙️ Componentes del Tren Motriz & Bitácora de Terreno</h2>
+        <h2 style="font-size:0.88rem; color:#93c5fd;">⚙️ Componentes, Puntos de Inspección & Bitácora de Terreno</h2>
       </div>
       <section id="n3GridCards" class="grid-nivel3-cards"></section>
     </section>
@@ -154,13 +154,13 @@
     </section>
   </main>
 
-  <!-- MODAL INDIVIDUAL: EDITAR UN SOLO COMPONENTE -->
+  <!-- MODAL INDIVIDUAL: EDITAR COMPONENTE Y SU PUNTO ASOCIADO -->
   <dialog id="modalEditarComponenteIndividual" class="modal-dialog">
-    <div class="modal-content" style="max-width: 680px; border-top: 4px solid #3b82f6;">
+    <div class="modal-content" style="max-width: 720px; border-top: 4px solid #3b82f6;">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEditarComponenteIndividual').close()">&times;</button>
       <header class="modal-header">
         <div>
-          <span class="label-muted">Edición de Componente</span>
+          <span class="label-muted">Edición Específica de Tren Motriz</span>
           <h2 id="edCompModalTitle" style="margin:2px 0 0 0; font-size:1.25rem;">Editar Componente</h2>
         </div>
       </header>
@@ -171,14 +171,18 @@
         <div class="form-grid" style="margin-bottom:12px;">
           <div>
             <label>Nombre del Componente</label>
-            <input type="text" id="indCompNombre" class="c-nom" placeholder="Ej: M1 (Motor), G1 (Reductor)" required />
+            <input type="text" id="indCompNombre" placeholder="Ej: Motor M1, Reductor G1, Polea Motriz" required />
+          </div>
+          <div>
+            <label style="color:#38bdf8;">Punto / Spot de Medición</label>
+            <input type="text" id="indCompPunto" placeholder="Ej: Lado Libre (NDE), Lado Acople (DE), Descanso 1" required />
           </div>
           <div>
             <label>RMS Global (mm/s)</label>
-            <input type="text" id="indCompRms" class="c-rms" placeholder="Ej: 4.2" required />
+            <input type="text" id="indCompRms" placeholder="Ej: 4.2" required />
           </div>
           <div>
-            <label>Severidad</label>
+            <label>Severidad del Punto</label>
             <select id="indCompSev">
               <option value="Rojo">🔴 Rojo (Crítico)</option>
               <option value="Naranja">🟠 Naranja (Alerta)</option>
@@ -186,14 +190,15 @@
               <option value="Verde">🟢 Verde (Normal)</option>
             </select>
           </div>
-          <div style="display:flex; align-items:flex-end;">
-            <button type="button" class="btn-base btn-primary" style="width:100%; justify-content:center;" onclick="window.CIO.ejecutarIAComponenteIndividual()">
-              ✨ Asistente Predictivo IA
-            </button>
-          </div>
         </div>
 
-        <!-- Pares SAP de este Componente -->
+        <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+          <button type="button" class="btn-base btn-primary" onclick="window.CIO.ejecutarIAComponenteIndividual()">
+            ✨ Generar Diagnóstico IA para este Componente y Punto
+          </button>
+        </div>
+
+        <!-- Pares SAP de este Componente / Punto -->
         <div style="background:rgba(20,25,35,0.7); border:1px solid var(--glass-border); border-radius:8px; padding:10px 14px; margin-bottom:14px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <span class="label-muted" style="color:#60a5fa;">Pares SAP (Aviso SAP ➔ Orden OM)</span>
@@ -205,13 +210,13 @@
         </div>
 
         <div style="margin-bottom:12px;">
-          <label style="color:#94a3b8;">Diagnóstico Técnico de Vibraciones</label>
-          <textarea id="indCompAnalisis" rows="3" placeholder="Describe patrones FFT, armónicos 1X/2X, PeakVue..."></textarea>
+          <label style="color:#94a3b8; display:block; margin-bottom:4px;">Diagnóstico Técnico de Vibraciones</label>
+          <textarea id="indCompAnalisis" rows="3" placeholder="Describe patrones FFT, armónicos 1X/2X, modulación o PeakVue para este punto..."></textarea>
         </div>
 
         <div style="margin-bottom:16px;">
-          <label style="color:#94a3b8;">Recomendación Mecánica / Operativa</label>
-          <textarea id="indCompRecom" rows="2" placeholder="Acciones preventivas, lubricación, chequeo de huelgos..."></textarea>
+          <label style="color:#94a3b8; display:block; margin-bottom:4px;">Recomendación Mecánica / Operativa</label>
+          <textarea id="indCompRecom" rows="2" placeholder="Acciones preventivas, lubricación, corrección de huelgos o alineamiento..."></textarea>
         </div>
 
         <footer class="modal-footer-actions">
@@ -222,7 +227,7 @@
     </div>
   </dialog>
 
-  <!-- MODAL HISTÓRICO: BITÁCORA DE TERRENO Y EVIDENCIA FOTOGRÁFICA -->
+  <!-- MODAL HISTÓRICO: BITÁCORA DE TERRENO Y FOTOGRAFÍAS -->
   <dialog id="modalHistoricoTerreno" class="modal-dialog">
     <div class="modal-content modal-lg" style="border-top: 4px solid #38bdf8;">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalHistoricoTerreno').close()">&times;</button>
@@ -271,7 +276,7 @@
           <textarea id="infResumenGeneral" rows="3" placeholder="Redacta la conclusión ejecutiva del estado general del equipo..."></textarea>
         </div>
 
-        <h3 class="label-muted" style="margin-bottom:10px; color:#93c5fd;">Componentes del Tren Motriz a Reportar (Editables)</h3>
+        <h3 class="label-muted" style="margin-bottom:10px; color:#93c5fd;">Componentes y Puntos de Inspección a Reportar (Editables)</h3>
         <div id="infComponentesContainer" class="components-stack-container" style="max-height:40vh; overflow-y:auto; padding-right:6px;"></div>
 
         <footer class="modal-footer-actions">
@@ -393,6 +398,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>
