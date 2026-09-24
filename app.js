@@ -15,7 +15,7 @@
   try {
     if (typeof firebase !== 'undefined') {
       if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-      // Nodos aislados para el entorno de desarrollo y pruebas
+      // Nodos aislados para el entorno DEV
       db = firebase.database().ref('activos_criticos_dev');
       dbUsers = firebase.database().ref('usuarios_registrados_dev');
       dbAlertasTerreno = firebase.database().ref('alertas_terreno_dev');
@@ -56,40 +56,40 @@
 
   function generarSeedLocal() {
     const list = [];
-    const areas = ['AREA 52', 'Chancado Primario', 'Molienda SAG', 'Correas Transporte', 'Despacho Fino', 'Stockpile'];
+    const areas = ['AREA 61', 'AREA 55', 'AREA 54', 'AREA 52', 'AREA 50', 'SSEE'];
     const now = new Date();
 
-    for (let i = 1; i <= 207; i++) {
+    for (let i = 1; i <= 25; i++) {
       const area = areas[i % areas.length];
-      const sevRand = i % 18 === 0 ? 'Rojo' : (i % 7 === 0 ? 'Naranja' : 'Verde');
-      const diasAtras = (i % 5 === 0) ? 38 : (i % 2 === 0 ? 12 : 24);
+      const sevRand = i % 5 === 0 ? 'Rojo' : (i % 3 === 0 ? 'Naranja' : 'Verde');
+      const diasAtras = (i % 4 === 0) ? 35 : 12;
       const fechaMed = new Date(now.getTime() - diasAtras * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const fechaHal = new Date(now.getTime() - (diasAtras - 2) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       list.push({
-        id: `mlc_eq_${i}`,
+        id: `seed_eq_${i}`,
         siteId: 'Planta, Mina los Colorados',
-        domain: i % 2 === 0 ? 'planta' : 'mina',
+        domain: 'planta',
         area: area,
         tag: `MH${2700 + i}`,
-        tipo: i % 3 === 0 ? 'Reductor' : 'Motor/Correa',
-        lat: (-28.2876 + (Math.random() * 0.018 - 0.009)).toFixed(5),
-        lng: (-70.8130 + (Math.random() * 0.018 - 0.009)).toFixed(5),
+        tipo: i % 2 === 0 ? 'Transportador' : 'Modulo',
+        lat: (-28.2876 + (Math.random() * 0.01 - 0.005)).toFixed(5),
+        lng: (-70.8130 + (Math.random() * 0.01 - 0.005)).toFixed(5),
         fechaMedicion: fechaMed,
-        fechaHallazgo: fechaHal,
-        estatusHallazgo: sevRand === 'Rojo' ? 'Abierto' : (sevRand === 'Naranja' ? 'En Ejecución' : 'Cerrado / Normal'),
-        avisoSap: `AV-100${200 + i}`,
-        omSap: `OM-400${100 + i}`,
-        analisis: sevRand === 'Rojo' ? 'Pico armónico a 1X y 2X predominante con modulación en frecuencia de engrane.' : 'Parámetros dinámicos en rango admisible.',
-        recomendacion: sevRand === 'Rojo' ? 'Verificar holgura axial y realizar alineamiento láser de precisión.' : 'Mantener ruta rutinaria.',
+        fechaHallazgo: fechaMed,
+        estatusHallazgo: sevRand === 'Rojo' ? 'Abierto' : 'Cerrado / Normal',
+        avisoSap: '',
+        omSap: '',
+        analisis: 'Estado inicial cargado.',
+        recomendacion: 'Mantener monitoreo continuo.',
         analisisIA: '',
         recomendacionIA: '',
-        componentes: [{ nombre: 'Spot Principal', severidad: sevRand, rms: (2.0 + Math.random() * 3).toFixed(1), om: i % 12 === 0 ? `OM-${4000 + i}` : '' }]
+        componentes: [{ nombre: 'Spot Principal', severidad: sevRand, rms: '2.5', om: '' }]
       });
     }
     return list;
   }
 
+  // Carga inicial para asegurar que la pantalla NUNCA quede en blanco
   state.equipos = generarSeedLocal();
 
   const sanitize = (str) => (str || '').replace(/[<>&"']/g, (m) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -175,7 +175,9 @@
 
   function renderScreen2() {
     const target = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
-    document.getElementById('screen2SiteTitle').innerText = target;
+    const titleEl = document.getElementById('screen2SiteTitle');
+    if (titleEl) titleEl.innerText = target;
+
     const container = document.getElementById('viewScreen2Container');
     if (!container) return;
     container.style.display = state.siteMapVisible ? 'none' : '';
@@ -212,7 +214,7 @@
             </div>
           </article>
         `;
-      }).join('') || '<div class="label-muted">Sin áreas registradas. Realiza una Carga Masiva.</div>';
+      }).join('') || '<div class="label-muted" style="padding:20px;">Sin áreas registradas. Realiza una Carga Masiva.</div>';
     } else {
       container.className = 'grid-equipos';
       const eqsArea = eqsFaena.filter((e) => (e.area || 'Sin Área') === state.areaSeleccionada);
@@ -277,44 +279,48 @@
     const mapBox = document.getElementById('view-site-map');
     if (!mapBox) return;
 
-    if (!state.mapaSite) {
-      state.mapaSite = L.map('view-site-map').setView([-28.2876, -70.8130], 13);
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(state.mapaSite);
-      state.capaSite = L.layerGroup().addTo(state.mapaSite);
-    } else {
-      state.mapaSite.invalidateSize();
-    }
-
-    state.capaSite.clearLayers();
-    const bounds = [];
-
-    eqs.forEach((eq) => {
-      const lat = parseFloat(eq.lat);
-      const lng = parseFloat(eq.lng);
-      if (!isNaN(lat) && !isNaN(lng) && lat !== 0) {
-        const s = calcMaxSev(eq.componentes);
-        const col = SEV_COLOR[s] || '#6b7280';
-        const pulse = s === 'Rojo' ? 'map-pin-pulse' : '';
-        const tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
-        const icon = L.divIcon({
-          className: 'custom-pin',
-          html: `<div class="${pulse}" style="background:${col}; width:20px; height:20px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 10px ${col};"></div>`,
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
-        });
-        L.marker([lat, lng], { icon }).bindPopup(`<strong>${sanitize(tagValue)}</strong><br>${sanitize(eq.area)}<br><span style="color:${col};font-weight:bold;">${s}</span>`).addTo(state.capaSite);
-        bounds.push([lat, lng]);
+    try {
+      if (!state.mapaSite) {
+        state.mapaSite = L.map('view-site-map').setView([-28.2876, -70.8130], 13);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(state.mapaSite);
+        state.capaSite = L.layerGroup().addTo(state.mapaSite);
+      } else {
+        state.mapaSite.invalidateSize();
       }
-    });
 
-    if (bounds.length) state.mapaSite.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
+      state.capaSite.clearLayers();
+      const bounds = [];
+
+      eqs.forEach((eq) => {
+        const lat = parseFloat(eq.lat);
+        const lng = parseFloat(eq.lng);
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0) {
+          const s = calcMaxSev(eq.componentes);
+          const col = SEV_COLOR[s] || '#6b7280';
+          const pulse = s === 'Rojo' ? 'map-pin-pulse' : '';
+          const tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
+          const icon = L.divIcon({
+            className: 'custom-pin',
+            html: `<div class="${pulse}" style="background:${col}; width:20px; height:20px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 10px ${col};"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          });
+          L.marker([lat, lng], { icon }).bindPopup(`<strong>${sanitize(tagValue)}</strong><br>${sanitize(eq.area)}<br><span style="color:${col};font-weight:bold;">${s}</span>`).addTo(state.capaSite);
+          bounds.push([lat, lng]);
+        }
+      });
+
+      if (bounds.length) state.mapaSite.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
+    } catch (e) {
+      console.warn("Mapa error:", e);
+    }
   }
 
-  // Recepción en tiempo real desde Firebase (Rama DEV)
+  // Recepción en tiempo real desde Firebase (con protección contra null)
   if (db) {
     db.on('value', (snap) => {
       const raw = snap.val();
-      if (raw) {
+      if (raw && Object.keys(raw).length > 0) {
         state.equipos = Object.keys(raw).map((k) => {
           const item = raw[k] || {};
           const detectedTag = item.tag || item.Tag || item.TAG || item.equipo || item.Equipo || item.nombre || k;
@@ -328,7 +334,7 @@
             area: detectedArea,
             tag: detectedTag,
             tipo: item.tipo || item.Tipo || item['Tipo equipo'] || 'Activo',
-            componentes: item.componentes || item.spots || [],
+            componentes: item.componentes || item.spots || [{ nombre: 'Spot Principal', severidad: 'Verde', rms: '2.0', om: '' }],
             fechaMedicion: item.fechaMedicion || item.fecha || '',
             fechaHallazgo: item.fechaHallazgo || '',
             estatusHallazgo: item.estatusHallazgo || 'Abierto',
@@ -360,54 +366,28 @@
           }
         }
       });
-
-      dbAlertasTerreno.limitToLast(1).on('child_added', (snap) => {
-        if (!inicializacionCompletada) return;
-        const data = snap.val();
-        if (!data) return;
-
-        try {
-          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-          audio.volume = 0.5;
-          audio.play().catch(() => {});
-        } catch(e) {}
-
-        const toast = document.createElement('aside');
-        toast.className = 'toast-terreno-alert';
-        toast.innerHTML = `
-          <div class="toast-terreno-header">
-            <span>🚨 [DEV] NUEVO REPORTE EN TERRENO</span>
-            <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:transparent; border:none; color:#fff; font-size:1.2rem; cursor:pointer;">&times;</button>
-          </div>
-          <div class="toast-terreno-body">
-            <strong>Faena:</strong> ${sanitize(data.faena || 'General')} (${sanitize(data.area || '')})<br>
-            <strong>Equipo:</strong> <span class="code-font" style="color:#60a5fa;">${sanitize(data.tag || '')}</span> | <strong>Sev:</strong> <span style="color:#ef4444; font-weight:bold;">${sanitize(data.severidad || 'Alerta')}</span><br>
-            <strong>Hallazgo:</strong> ${sanitize(data.detalle || '')}
-          </div>
-          <button type="button" class="btn-base btn-primary" style="padding:8px 12px; font-size:0.75rem; justify-content:center;" onclick="window.CIO.abrirDetallePorTag('${sanitize(data.tag)}'); this.parentElement.remove();">
-            🔍 Ver Activo y Foto
-          </button>
-        `;
-        document.body.appendChild(toast);
-
-        setTimeout(() => { toast.remove(); }, 12000);
-      });
     }
   }
 
   function refresh() {
-    if (state.currentScreen === 1) renderScreen1();
-    else if (state.currentScreen === 2) renderScreen2();
-    else if (state.currentScreen === 3) renderScreen3();
+    try {
+      if (state.currentScreen === 1) renderScreen1();
+      else if (state.currentScreen === 2) renderScreen2();
+      else if (state.currentScreen === 3) renderScreen3();
+    } catch (e) {
+      console.error("Error en refresh:", e);
+    }
   }
 
   window.CIO = {
     goScreen: (num) => {
       state.currentScreen = num;
       document.querySelectorAll('.screen-view').forEach((el) => el.classList.remove('active'));
-      document.getElementById(`screen-${num}`)?.classList.add('active');
+      const sc = document.getElementById(`screen-${num}`);
+      if (sc) sc.classList.add('active');
       const titles = { 1: 'Vista Pública (Global - DEV)', 2: `Faena: ${state.faenaSeleccionada || 'Operativa (DEV)'}`, 3: 'Consola SuperAdmin (DEV)' };
-      document.getElementById('headerScreenTitle').innerText = titles[num] || 'CIO';
+      const headerTitle = document.getElementById('headerScreenTitle');
+      if (headerTitle) headerTitle.innerText = titles[num] || 'CIO';
       if (num !== 2) state.siteMapVisible = false;
       refresh();
     },
@@ -416,7 +396,8 @@
       state.faenaSeleccionada = f;
       state.areaSeleccionada = null;
       state.siteMapVisible = false;
-      document.getElementById('badgeFaenaAsignada').innerText = f;
+      const b = document.getElementById('badgeFaenaAsignada');
+      if (b) b.innerText = f;
       window.CIO.goScreen(2);
     },
 
@@ -450,14 +431,14 @@
       const target = state.faenaSeleccionada || FAENAS[0];
 
       if (state.siteMapVisible) {
-        mapBox.style.display = 'block';
-        container.style.display = 'none';
-        lbl.innerText = 'Ver Tarjetas';
+        if (mapBox) mapBox.style.display = 'block';
+        if (container) container.style.display = 'none';
+        if (lbl) lbl.innerText = 'Ver Tarjetas';
         setTimeout(() => actualizarMapaSite(state.equipos.filter((e) => normalizarFaena(e.siteId) === target)), 150);
       } else {
-        mapBox.style.display = 'none';
-        container.style.display = '';
-        lbl.innerText = 'Ver Mapa de Faena';
+        if (mapBox) mapBox.style.display = 'none';
+        if (container) container.style.display = '';
+        if (lbl) lbl.innerText = 'Ver Mapa de Faena';
       }
     },
 
@@ -481,9 +462,6 @@
           ${r.fotoBase64 ? `
             <div style="margin-top:8px;">
               <img src="${r.fotoBase64}" class="img-terreno-preview-lg" alt="Evidencia de terreno" onclick="window.CIO.abrirFotoEnNuevaPestana('${r.fotoBase64}')" title="Clic para ver en pestaña completa" />
-              <div style="display:flex; justify-content:flex-end; margin-top:6px;">
-                <button type="button" class="btn-base" style="font-size:0.68rem; padding:4px 8px;" onclick="window.CIO.abrirFotoEnNuevaPestana('${r.fotoBase64}')">🔍 Abrir foto en pestaña nueva</button>
-              </div>
             </div>
           ` : ''}
         </article>
@@ -575,10 +553,6 @@
               <div style="font-size:0.9rem; margin-top:4px;">${sanitize(r.detalle)}</div>${r.fotoBase64 ? `<div><img src="${r.fotoBase64}" class="img-report" alt="Evidencia"></div>` : ''}
             </div>
           `).join('') : '<div style="font-size:0.85rem; color:#6b7280; font-style:italic;">No se registran eventos tácticos de terreno para este activo.</div>'}
-
-          <div style="margin-top:40px; font-size:0.75rem; color:#6b7280; text-align:center; border-top:1px solid #e5e7eb; padding-top:10px;">
-            Documento emitido por el Centro Integrado de Operaciones (CIO) - CPF Ingeniería Ltda. [Ambiente Dev]
-          </div>
         </body>
         </html>
       `);
@@ -591,8 +565,10 @@
       if (!eq) return;
 
       const tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
-      document.getElementById('detSiteTag').innerText = `${eq.siteId} | TAG: ${tagValue}`;
-      document.getElementById('detTitle').innerText = `${eq.tipo || 'Activo'} - ${eq.area}`;
+      const detTag = document.getElementById('detSiteTag');
+      if (detTag) detTag.innerText = `${eq.siteId} | TAG: ${tagValue}`;
+      const detTit = document.getElementById('detTitle');
+      if (detTit) detTit.innerText = `${eq.tipo || 'Activo'} - ${eq.area}`;
 
       const aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
       const contadorBox = document.getElementById('detContadorMedicionBanner');
@@ -636,19 +612,22 @@
       }
 
       const list = document.getElementById('detComponentesList');
-      const comps = [...(eq.componentes || [])].sort((a, b) => SEV_PESO[b.severidad || 'Plomo'] - SEV_PESO[a.severidad || 'Plomo']);
-      list.innerHTML = comps.map((c) => `
-        <div style="background:var(--input-bg); padding:12px 16px; border-radius:8px; border:1px solid var(--glass-border); ${c.severidad === 'Rojo' ? 'border-left:4px solid #ef4444;' : ''}">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <strong style="font-size:0.95rem;">${sanitize(c.nombre || c.spot)}</strong>
-            <span style="color:${SEV_COLOR[c.severidad]}; font-weight:800; text-transform:uppercase;">${c.severidad}</span>
+      if (list) {
+        const comps = [...(eq.componentes || [])].sort((a, b) => SEV_PESO[b.severidad || 'Plomo'] - SEV_PESO[a.severidad || 'Plomo']);
+        list.innerHTML = comps.map((c) => `
+          <div style="background:var(--input-bg); padding:12px 16px; border-radius:8px; border:1px solid var(--glass-border); ${c.severidad === 'Rojo' ? 'border-left:4px solid #ef4444;' : ''}">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="font-size:0.95rem;">${sanitize(c.nombre || c.spot)}</strong>
+              <span style="color:${SEV_COLOR[c.severidad]}; font-weight:800; text-transform:uppercase;">${c.severidad}</span>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">RMS: <strong>${c.rms || 'N/D'}</strong> | Orden de Trabajo: <strong>${c.om || 'S/N'}</strong></div>
           </div>
-          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">RMS: <strong>${c.rms || 'N/D'}</strong> | Orden de Trabajo: <strong>${c.om || 'S/N'}</strong></div>
-        </div>
-      `).join('') || '<div class="label-muted" style="padding:14px;">Sin spots oficiales registrados.</div>';
+        `).join('') || '<div class="label-muted" style="padding:14px;">Sin spots oficiales registrados.</div>';
+      }
 
       window.CIO.renderBitacoraTerreno(eq);
-      document.getElementById('modalDetalleActivo').showModal();
+      const modalDet = document.getElementById('modalDetalleActivo');
+      if (modalDet) modalDet.showModal();
     },
 
     abrirDetallePorTag: (tag) => {
@@ -665,7 +644,8 @@
 
     cerrarModalDetalle: () => {
       state.equipoIdModal = null;
-      document.getElementById('modalDetalleActivo').close();
+      const modalDet = document.getElementById('modalDetalleActivo');
+      if (modalDet) modalDet.close();
     },
 
     toggleTheme: () => document.body.classList.toggle('light-mode'),
@@ -673,9 +653,11 @@
     handleUserBtnClick: () => {
       if (!state.usuarioActivo) {
         window.CIO.setAuthMode('login');
-        document.getElementById('modalAuth').showModal();
+        const m = document.getElementById('modalAuth');
+        if (m) m.showModal();
       } else {
-        document.getElementById('userDropdownMenu').classList.toggle('is-active');
+        const uMenu = document.getElementById('userDropdownMenu');
+        if (uMenu) uMenu.classList.toggle('is-active');
       }
     },
 
@@ -698,19 +680,19 @@
       if (tabRegister) tabRegister.classList.toggle('is-active', isReg);
 
       if (isReg) {
-        title.innerText = 'Crear Cuenta de Operador (DEV)';
-        desc.innerText = 'Regístrate y selecciona tu faena base para habilitar la edición de condición.';
-        btn.innerText = 'Registrarse y Entrar';
+        if (title) title.innerText = 'Crear Cuenta de Operador (DEV)';
+        if (desc) desc.innerText = 'Regístrate y selecciona tu faena base para habilitar la edición de condición.';
+        if (btn) btn.innerText = 'Registrarse y Entrar';
       } else {
-        title.innerText = 'Acceso Operador CIO (DEV)';
-        desc.innerText = 'Ingresa tus credenciales autorizadas por CPF para gestionar condición de activos.';
-        btn.innerText = 'Ingresar al Sistema';
+        if (title) title.innerText = 'Acceso Operador CIO (DEV)';
+        if (desc) desc.innerText = 'Ingresa tus credenciales autorizadas por CPF para gestionar condición de activos.';
+        if (btn) btn.innerText = 'Ingresar al Sistema';
       }
     },
 
     handleAuthSubmission: () => {
-      const u = document.getElementById('authUsername').value.trim();
-      const p = document.getElementById('authPassword').value.trim();
+      const u = document.getElementById('authUsername')?.value.trim();
+      const p = document.getElementById('authPassword')?.value.trim();
       const fullname = document.getElementById('authFullname')?.value.trim();
       const selectedSite = document.getElementById('authSelectedSite')?.value || 'Planta, Mina los Colorados';
 
@@ -763,9 +745,12 @@
         state.usuarioActivo = nombre;
         state.faenaAsignada = faena;
         document.body.classList.add('user-authenticated');
-        document.getElementById('labelUsuarioBtn').innerText = nombre.split(' ')[0];
-        document.getElementById('dropUserInfo').innerText = `Activo (DEV): ${nombre} | Faena: ${faena}`;
-        document.getElementById('modalAuth').close();
+        const lbl = document.getElementById('labelUsuarioBtn');
+        if (lbl) lbl.innerText = nombre.split(' ')[0];
+        const dropInfo = document.getElementById('dropUserInfo');
+        if (dropInfo) dropInfo.innerText = `Activo (DEV): ${nombre} | Faena: ${faena}`;
+        const modal = document.getElementById('modalAuth');
+        if (modal) modal.close();
         alert(`✅ Bienvenido ${nombre} al Entorno DEV.`);
       }
     },
@@ -774,9 +759,12 @@
       state.usuarioActivo = null;
       state.faenaAsignada = null;
       document.body.classList.remove('user-authenticated');
-      document.getElementById('labelUsuarioBtn').innerText = 'Entrar';
-      document.getElementById('dropUserInfo').innerText = 'Invitado (Solo Lectura)';
-      document.getElementById('userDropdownMenu').classList.remove('is-active');
+      const lbl = document.getElementById('labelUsuarioBtn');
+      if (lbl) lbl.innerText = 'Entrar';
+      const dropInfo = document.getElementById('dropUserInfo');
+      if (dropInfo) dropInfo.innerText = 'Invitado (Solo Lectura)';
+      const uMenu = document.getElementById('userDropdownMenu');
+      if (uMenu) uMenu.classList.remove('is-active');
       window.CIO.goScreen(1);
     },
 
@@ -819,22 +807,22 @@
       const tabIA = document.getElementById('tabAnalisisIA');
 
       if (tab === 'humano') {
-        pnlHumano.style.display = 'block';
-        pnlIA.style.display = 'none';
-        tabHumano.classList.add('is-active');
-        tabIA.classList.remove('is-active');
+        if (pnlHumano) pnlHumano.style.display = 'block';
+        if (pnlIA) pnlIA.style.display = 'none';
+        if (tabHumano) tabHumano.classList.add('is-active');
+        if (tabIA) tabIA.classList.remove('is-active');
       } else {
-        pnlHumano.style.display = 'none';
-        pnlIA.style.display = 'block';
-        tabHumano.classList.remove('is-active');
-        tabIA.classList.add('is-active');
+        if (pnlHumano) pnlHumano.style.display = 'none';
+        if (pnlIA) pnlIA.style.display = 'block';
+        if (tabHumano) tabHumano.classList.remove('is-active');
+        if (tabIA) tabIA.classList.add('is-active');
       }
     },
 
     ejecutarGeneracionIA: () => {
-      const tag = document.getElementById('edTag').value || 'Activo';
-      const clase = document.getElementById('edTipo').value || 'Equipo Mecánico';
-      const area = document.getElementById('edArea').value || 'Planta';
+      const tag = document.getElementById('edTag')?.value || 'Activo';
+      const clase = document.getElementById('edTipo')?.value || 'Equipo Mecánico';
+      const area = document.getElementById('edArea')?.value || 'Planta';
       
       const spots = [];
       document.querySelectorAll('.comp-item').forEach(el => {
@@ -865,14 +853,16 @@
         recomendacionGenerada = `Continuar con la frecuencia de medición rutinaria estándar cada 30 días.`;
       }
 
-      document.getElementById('edAnalisisIA').value = diagnosticoGenerado;
-      document.getElementById('edRecomendacionIA').value = recomendacionGenerada;
+      const anIA = document.getElementById('edAnalisisIA');
+      const recIA = document.getElementById('edRecomendacionIA');
+      if (anIA) anIA.value = diagnosticoGenerado;
+      if (recIA) recIA.value = recomendacionGenerada;
       window.CIO.seleccionarPestanaAnalisis('ia');
     },
 
     adoptarDiagnosticoIA: (tipo) => {
-      const iaAnalisis = document.getElementById('edAnalisisIA').value;
-      const iaRecom = document.getElementById('edRecomendacionIA').value;
+      const iaAnalisis = document.getElementById('edAnalisisIA')?.value;
+      const iaRecom = document.getElementById('edRecomendacionIA')?.value;
 
       if (!iaAnalisis && !iaRecom) {
         alert("Primero presiona 'Generar Diagnóstico IA'.");
@@ -880,10 +870,12 @@
       }
 
       if (tipo === 'analisis' || tipo === 'todo') {
-        document.getElementById('edAnalisisHumano').value = iaAnalisis;
+        const hum = document.getElementById('edAnalisisHumano');
+        if (hum) hum.value = iaAnalisis;
       }
       if (tipo === 'recomendacion' || tipo === 'todo') {
-        document.getElementById('edRecomendacionHumano').value = iaRecom;
+        const rec = document.getElementById('edRecomendacionHumano');
+        if (rec) rec.value = iaRecom;
       }
 
       window.CIO.seleccionarPestanaAnalisis('humano');
@@ -891,7 +883,7 @@
     },
 
     auditarDiasMedicionForm: () => {
-      const val = document.getElementById('edFechaMedicion').value;
+      const val = document.getElementById('edFechaMedicion')?.value;
       const box = document.getElementById('edFeedbackContadorDias');
       if (!box) return;
 
@@ -953,36 +945,42 @@
 
     abrirEdicionModalObj: () => {
       const eq = state.equipoSeleccionado;
-      document.getElementById('edSiteId').value = eq.siteId;
-      document.getElementById('edDomain').value = eq.domain || 'planta';
-      document.getElementById('edArea').value = eq.area || '';
-      document.getElementById('edTag').value = eq.tag || eq.Tag || eq.id || '';
-      document.getElementById('edTipo').value = eq.tipo || '';
-      document.getElementById('edLat').value = eq.lat || '';
-      document.getElementById('edLng').value = eq.lng || '';
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
 
-      document.getElementById('edEstatusHallazgo').value = eq.estatusHallazgo || 'Abierto';
-      document.getElementById('edAvisoSap').value = eq.avisoSap || '';
-      document.getElementById('edOmSap').value = eq.omSap || '';
-      document.getElementById('edFechaMedicion').value = eq.fechaMedicion || eq.fecha || '';
-      document.getElementById('edFechaHallazgo').value = eq.fechaHallazgo || '';
+      setVal('edSiteId', eq.siteId);
+      setVal('edDomain', eq.domain || 'planta');
+      setVal('edArea', eq.area || '');
+      setVal('edTag', eq.tag || eq.Tag || eq.id || '');
+      setVal('edTipo', eq.tipo || '');
+      setVal('edLat', eq.lat || '');
+      setVal('edLng', eq.lng || '');
 
-      document.getElementById('edAnalisisHumano').value = eq.analisis || '';
-      document.getElementById('edRecomendacionHumano').value = eq.recomendacion || '';
-      document.getElementById('edAnalisisIA').value = eq.analisisIA || '';
-      document.getElementById('edRecomendacionIA').value = eq.recomendacionIA || '';
+      setVal('edEstatusHallazgo', eq.estatusHallazgo || 'Abierto');
+      setVal('edAvisoSap', eq.avisoSap || '');
+      setVal('edOmSap', eq.omSap || '');
+      setVal('edFechaMedicion', eq.fechaMedicion || eq.fecha || '');
+      setVal('edFechaHallazgo', eq.fechaHallazgo || '');
+
+      setVal('edAnalisisHumano', eq.analisis || '');
+      setVal('edRecomendacionHumano', eq.recomendacion || '');
+      setVal('edAnalisisIA', eq.analisisIA || '');
+      setVal('edRecomendacionIA', eq.recomendacionIA || '');
 
       window.CIO.seleccionarPestanaAnalisis('humano');
       window.CIO.auditarDiasMedicionForm();
 
       const cont = document.getElementById('edComponentesContainer');
-      cont.innerHTML = '';
-      (eq.componentes || []).forEach((c) => window.CIO.agregarFormComponente(c));
-      document.getElementById('modalEdicion').showModal();
+      if (cont) {
+        cont.innerHTML = '';
+        (eq.componentes || []).forEach((c) => window.CIO.agregarFormComponente(c));
+      }
+      const modalEd = document.getElementById('modalEdicion');
+      if (modalEd) modalEd.showModal();
     },
 
     agregarFormComponente: (data = {}) => {
       const cont = document.getElementById('edComponentesContainer');
+      if (!cont) return;
       const div = document.createElement('div');
       div.style.cssText = "background:var(--input-bg); padding:10px; border:1px solid var(--border-card); border-radius:6px; position:relative;";
       div.className = 'comp-item';
@@ -1009,33 +1007,35 @@
       });
 
       const payload = {
-        siteId: document.getElementById('edSiteId').value,
-        domain: document.getElementById('edDomain').value,
-        area: document.getElementById('edArea').value,
-        tag: document.getElementById('edTag').value,
-        tipo: document.getElementById('edTipo').value,
-        lat: document.getElementById('edLat').value,
-        lng: document.getElementById('edLng').value,
-        fechaMedicion: document.getElementById('edFechaMedicion').value,
-        fechaHallazgo: document.getElementById('edFechaHallazgo').value,
-        estatusHallazgo: document.getElementById('edEstatusHallazgo').value,
-        avisoSap: document.getElementById('edAvisoSap').value,
-        omSap: document.getElementById('edOmSap').value,
-        analisis: document.getElementById('edAnalisisHumano').value,
-        recomendacion: document.getElementById('edRecomendacionHumano').value,
-        analisisIA: document.getElementById('edAnalisisIA').value,
-        recomendacionIA: document.getElementById('edRecomendacionIA').value,
+        siteId: document.getElementById('edSiteId')?.value,
+        domain: document.getElementById('edDomain')?.value,
+        area: document.getElementById('edArea')?.value,
+        tag: document.getElementById('edTag')?.value,
+        tipo: document.getElementById('edTipo')?.value,
+        lat: document.getElementById('edLat')?.value,
+        lng: document.getElementById('edLng')?.value,
+        fechaMedicion: document.getElementById('edFechaMedicion')?.value,
+        fechaHallazgo: document.getElementById('edFechaHallazgo')?.value,
+        estatusHallazgo: document.getElementById('edEstatusHallazgo')?.value,
+        avisoSap: document.getElementById('edAvisoSap')?.value,
+        omSap: document.getElementById('edOmSap')?.value,
+        analisis: document.getElementById('edAnalisisHumano')?.value,
+        recomendacion: document.getElementById('edRecomendacionHumano')?.value,
+        analisisIA: document.getElementById('edAnalisisIA')?.value,
+        recomendacionIA: document.getElementById('edRecomendacionIA')?.value,
         componentes: comps
       };
 
       if (db) db.child(state.equipoSeleccionado.id).update(payload);
-      document.getElementById('modalEdicion').close();
+      const modalEd = document.getElementById('modalEdicion');
+      if (modalEd) modalEd.close();
     },
 
     eliminarEquipo: () => {
       if (confirm('¿Eliminar activo en DEV?') && db && state.equipoSeleccionado) {
         db.child(state.equipoSeleccionado.id).remove();
-        document.getElementById('modalEdicion').close();
+        const modalEd = document.getElementById('modalEdicion');
+        if (modalEd) modalEd.close();
       }
     },
 
@@ -1057,7 +1057,6 @@
       reader.onload = (evt) => {
         try {
           const data = new Uint8Array(evt.target.result);
-          // cellDates: true permite parsear objetos Date reales de Excel
           const wb = XLSX.read(data, { type: 'array', cellDates: true });
           const firstSheetName = wb.SheetNames[0];
           const worksheet = wb.Sheets[firstSheetName];
@@ -1071,14 +1070,12 @@
           let cargados = 0;
           const actualizaciones = {};
 
-          rawRows.forEach((row, idx) => {
-            // Normalización de claves ignorando mayúsculas, minúsculas y espacios
+          rawRows.forEach((row) => {
             const normalizedRow = {};
             Object.keys(row).forEach(k => {
               normalizedRow[k.trim().toUpperCase()] = row[k];
             });
 
-            // Extracción según las columnas exactas del archivo: EQUIPO, AREA, Tipo equipo, ULTIMA FECHA
             const rawTag = normalizedRow['EQUIPO'] || normalizedRow['TAG'] || normalizedRow['ACTIVO'] || normalizedRow['NOMBRE'];
             const rawArea = normalizedRow['AREA'] || normalizedRow['ÁREA'] || 'Área General';
             const rawTipo = normalizedRow['TIPO EQUIPO'] || normalizedRow['TIPO'] || normalizedRow['CLASE'] || 'Activo';
@@ -1089,7 +1086,6 @@
               const areaStr = String(rawArea).trim() || 'General';
               const tipoStr = String(rawTipo).trim() || 'Activo';
 
-              // Formateo de fecha de medición a YYYY-MM-DD
               let fechaMedicionFinal = '';
               if (rawFecha instanceof Date && !isNaN(rawFecha.getTime())) {
                 fechaMedicionFinal = rawFecha.toISOString().split('T')[0];
@@ -1100,7 +1096,6 @@
                 }
               }
 
-              // Sanitización estricta de ID para Firebase (elimina '/', '.', '#', '$', '[', ']')
               const safeTagId = tagStr.replace(/[\/\.\#\$\[\]]/g, '_');
               const recordId = `EQ_${safeTagId}`;
 
@@ -1129,11 +1124,10 @@
           });
 
           if (cargados === 0) {
-            alert("⚠️ No se pudieron identificar equipos válidos en la planilla. Verifica que exista la columna 'EQUIPO' o 'TAG'.");
+            alert("⚠️ No se pudieron identificar equipos válidos en la planilla.");
             return;
           }
 
-          // Carga atómica masiva en Firebase en un solo disparo
           db.update(actualizaciones)
             .then(() => {
               alert(`✅ Carga masiva exitosa: ${cargados} equipos importados y actualizados en ${targetSite}.`);
@@ -1153,5 +1147,10 @@
     }
   };
 
-  document.addEventListener('DOMContentLoaded', () => { refresh(); });
+  // Ejecución segura una vez que el DOM está completamente disponible
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { refresh(); });
+  } else {
+    refresh();
+  }
 })();
