@@ -59,15 +59,15 @@
 
   <!-- Contenedor Principal de Pantallas -->
   <main class="views-wrapper">
-    <!-- Pantalla 1: Vista Global de Faenas -->
+    <!-- Pantalla 1: Nivel 1 - Vista Global de Faenas -->
     <section id="screen-1" class="screen-view active">
       <div class="view-section-header">
-        <h2>Visualización Global de Faenas y Criticidad Máxima</h2>
+        <h2>Nivel 1: Visualización Global de Faenas (Criticidad Máxima)</h2>
       </div>
       <section id="viewScreen1Content" class="grid-container"></section>
     </section>
 
-    <!-- Pantalla 2: Vista de Faena y Áreas -->
+    <!-- Pantalla 2: Nivel 2 - Vista de Áreas y Equipos -->
     <section id="screen-2" class="screen-view">
       <header class="site-nav-bar">
         <div class="site-nav-left">
@@ -123,38 +123,132 @@
     </section>
   </main>
 
-  <!-- Modal Detalle Activo Gran Formato -->
+  <!-- MODAL NIVEL 3: DETALLE DEL ACTIVO & TARJETAS INTERACTIVAS DE COMPONENTES -->
   <dialog id="modalDetalleActivo" class="modal-dialog">
     <div class="modal-content modal-lg">
       <button type="button" class="modal-close-btn" onclick="window.CIO.cerrarModalDetalle()">&times;</button>
+      
+      <!-- Cabecera del Activo -->
       <header class="modal-header">
         <div>
           <span class="label-muted" id="detSiteTag">FAENA / TAG</span>
           <h2 id="detTitle" class="modal-title-heading">Detalle Activo</h2>
           <div id="detContadorMedicionBanner" style="margin-top:6px;"></div>
         </div>
-        <div style="display:flex; gap:8px;">
-          <button type="button" class="btn-base btn-primary auth-only" id="btnEditarDesdeDetalle" onclick="window.CIO.editarActivoActualDesdeDetalle()">✏️ Editar Activo</button>
-          <button type="button" class="btn-base btn-success auth-only" id="btnInformeEditable" onclick="window.CIO.abrirEditorInformeModal()">📄 Generar Informe Editable</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn-base btn-primary auth-only" onclick="window.CIO.editarDatosGeneralesActivo()">✏️ Editar Datos Equipo</button>
+          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.abrirEditorInformeModal()">📄 Generar Informe Editable</button>
         </div>
       </header>
 
-      <!-- Panel de Datos Principales, Criticidad y Consolidado SAP -->
+      <!-- Panel Superior: Resumen de Criticidad Heredada y SAP Consolidado -->
       <section id="detDiagnosticoBox" class="diagnostico-activo-panel"></section>
 
-      <div class="detalle-grid-layout">
-        <!-- Columna Izquierda: Tren Motriz & Componentes con Análisis y sus Avisos SAP -->
-        <section>
-          <h3 class="label-muted section-heading">⚙️ Componentes / Tren Motriz (Diagnósticos & SAP)</h3>
-          <div id="detComponentesList" class="spots-list"></div>
-        </section>
+      <!-- SECCIÓN NIVEL 3: TARJETAS INTERACTIVAS (COMPONENTES + BITÁCORA DE TERRENO) -->
+      <section style="margin-top: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h3 class="label-muted section-heading" style="margin:0; font-size:0.85rem; color:#93c5fd;">
+              ⚙️ Nivel 3: Componentes del Tren Motriz & Bitácora de Terreno
+            </h3>
+            <span style="font-size:0.75rem; color:var(--text-muted);">
+              Haz clic en cualquier tarjeta para ver su detalle o presiona <strong>Editar</strong> para modificar sólo ese componente.
+            </span>
+          </div>
+          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.agregarNuevoComponenteDirecto()">
+            ➕ Añadir Componente
+          </button>
+        </div>
 
-        <!-- Columna Derecha: Bitácora de Terreno Ampliada -->
-        <section>
-          <h3 class="label-muted label-field section-heading">💬 Hallazgos en Terreno & Evidencia Fotográfica</h3>
-          <div id="detTerrenoList" class="field-list"></div>
-        </section>
-      </div>
+        <!-- Grilla de Tarjetas Interactivas de Nivel 3 -->
+        <div id="gridNivel3Componentes" class="grid-nivel3-cards"></div>
+      </section>
+    </div>
+  </dialog>
+
+  <!-- MODAL INDIVIDUAL: EDITAR UN SOLO COMPONENTE (MÁS CÓMODO Y DIRECTO) -->
+  <dialog id="modalEditarComponenteIndividual" class="modal-dialog">
+    <div class="modal-content" style="max-width: 680px; border-top: 4px solid #3b82f6;">
+      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEditarComponenteIndividual').close()">&times;</button>
+      <header class="modal-header">
+        <div>
+          <span class="label-muted">Edición Específica de Componente</span>
+          <h2 id="edCompModalTitle" style="margin:2px 0 0 0; font-size:1.25rem;">Editar Componente</h2>
+        </div>
+      </header>
+
+      <form id="formCompIndividual" onsubmit="event.preventDefault(); window.CIO.guardarComponenteIndividual();" style="margin-top:14px;">
+        <input type="hidden" id="edCompIndex" value="-1" />
+
+        <div class="form-grid" style="margin-bottom:12px;">
+          <div>
+            <label>Nombre del Componente</label>
+            <input type="text" id="indCompNombre" class="c-nom" placeholder="Ej: M1 (Motor), G1 (Reductor)" required />
+          </div>
+          <div>
+            <label>RMS Global (mm/s)</label>
+            <input type="text" id="indCompRms" class="c-rms" placeholder="Ej: 4.2" required />
+          </div>
+          <div>
+            <label>Severidad</label>
+            <select id="indCompSev">
+              <option value="Rojo">🔴 Rojo (Crítico)</option>
+              <option value="Naranja">🟠 Naranja (Alerta)</option>
+              <option value="Amarillo">🟡 Amarillo (Seguimiento)</option>
+              <option value="Verde">🟢 Verde (Normal)</option>
+            </select>
+          </div>
+          <div style="display:flex; align-items:flex-end;">
+            <button type="button" class="btn-base btn-primary" style="width:100%; justify-content:center;" onclick="window.CIO.ejecutarIAComponenteIndividual()">
+              ✨ Asistente Predictivo IA
+            </button>
+          </div>
+        </div>
+
+        <!-- Pares SAP de este Componente -->
+        <div style="background:rgba(20,25,35,0.7); border:1px solid var(--glass-border); border-radius:8px; padding:10px 14px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span class="label-muted" style="color:#60a5fa;">Pares SAP (Aviso SAP ➔ Orden OM)</span>
+            <button type="button" class="btn-base btn-success" style="font-size:0.65rem; padding:2px 8px;" onclick="window.CIO.agregarFilaParSapIndividual()">
+              + Añadir Par SAP
+            </button>
+          </div>
+          <div id="indParesSapContainer"></div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label style="color:#94a3b8;">Diagnóstico Técnico de Vibraciones</label>
+          <textarea id="indCompAnalisis" rows="3" placeholder="Describe patrones FFT, armónicos 1X/2X, PeakVue..."></textarea>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="color:#94a3b8;">Recomendación Mecánica / Operativa</label>
+          <textarea id="indCompRecom" rows="2" placeholder="Acciones preventivas, lubricación, chequeo de huelgos..."></textarea>
+        </div>
+
+        <footer class="modal-footer-actions">
+          <button type="button" class="btn-base btn-danger" onclick="window.CIO.eliminarComponenteActual()">🗑️ Eliminar Componente</button>
+          <button type="submit" class="btn-base btn-success">💾 Guardar Cambios</button>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- MODAL HISTÓRICO: BITÁCORA DE TERRENO Y EVIDENCIA FOTOGRÁFICA -->
+  <dialog id="modalHistoricoTerreno" class="modal-dialog">
+    <div class="modal-content modal-lg" style="border-top: 4px solid #38bdf8;">
+      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalHistoricoTerreno').close()">&times;</button>
+      <header class="modal-header">
+        <div>
+          <span class="label-muted">Inspección de Ronda & Terreno</span>
+          <h2 id="histTerrenoTitle" style="margin:2px 0 0 0; font-size:1.3rem;">Historial de Hallazgos en Terreno</h2>
+          <p style="margin:4px 0 0 0; font-size:0.75rem; color:var(--text-muted);">
+            Reportes transmitidos en tiempo real desde terreno con fecha, severidad y fotografías de evidencia.
+          </p>
+        </div>
+      </header>
+
+      <div id="histTerrenoListContainer" class="field-list" style="margin-top:16px; max-height:65vh;"></div>
     </div>
   </dialog>
 
@@ -261,16 +355,14 @@
     </div>
   </dialog>
 
-  <!-- Modal Edición / Creación Fullscreen -->
+  <!-- Modal Edición Datos Generales del Activo -->
   <dialog id="modalEdicion" class="modal-fullscreen-dialog">
-    <div class="fullscreen-inner">
+    <div class="fullscreen-inner" style="max-width: 800px;">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEdicion').close()">&times;</button>
-      <h2 class="edition-title">Configuración de Activo & Tren Motriz</h2>
+      <h2 class="edition-title">Configuración General del Activo</h2>
       
-      <form class="form-grid" onsubmit="event.preventDefault(); window.CIO.guardarEquipo();">
-        <!-- BLOQUE 1: INFORMACIÓN PRINCIPAL DEL EQUIPO -->
+      <form class="form-grid" onsubmit="event.preventDefault(); window.CIO.guardarDatosGeneralesActivo();">
         <div class="span-2 main-info-section">
-          <h3 class="section-divider-title">📋 1. Información Principal del Activo</h3>
           <div class="form-grid-inner">
             <div><label for="edSiteId">Faena</label><input type="text" id="edSiteId" class="code-font" readonly /></div>
             <div><label for="edDomain">Dominio</label><select id="edDomain"><option value="planta">🏭 Planta</option><option value="mina">⛏️ Mina</option></select></div>
@@ -305,32 +397,14 @@
           </div>
         </div>
 
-        <!-- BLOQUE 2: COMPONENTES CON PARES AVISO/OM SAP ORDENADOS -->
-        <div class="span-2" style="margin-top: 14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-            <div>
-              <h3 class="section-divider-title" style="margin:0;">⚙️ 2. Componentes (Motor, Reductor, Poleas) y Pares SAP</h3>
-              <p style="margin:4px 0 0 0; font-size:0.75rem; color:var(--text-muted);">
-                Cada aviso SAP va emparejado con su orden OM SAP correspondiente. Puedes añadir varios pares por componente.
-              </p>
-            </div>
-            <button type="button" class="btn-base btn-success" onclick="window.CIO.agregarFormComponente()">
-              ➕ Añadir Componente
-            </button>
-          </div>
-
-          <!-- Contenedor dinámico de componentes -->
-          <div id="edComponentesContainer" class="components-stack-container"></div>
-        </div>
-
         <footer class="span-2 modal-footer-actions">
           <button type="button" class="btn-base btn-danger" onclick="window.CIO.eliminarEquipo()">🗑️ Eliminar Activo</button>
-          <button type="submit" class="btn-base btn-success">💾 Guardar Configuración</button>
+          <button type="submit" class="btn-base btn-success">💾 Guardar Datos Generales</button>
         </footer>
       </form>
     </div>
   </dialog>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
