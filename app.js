@@ -42,7 +42,7 @@
     faenaSeleccionada: null,
     areaSeleccionada: null,
     equipoSeleccionado: null,
-    equipoIdModal: null,
+    equipoIdNivel3: null,
     componenteIndexEdit: -1,
     siteMapVisible: false,
     authMode: 'login',
@@ -89,7 +89,6 @@
     };
   }
 
-  // Severidad máxima del activo heredada de sus componentes
   function calcMaxSev(comps) {
     if (!comps || !comps.length) return 'Plomo';
     var max = 1;
@@ -103,7 +102,6 @@
     return maxSev;
   }
 
-  // Consolidar todos los pares SAP del equipo
   function consolidarSAPs(comps) {
     var pares = [];
     var avisosUnicos = [];
@@ -157,7 +155,7 @@
           {
             nombre: 'M1 (Motor)',
             rms: '4.0',
-            severidad: sevRand === 'Rojo' ? 'Rojo' : 'Verde',
+            severidad: 'Rojo',
             paresSap: [ { aviso: '123456', om: '123456' } ],
             analisis: '[IA - Criticidad Alta]: Energía vibratoria crítica en M1 (4 mm/s). Posible soltura mecánica estructural o holgura basal.',
             recomendacion: '1) Inspección termográfica inmediata y reapriete de pernos basales.'
@@ -169,6 +167,14 @@
             paresSap: [ { aviso: '445566666', om: '4521444444' } ],
             analisis: '[IA - Criticidad Alta]: Energía vibratoria crítica en G1 (11 mm/s). Posible soltura mecánica estructural o holgura basal.',
             recomendacion: '1) Inspección termográfica inmediata y reapriete de pernos basales.'
+          },
+          {
+            nombre: 'M2 (Polea / Soporte)',
+            rms: '1.0',
+            severidad: 'Verde',
+            paresSap: [],
+            analisis: '[IA - Normal]: Comportamiento dinámico de M2 dentro de tolerancia admisible (RMS: 1 mm/s).',
+            recomendacion: 'Mantener frecuencia de medición mensual estándar (30 días).'
           }
         ]
       });
@@ -178,6 +184,7 @@
 
   state.equipos = generarSeedLocal();
 
+  // PANTALLA 1
   function renderScreen1() {
     var container = document.getElementById('viewScreen1Content');
     if (!container) return;
@@ -220,6 +227,7 @@
     });
   }
 
+  // PANTALLA 2
   function renderScreen2() {
     var target = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
     var titleEl = document.getElementById('screen2SiteTitle');
@@ -295,7 +303,8 @@
 
         var card = document.createElement('article');
         card.className = 'card-equipo sev-' + s.toLowerCase() + ' ' + (s === 'Rojo' || s === 'Naranja' ? 'anim-' + s.toLowerCase() : '');
-        card.onclick = function() { window.CIO.abrirDetalle(eq.id); };
+        // Clic en la tarjeta abre el NIVEL 3 nativo como nueva pantalla
+        card.onclick = function() { window.CIO.irANivel3Equipo(eq.id); };
 
         var badgeTerreno = fieldReports.length > 0 ? ('<span class="badge-field-floating">💬 Ronda (' + fieldReports.length + ')</span>') : '';
         var badgeSap = saps.countAvisos > 0 ? ('<div style="font-size:0.58rem; color:#60a5fa; font-weight:700; margin-top:2px;">AV: ' + saps.countAvisos + ' | OM: ' + saps.countOms + '</div>') : '';
@@ -311,13 +320,159 @@
     }
   }
 
+  // PANTALLA 3: NIVEL 3 NATIVO EN PANTALLA COMPLETA
   function renderScreen3() {
+    if (!state.equipoIdNivel3) {
+      window.CIO.goScreen(2);
+      return;
+    }
+
+    var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
+    if (!eq) {
+      window.CIO.goScreen(2);
+      return;
+    }
+
+    var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
+    document.getElementById('n3Breadcrumb').innerText = eq.siteId + ' | ' + eq.area + ' | TAG: ' + tagValue;
+    document.getElementById('n3Title').innerText = (eq.tipo || 'Activo') + ' - ' + eq.area;
+
+    var aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
+    var bannerMed = document.getElementById('n3BannerMedicion');
+    if (bannerMed) {
+      bannerMed.innerHTML = aud.vencido
+        ? ('<span class="banner-contador-alerta vencido">⚠️ ALERTA RUTA: Medición realizada ' + aud.texto + ' (> 30 días sin inspeccionar)</span>')
+        : ('<span class="banner-contador-alerta al-dia">✅ RUTA AL DÍA: Última medición ' + aud.texto + ' (dentro de ciclo)</span>');
+    }
+
+    var sevGlobal = calcMaxSev(eq.componentes);
+    var saps = consolidarSAPs(eq.componentes);
+
+    // Banner Superior
+    var diagBox = document.getElementById('n3DiagnosticoBox');
+    if (diagBox) {
+      var paresHtml = '';
+      if (saps.pares.length > 0) {
+        paresHtml = saps.pares.map(function(p) {
+          return '<span style="background:rgba(30,58,138,0.3); border:1px solid #3b82f6; padding:3px 8px; border-radius:5px; margin-right:6px; margin-bottom:4px; display:inline-block; font-size:0.75rem;">' +
+            '<strong>' + sanitize(p.componente) + ':</strong> <span style="color:#60a5fa;">AV ' + sanitize(p.aviso) + '</span> ➔ <span style="color:#34d399;">OM ' + sanitize(p.om) + '</span>' +
+          '</span>';
+        }).join('');
+      } else {
+        paresHtml = '<span style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">Sin Avisos / OM SAP asociadas</span>';
+      }
+
+      diagBox.innerHTML = '<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; align-items:center; border-bottom:1px solid var(--glass-border); padding-bottom:10px; margin-bottom:10px;">' +
+          '<div>' +
+            '<span class="label-muted">Condición Crítica Heredada</span>' +
+            '<div style="font-weight:900; font-size:1.15rem; color:' + SEV_COLOR[sevGlobal] + ';">' + sevGlobal.toUpperCase() + '</div>' +
+          '</div>' +
+          '<div><span class="label-muted">Estatus Hallazgo</span><div style="font-weight:700; margin-top:2px;">' + sanitize(eq.estatusHallazgo || 'Abierto') + '</div></div>' +
+          '<div><span class="label-muted">Última Medición</span><div style="font-weight:700; margin-top:2px;">' + (eq.fechaMedicion || 'S/F') + '</div></div>' +
+        '</div>' +
+        '<div>' +
+          '<span class="label-muted">Avisos & Órdenes OM SAP Vinculadas:</span>' +
+          '<div style="margin-top:6px;">' + paresHtml + '</div>' +
+        '</div>';
+    }
+
+    // Grilla de Tarjetas Nivel 3 (Componentes + Terreno)
+    var grid = document.getElementById('n3GridCards');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    var comps = (eq.componentes || []).slice().sort(function(a, b) {
+      return SEV_PESO[b.severidad || 'Plomo'] - SEV_PESO[a.severidad || 'Plomo'];
+    });
+
+    comps.forEach(function(c, idx) {
+      var col = SEV_COLOR[c.severidad] || '#6b7280';
+      var card = document.createElement('article');
+      card.className = 'card-nivel3-comp';
+      card.style.borderLeft = '5px solid ' + col;
+
+      var paresHtml = '';
+      if (c.paresSap && c.paresSap.length > 0) {
+        paresHtml = '<div style="background:rgba(20,25,35,0.7); padding:6px 8px; border-radius:6px; font-size:0.75rem; margin:8px 0;">' +
+          c.paresSap.map(function(p) {
+            return '<div><strong>Aviso:</strong> <span class="code-font" style="color:#60a5fa;">' + sanitize(p.aviso || 'S/A') + '</span> ➔ <strong>OM:</strong> <span class="code-font" style="color:#34d399;">' + sanitize(p.om || 'S/OM') + '</span></div>';
+          }).join('') +
+        '</div>';
+      }
+
+      card.innerHTML = '<div>' +
+          '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">' +
+            '<div>' +
+              '<span class="label-muted">Componente</span>' +
+              '<h4 style="margin:2px 0 0 0; font-size:1.1rem; color:#fff;">' + sanitize(c.nombre || 'Componente') + '</h4>' +
+            '</div>' +
+            '<span style="font-weight:800; font-size:0.85rem; color:' + col + '; background:rgba(0,0,0,0.3); padding:4px 8px; border-radius:5px; border:1px solid ' + col + ';">' +
+              (c.severidad || 'Verde').toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)' +
+            '</span>' +
+          '</div>' +
+          paresHtml +
+          '<div style="margin-top:8px; font-size:0.82rem; color:#e5e7eb; line-height:1.35;">' +
+            '<strong>Diagnóstico:</strong> ' + sanitize(c.analisis || 'Sin análisis registrado.') +
+          '</div>' +
+          '<div style="margin-top:6px; font-size:0.82rem; color:#a7f3d0; line-height:1.35;">' +
+            '<strong>Recomendación:</strong> ' + sanitize(c.recomendacion || 'Mantener ruta rutinaria.') +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-top:14px; display:flex; justify-content:flex-end; border-top:1px solid var(--glass-border); padding-top:10px;">' +
+          '<button type="button" class="btn-base btn-primary auth-only" onclick="window.CIO.abrirEditorComponenteIndividual(' + idx + ')">' +
+            '✏️ Editar este Componente' +
+          '</button>' +
+        '</div>';
+
+      grid.appendChild(card);
+    });
+
+    // Tarjeta de Terreno integrada
+    var myReports = state.alertasTerreno
+      .filter(function(a) { return matchTags(a.tag, tagValue); })
+      .sort(function(a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
+
+    var cardTerreno = document.createElement('article');
+    cardTerreno.className = 'card-nivel3-comp card-nivel3-terreno';
+    cardTerreno.onclick = function() { window.CIO.abrirModalHistoricoTerreno(); };
+
+    var ultReporte = myReports.length > 0 ? myReports[0] : null;
+    var ultFecha = ultReporte && ultReporte.timestamp ? new Date(ultReporte.timestamp).toLocaleDateString() : 'Sin registros';
+    var ultSev = ultReporte ? ultReporte.severidad : 'Normal';
+
+    cardTerreno.innerHTML = '<div>' +
+        '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">' +
+          '<div>' +
+            '<span class="label-muted" style="color:#38bdf8;">Ronda en Planta & Terreno</span>' +
+            '<h4 style="margin:2px 0 0 0; font-size:1.1rem; color:#38bdf8;">📸 Bitácora de Terreno</h4>' +
+          '</div>' +
+          '<span style="font-weight:800; font-size:0.85rem; color:#38bdf8; background:rgba(56,189,248,0.15); padding:4px 8px; border-radius:5px; border:1px solid rgba(56,189,248,0.4);">' +
+            myReports.length + ' Hallazgos' +
+          '</span>' +
+        '</div>' +
+        '<div style="margin:10px 0; font-size:0.84rem; color:#e2e8f0; line-height:1.4;">' +
+          (ultReporte ? ('<strong>Último reporte (' + ultFecha + '):</strong> ' + sanitize(ultReporte.detalle)) : 'No se registran hallazgos de ronda en terreno para este activo.') +
+        '</div>' +
+        (ultReporte && ultReporte.fotoBase64 ? ('<div style="font-size:0.75rem; color:#38bdf8; font-weight:bold;">📷 Contiene evidencia fotográfica adjunta</div>') : '') +
+      '</div>' +
+      '<div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(56,189,248,0.2); padding-top:10px;">' +
+        '<span style="font-size:0.75rem; color:var(--text-muted);">Condición: <strong style="color:' + (SEV_COLOR[ultSev] || '#fff') + ';">' + ultSev + '</strong></span>' +
+        '<button type="button" class="btn-base" style="border-color:#38bdf8; color:#38bdf8; background:rgba(56,189,248,0.1);">' +
+          '🔍 Abrir Historial Completo ➔' +
+        '</button>' +
+      '</div>';
+
+    grid.appendChild(cardTerreno);
+  }
+
+  // PANTALLA 4: SUPERADMIN
+  function renderScreen4() {
     var filterEl = document.getElementById('superAdminFilterSite');
     var filter = filterEl ? filterEl.value : 'TODAS';
     var eqs = filter === 'TODAS' ? state.equipos : state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === filter; });
     eqs.sort(function(a, b) { return SEV_PESO[calcMaxSev(b.componentes)] - SEV_PESO[calcMaxSev(a.componentes)]; });
 
-    var container = document.getElementById('viewScreen3Global');
+    var container = document.getElementById('viewScreen4Global');
     if (!container) return;
 
     container.innerHTML = '';
@@ -330,7 +485,7 @@
       card.innerHTML = '<span class="label-muted">' + sanitize(eq.siteId) + '</span>' +
         '<div class="eq-tag code-font">' + sanitize(tagValue) + '</div>' +
         '<div style="margin-top:6px;">' +
-          '<button class="btn-base btn-primary" type="button" style="padding:2px 8px; font-size:0.65rem;" onclick="window.CIO.abrirEdicion(\'' + eq.id + '\')">✏️ Editar</button>' +
+          '<button class="btn-base btn-primary" type="button" style="padding:2px 8px; font-size:0.65rem;" onclick="window.CIO.irANivel3Equipo(\'' + eq.id + '\')">🔍 Ver Nivel 3</button>' +
         '</div>';
       container.appendChild(card);
     });
@@ -409,11 +564,6 @@
         });
       }
       refresh();
-
-      // Si el modal de nivel 3 está abierto, refrescarlo en vivo
-      if (state.equipoIdModal) {
-        window.CIO.abrirDetalle(state.equipoIdModal);
-      }
     });
 
     if (dbAlertasTerreno) {
@@ -425,13 +575,6 @@
           return alertData;
         }) : [];
         refresh();
-
-        if (state.equipoIdModal) {
-          var currentEq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
-          if (currentEq) {
-            window.CIO.renderNivel3Tarjetas(currentEq);
-          }
-        }
       });
     }
   }
@@ -441,6 +584,7 @@
       if (state.currentScreen === 1) renderScreen1();
       else if (state.currentScreen === 2) renderScreen2();
       else if (state.currentScreen === 3) renderScreen3();
+      else if (state.currentScreen === 4) renderScreen4();
     } catch (e) {
       console.error("Error al refrescar interfaz:", e);
     }
@@ -455,7 +599,7 @@
       document.querySelectorAll('.screen-view').forEach(function(el) { el.classList.remove('active'); });
       var sc = document.getElementById('screen-' + num);
       if (sc) sc.classList.add('active');
-      var titles = { 1: 'Vista Pública (Global - DEV)', 2: 'Faena: ' + (state.faenaSeleccionada || 'Operativa (DEV)'), 3: 'Consola SuperAdmin (DEV)' };
+      var titles = { 1: 'Vista Pública (Global - DEV)', 2: 'Faena: ' + (state.faenaSeleccionada || 'Operativa (DEV)'), 3: 'Nivel 3: Tren Motriz & Componentes', 4: 'Consola SuperAdmin (DEV)' };
       var headerTitle = document.getElementById('headerScreenTitle');
       if (headerTitle) headerTitle.innerText = titles[num] || 'CIO';
       if (num !== 2) state.siteMapVisible = false;
@@ -491,6 +635,16 @@
         return;
       }
       window.CIO.goScreen(1);
+    },
+
+    // TRANSICIÓN AL NIVEL 3 COMO PANTALLA COMPLETA
+    irANivel3Equipo: function(id) {
+      state.equipoIdNivel3 = id;
+      window.CIO.goScreen(3);
+    },
+
+    volverDeNivel3: function() {
+      window.CIO.goScreen(2);
     },
 
     toggleSiteMapTab: function() {
@@ -628,7 +782,7 @@
       }
     },
 
-    cerrarSesionUsuario: () => {
+    cerrarSesionUsuario: function() {
       state.usuarioActivo = null;
       state.faenaAsignada = null;
       document.body.classList.remove('user-authenticated');
@@ -641,21 +795,21 @@
       window.CIO.goScreen(1);
     },
 
-    solicitarPermisoSuperAdmin: () => {
+    solicitarPermisoSuperAdmin: function() {
       var p = prompt("🔑 Clave SuperAdmin (DEV):");
       if (p === "Moncon2026") {
         state.isSuperAdmin = true;
-        window.CIO.goScreen(3);
+        window.CIO.goScreen(4);
       } else if (p !== null) {
         alert("❌ Clave incorrecta.");
       }
     },
 
-    renderScreen3Global: () => {
-      renderScreen3();
+    renderScreen4Global: function() {
+      renderScreen4();
     },
 
-    exportarReporteGerenciaAlta: () => {
+    exportarReporteGerenciaAlta: function() {
       var txt = 'REPORTE ALTA GERENCIA CIO - CMP [DEV]\nTotal: ' + state.equipos.length + '\nFecha: ' + new Date().toISOString();
       var blob = new Blob([txt], { type: 'text/plain' });
       var a = document.createElement('a');
@@ -664,7 +818,7 @@
       a.click();
     },
 
-    exportarReporteGerenciaPorFaena: () => {
+    exportarReporteGerenciaPorFaena: function() {
       var filterEl = document.getElementById('superAdminFilterSite');
       var target = filterEl ? filterEl.value : FAENAS[0];
       var count = state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }).length;
@@ -676,7 +830,7 @@
       a.click();
     },
 
-    auditarDiasMedicionForm: () => {
+    auditarDiasMedicionForm: function() {
       var medEl = document.getElementById('edFechaMedicion');
       var val = medEl ? medEl.value : '';
       var box = document.getElementById('edFeedbackContadorDias');
@@ -693,166 +847,14 @@
         : ('<span class="banner-contador-alerta al-dia" style="font-size:0.7rem; padding:4px 8px;">✅ Medición vigente: ' + aud.texto + '</span>');
     },
 
-    // ========================================================================
-    // NIVEL 3: DETALLE DEL EQUIPO CON GRILLA DE TARJETAS INTERACTIVAS
-    // ========================================================================
-    abrirDetalle: function(id) {
-      state.equipoIdModal = id;
-      var eq = state.equipos.find(function(e) { return e.id === id; });
-      if (!eq) return;
-
-      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
-      var detTag = document.getElementById('detSiteTag');
-      if (detTag) detTag.innerText = eq.siteId + ' | TAG: ' + tagValue;
-      var detTit = document.getElementById('detTitle');
-      if (detTit) detTit.innerText = (eq.tipo || 'Activo') + ' - ' + eq.area;
-
-      var aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
-      var contadorBox = document.getElementById('detContadorMedicionBanner');
-      if (contadorBox) {
-        contadorBox.innerHTML = aud.vencido
-          ? ('<span class="banner-contador-alerta vencido">⚠️ ALERTA RUTA: Medición realizada ' + aud.texto + ' (> 30 días sin inspeccionar)</span>')
-          : ('<span class="banner-contador-alerta al-dia">✅ RUTA AL DÍA: Última medición ' + aud.texto + ' (dentro de ciclo)</span>');
-      }
-
-      var sevGlobal = calcMaxSev(eq.componentes);
-      var saps = consolidarSAPs(eq.componentes);
-
-      // Panel Superior Consolidado
-      var diagBox = document.getElementById('detDiagnosticoBox');
-      if (diagBox) {
-        var paresHtml = '';
-        if (saps.pares.length > 0) {
-          paresHtml = saps.pares.map(function(p) {
-            return '<span style="background:rgba(30,58,138,0.3); border:1px solid #3b82f6; padding:3px 8px; border-radius:5px; margin-right:6px; margin-bottom:4px; display:inline-block; font-size:0.75rem;">' +
-              '<strong>' + sanitize(p.componente) + ':</strong> <span style="color:#60a5fa;">AV ' + sanitize(p.aviso) + '</span> ➔ <span style="color:#34d399;">OM ' + sanitize(p.om) + '</span>' +
-            '</span>';
-          }).join('');
-        } else {
-          paresHtml = '<span style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">Sin Avisos / OM SAP asociadas</span>';
-        }
-
-        diagBox.innerHTML = '<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; align-items:center; border-bottom:1px solid var(--glass-border); padding-bottom:10px; margin-bottom:10px;">' +
-            '<div>' +
-              '<span class="label-muted">Condición Crítica Heredada</span>' +
-              '<div style="font-weight:900; font-size:1.1rem; color:' + SEV_COLOR[sevGlobal] + ';">' + sevGlobal.toUpperCase() + '</div>' +
-            '</div>' +
-            '<div><span class="label-muted">Estatus Hallazgo</span><div style="font-weight:700; margin-top:2px;">' + sanitize(eq.estatusHallazgo || 'Abierto') + '</div></div>' +
-            '<div><span class="label-muted">Última Medición</span><div style="font-weight:700; margin-top:2px;">' + (eq.fechaMedicion || 'S/F') + '</div></div>' +
-          '</div>' +
-          '<div>' +
-            '<span class="label-muted">Avisos & Órdenes OM SAP Vinculadas:</span>' +
-            '<div style="margin-top:6px;">' + paresHtml + '</div>' +
-          '</div>';
-      }
-
-      window.CIO.renderNivel3Tarjetas(eq);
-      var modalDet = document.getElementById('modalDetalleActivo');
-      if (modalDet) modalDet.showModal();
-    },
-
-    // RENDERIZADO DEL TERCER NIVEL (TARJETAS DE COMPONENTES + TARJETA DE TERRENO)
-    renderNivel3Tarjetas: function(eq) {
-      var grid = document.getElementById('gridNivel3Componentes');
-      if (!grid) return;
-      grid.innerHTML = '';
-
-      var comps = (eq.componentes || []).slice().sort(function(a, b) {
-        return SEV_PESO[b.severidad || 'Plomo'] - SEV_PESO[a.severidad || 'Plomo'];
-      });
-
-      // 1. Tarjetas Interactivas de cada Componente
-      comps.forEach(function(c, idx) {
-        var col = SEV_COLOR[c.severidad] || '#6b7280';
-        var card = document.createElement('article');
-        card.className = 'card-nivel3-comp';
-        card.style.borderLeft = '5px solid ' + col;
-
-        var paresHtml = '';
-        if (c.paresSap && c.paresSap.length > 0) {
-          paresHtml = '<div style="background:rgba(20,25,35,0.7); padding:6px 8px; border-radius:6px; font-size:0.75rem; margin:8px 0;">' +
-            c.paresSap.map(function(p) {
-              return '<div><strong>Aviso:</strong> <span class="code-font" style="color:#60a5fa;">' + sanitize(p.aviso || 'S/A') + '</span> ➔ <strong>OM:</strong> <span class="code-font" style="color:#34d399;">' + sanitize(p.om || 'S/OM') + '</span></div>';
-            }).join('') +
-          '</div>';
-        }
-
-        card.innerHTML = '<div>' +
-            '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">' +
-              '<div>' +
-                '<span class="label-muted">Componente</span>' +
-                '<h4 style="margin:2px 0 0 0; font-size:1.05rem; color:#fff;">' + sanitize(c.nombre || 'Componente') + '</h4>' +
-              '</div>' +
-              '<span style="font-weight:800; font-size:0.85rem; color:' + col + '; background:rgba(0,0,0,0.3); padding:4px 8px; border-radius:5px; border:1px solid ' + col + ';">' +
-                (c.severidad || 'Verde').toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)' +
-              '</span>' +
-            '</div>' +
-            paresHtml +
-            '<div style="margin-top:8px; font-size:0.82rem; color:#e5e7eb; line-height:1.35;">' +
-              '<strong>Diagnóstico:</strong> ' + sanitize(c.analisis || 'Sin análisis registrado.') +
-            '</div>' +
-            '<div style="margin-top:6px; font-size:0.82rem; color:#a7f3d0; line-height:1.35;">' +
-              '<strong>Recomendación:</strong> ' + sanitize(c.recomendacion || 'Mantener ruta rutinaria.') +
-            '</div>' +
-          '</div>' +
-          '<div style="margin-top:14px; display:flex; justify-content:flex-end; border-top:1px solid var(--glass-border); padding-top:10px;">' +
-            '<button type="button" class="btn-base btn-primary auth-only" onclick="window.CIO.abrirEditorComponenteIndividual(' + idx + ')">' +
-              '✏️ Editar este Componente' +
-            '</button>' +
-          '</div>';
-
-        grid.appendChild(card);
-      });
-
-      // 2. Tarjeta Especial Interactiva: Bitácora Histórica de Terreno
-      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
-      var myReports = state.alertasTerreno
-        .filter(function(a) { return matchTags(a.tag, tagValue); })
-        .sort(function(a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
-
-      var cardTerreno = document.createElement('article');
-      cardTerreno.className = 'card-nivel3-comp card-nivel3-terreno';
-      cardTerreno.onclick = function() { window.CIO.abrirModalHistoricoTerreno(); };
-
-      var ultReporte = myReports.length > 0 ? myReports[0] : null;
-      var ultFecha = ultReporte && ultReporte.timestamp ? new Date(ultReporte.timestamp).toLocaleDateString() : 'Sin registros';
-      var ultSev = ultReporte ? ultReporte.severidad : 'Normal';
-
-      cardTerreno.innerHTML = '<div>' +
-          '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">' +
-            '<div>' +
-              '<span class="label-muted" style="color:#38bdf8;">Ronda en Planta & Terreno</span>' +
-              '<h4 style="margin:2px 0 0 0; font-size:1.05rem; color:#38bdf8;">📸 Bitácora de Terreno</h4>' +
-            '</div>' +
-            '<span style="font-weight:800; font-size:0.85rem; color:#38bdf8; background:rgba(56,189,248,0.15); padding:4px 8px; border-radius:5px; border:1px solid rgba(56,189,248,0.4);">' +
-              myReports.length + ' Hallazgos' +
-            '</span>' +
-          '</div>' +
-          '<div style="margin:10px 0; font-size:0.84rem; color:#e2e8f0; line-height:1.4;">' +
-            (ultReporte ? ('<strong>Último reporte (' + ultFecha + '):</strong> ' + sanitize(ultReporte.detalle)) : 'No se registran hallazgos de ronda en terreno para este activo.') +
-          '</div>' +
-          (ultReporte && ultReporte.fotoBase64 ? ('<div style="font-size:0.75rem; color:#38bdf8; font-weight:bold;">📷 Contiene evidencia fotográfica adjunta</div>') : '') +
-        '</div>' +
-        '<div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(56,189,248,0.2); padding-top:10px;">' +
-          '<span style="font-size:0.75rem; color:var(--text-muted);">Condición: <strong style="color:' + (SEV_COLOR[ultSev] || '#fff') + ';">' + ultSev + '</strong></span>' +
-          '<button type="button" class="btn-base" style="border-color:#38bdf8; color:#38bdf8; background:rgba(56,189,248,0.1);">' +
-            '🔍 Abrir Historial Completo ➔' +
-          '</button>' +
-        '</div>';
-
-      grid.appendChild(cardTerreno);
-    },
-
-    // ========================================================================
-    // EDICIÓN INDIVIDUAL DE UN COMPONENTE (MÁS CÓMODO Y MODULAR)
-    // ========================================================================
+    // EDICIÓN INDIVIDUAL DE UN COMPONENTE
     abrirEditorComponenteIndividual: function(idx) {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Debes iniciar sesión para editar componentes.");
         return;
       }
 
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
 
       state.componenteIndexEdit = idx;
@@ -861,7 +863,7 @@
       };
 
       document.getElementById('edCompIndex').value = idx;
-      document.getElementById('edCompModalTitle').innerText = 'Editar Componente: ' + (c.nombre || 'Componente');
+      document.getElementById('edCompModalTitle').innerText = 'Editar: ' + (c.nombre || 'Componente');
       document.getElementById('indCompNombre').value = c.nombre || '';
       document.getElementById('indCompRms').value = c.rms || '2.0';
       document.getElementById('indCompSev').value = c.severidad || 'Verde';
@@ -886,7 +888,7 @@
         alert("🔒 Acción restringida: Debes iniciar sesión.");
         return;
       }
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
 
       eq.componentes = eq.componentes || [];
@@ -927,10 +929,10 @@
       var recom = '';
 
       if (sev === 'Rojo') {
-        if (nom.toLowerCase().indexOf('motor') !== -1) {
+        if (nom.toLowerCase().indexOf('motor') !== -1 || nom.toLowerCase().indexOf('m1') !== -1) {
           diag = '[IA - Criticidad Alta en ' + nom + ']: Nivel RMS crítico (' + rms + ' mm/s). Predominio de armónico 1X y 2X axial compatible con desalineación angular severa o entrehierro excéntrico.';
           recom = '1) Chequear alineamiento láser motor-reductor. 2) Medir resistencia de aislamiento y temperatura de descansos.';
-        } else if (nom.toLowerCase().indexOf('reductor') !== -1) {
+        } else if (nom.toLowerCase().indexOf('reductor') !== -1 || nom.toLowerCase().indexOf('g1') !== -1) {
           diag = '[IA - Criticidad Alta en ' + nom + ']: Nivel RMS crítico (' + rms + ' mm/s). Modulación en frecuencias de engrane (GMF) indicativa de desgaste severo en dentado o desalineación interna.';
           recom = '1) Detención programada para boroscopía de piñón/corona. 2) Toma de muestra de aceite para ferrografía analítica.';
         } else if (nom.toLowerCase().indexOf('polea') !== -1) {
@@ -953,7 +955,7 @@
     },
 
     guardarComponenteIndividual: function() {
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
 
       var idx = parseInt(document.getElementById('edCompIndex').value, 10);
@@ -982,11 +984,11 @@
       }
 
       document.getElementById('modalEditarComponenteIndividual').close();
-      window.CIO.abrirDetalle(eq.id);
+      renderScreen3();
     },
 
     eliminarComponenteActual: function() {
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
 
       var idx = parseInt(document.getElementById('edCompIndex').value, 10);
@@ -996,15 +998,13 @@
           db.child(eq.id).child('componentes').set(eq.componentes);
         }
         document.getElementById('modalEditarComponenteIndividual').close();
-        window.CIO.abrirDetalle(eq.id);
+        renderScreen3();
       }
     },
 
-    // ========================================================================
-    // VISOR HISTÓRICO DE TERRENO (TARJETA DE TERRENO)
-    // ========================================================================
+    // VISOR HISTÓRICO DE TERRENO
     abrirModalHistoricoTerreno: function() {
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
 
       var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
@@ -1039,21 +1039,13 @@
       win.document.write('<body style="margin:0; background:#0a0a0c; display:flex; justify-content:center; align-items:center; height:100vh;"><img src="' + base64Data + '" style="max-width:98%; max-height:98%; object-fit:contain; border-radius:6px; box-shadow:0 0 30px rgba(0,0,0,0.8);" /></body>');
     },
 
-    cerrarModalDetalle: function() {
-      state.equipoIdModal = null;
-      var modalDet = document.getElementById('modalDetalleActivo');
-      if (modalDet) modalDet.close();
-    },
-
-    // ========================================================================
-    // EDICIÓN GENERAL DEL ACTIVO (DATOS CABECERA)
-    // ========================================================================
+    // EDICIÓN GENERAL DEL ACTIVO (CABECERA)
     editarDatosGeneralesActivo: function() {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Inicia sesión para editar datos del activo.");
         return;
       }
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
 
       state.equipoSeleccionado = eq;
@@ -1096,7 +1088,7 @@
 
       if (db) db.child(state.equipoSeleccionado.id).update(payload);
       document.getElementById('modalEdicion').close();
-      window.CIO.abrirDetalle(state.equipoSeleccionado.id);
+      renderScreen3();
     },
 
     abrirEdicionEquipoNuevoAuth: function() {
@@ -1119,27 +1111,25 @@
       };
 
       if (db) db.child(newId).set(nuevoEquipo);
-      window.CIO.abrirDetalle(newId);
+      window.CIO.irANivel3Equipo(newId);
     },
 
     eliminarEquipo: function() {
       if (confirm('¿Eliminar activo en DEV?') && db && state.equipoSeleccionado) {
         db.child(state.equipoSeleccionado.id).remove();
         document.getElementById('modalEdicion').close();
-        window.CIO.cerrarModalDetalle();
+        window.CIO.goScreen(2);
       }
     },
 
-    // ========================================================================
-    // INFORME EJECUTIVO EDITABLE CON LOGO CPF
-    // ========================================================================
+    // INFORME TÉCNICO EDITABLE PRE-IMPRESIÓN (CON LOGO CPF)
     abrirEditorInformeModal: function() {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Debes iniciar sesión con tu cuenta de usuario para emitir o editar informes ejecutivos.");
         return;
       }
 
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
 
       var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
@@ -1176,7 +1166,7 @@
     },
 
     emitirInformeFinalImpresion: function() {
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
 
       var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
