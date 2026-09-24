@@ -94,7 +94,7 @@
       <section id="viewScreen2Container" class="grid-container"></section>
     </section>
 
-    <!-- PANTALLA 3: NIVEL 3 - DASHBOARD DE COMPONENTES Y PUNTOS DE MEDICIÓN -->
+    <!-- PANTALLA 3: NIVEL 3 - TARJETAS DASHBOARD DE COMPONENTES Y PUNTOS -->
     <section id="screen-3" class="screen-view">
       <header class="site-nav-bar">
         <div class="site-nav-left">
@@ -109,7 +109,7 @@
         </div>
 
         <nav class="site-actions">
-          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.agregarNuevoComponenteDirecto()">➕ Añadir Componente/Punto</button>
+          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.agregarNuevoComponenteDirecto()">➕ Añadir Punto/Componente</button>
           <button type="button" class="btn-base btn-primary auth-only" onclick="window.CIO.editarDatosGeneralesActivo()">✏️ Editar Datos Equipo</button>
           <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.abrirEditorInformeModal()">📄 Generar Informe Editable</button>
         </nav>
@@ -118,11 +118,11 @@
       <!-- Banner de Resumen Ejecutivo y Pares SAP del Equipo -->
       <section id="n3DiagnosticoBox" class="diagnostico-activo-panel" style="margin-bottom:18px;"></section>
 
-      <!-- Grilla de Tarjetas Interactivas de Componentes + Puntos + Terreno -->
+      <!-- Grilla Dashboard de Tarjetas de Componentes (Mismo nivel visual que pantallas anteriores) -->
       <div class="view-section-header">
-        <h2 style="font-size:0.88rem; color:#93c5fd;">⚙️ Componentes, Puntos de Inspección & Bitácora de Terreno</h2>
+        <h2 style="font-size:0.88rem; color:#93c5fd;">⚙️ Puntos de Medición del Tren Motriz & Bitácora de Terreno</h2>
       </div>
-      <section id="n3GridCards" class="grid-nivel3-cards"></section>
+      <section id="n3GridCards" class="grid-equipos"></section>
     </section>
 
     <!-- PANTALLA 4: SUPERADMIN GLOBAL -->
@@ -154,13 +154,54 @@
     </section>
   </main>
 
-  <!-- MODAL INDIVIDUAL: EDITAR COMPONENTE Y SU PUNTO ASOCIADO -->
+  <!-- MODAL: DETALLE COMPLETO DEL COMPONENTE / PUNTO AL HACER CLIC EN SU TARJETA -->
+  <dialog id="modalDetalleComponente" class="modal-dialog">
+    <div class="modal-content modal-lg" style="border-top: 4px solid #3b82f6;">
+      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalDetalleComponente').close()">&times;</button>
+      
+      <header class="modal-header">
+        <div>
+          <span class="label-muted" id="detCompTagHeader">COMPONENTE / PUNTO</span>
+          <h2 id="detCompTitle" style="margin:2px 0 0 0; font-size:1.35rem;">Motor M1 - Lado Libre (NDE)</h2>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span id="detCompBadgeSev" style="padding:4px 10px; border-radius:6px; font-weight:800; font-size:0.85rem; border:1px solid;">SEVERIDAD</span>
+          <button type="button" class="btn-base btn-primary auth-only" id="btnEditarCompDesdeDetalle" onclick="window.CIO.editarComponenteDesdeDetalleModal()">✏️ Editar Punto</button>
+        </div>
+      </header>
+
+      <!-- Resumen de Pares SAP del punto -->
+      <div id="detCompParesSapBox" style="background:rgba(20,25,38,0.7); border:1px solid var(--glass-border); border-radius:8px; padding:10px 14px; margin:14px 0;"></div>
+
+      <div class="detalle-grid-layout">
+        <div>
+          <h3 class="label-muted section-heading" style="color:#60a5fa;">📊 Diagnóstico de Vibraciones & Recomendación</h3>
+          <div style="background:var(--input-bg); border:1px solid var(--glass-border); border-radius:8px; padding:14px; margin-bottom:12px;">
+            <span class="label-muted">Diagnóstico Técnico del Punto:</span>
+            <div id="detCompAnalisisTxt" style="font-size:0.88rem; color:#f3f4f6; margin-top:4px; line-height:1.4;"></div>
+          </div>
+          <div style="background:var(--input-bg); border:1px solid var(--glass-border); border-radius:8px; padding:14px;">
+            <span class="label-muted" style="color:#34d399;">Recomendación Mecánica / Mantención:</span>
+            <div id="detCompRecomTxt" style="font-size:0.88rem; color:#a7f3d0; margin-top:4px; line-height:1.4;"></div>
+          </div>
+        </div>
+
+        <!-- Galería de Espectros y Fotos de Respaldo del Punto -->
+        <div>
+          <h3 class="label-muted section-heading" style="color:#38bdf8;">📈 Espectros de Vibración & Respaldo Fotográfico</h3>
+          <div id="detCompGaleriaFotos" class="galeria-espectros-grid"></div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL INDIVIDUAL: EDITAR UN COMPONENTE, SU PUNTO Y SUBIR VARIOS ESPECTROS/FOTOS -->
   <dialog id="modalEditarComponenteIndividual" class="modal-dialog">
-    <div class="modal-content" style="max-width: 720px; border-top: 4px solid #3b82f6;">
+    <div class="modal-content modal-lg" style="border-top: 4px solid #3b82f6;">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEditarComponenteIndividual').close()">&times;</button>
       <header class="modal-header">
         <div>
-          <span class="label-muted">Edición Específica de Tren Motriz</span>
+          <span class="label-muted">Configuración de Punto & Espectros</span>
           <h2 id="edCompModalTitle" style="margin:2px 0 0 0; font-size:1.25rem;">Editar Componente</h2>
         </div>
       </header>
@@ -170,12 +211,12 @@
 
         <div class="form-grid" style="margin-bottom:12px;">
           <div>
-            <label>Nombre del Componente</label>
+            <label>Componente</label>
             <input type="text" id="indCompNombre" placeholder="Ej: Motor M1, Reductor G1, Polea Motriz" required />
           </div>
           <div>
-            <label style="color:#38bdf8;">Punto / Spot de Medición</label>
-            <input type="text" id="indCompPunto" placeholder="Ej: Lado Libre (NDE), Lado Acople (DE), Descanso 1" required />
+            <label style="color:#38bdf8;">Punto / Lado de Medición</label>
+            <input type="text" id="indCompPunto" placeholder="Ej: Lado Libre (NDE), Lado Acople (DE)" required />
           </div>
           <div>
             <label>RMS Global (mm/s)</label>
@@ -194,7 +235,7 @@
 
         <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
           <button type="button" class="btn-base btn-primary" onclick="window.CIO.ejecutarIAComponenteIndividual()">
-            ✨ Generar Diagnóstico IA para este Componente y Punto
+            ✨ Generar Diagnóstico IA para este Punto
           </button>
         </div>
 
@@ -214,13 +255,29 @@
           <textarea id="indCompAnalisis" rows="3" placeholder="Describe patrones FFT, armónicos 1X/2X, modulación o PeakVue para este punto..."></textarea>
         </div>
 
-        <div style="margin-bottom:16px;">
+        <div style="margin-bottom:14px;">
           <label style="color:#94a3b8; display:block; margin-bottom:4px;">Recomendación Mecánica / Operativa</label>
           <textarea id="indCompRecom" rows="2" placeholder="Acciones preventivas, lubricación, corrección de huelgos o alineamiento..."></textarea>
         </div>
 
+        <!-- SUBIDA DE MÚLTIPLES ESPECTROS / FOTOS DE RESPALDO -->
+        <div style="background:rgba(20,25,35,0.7); border:1px solid var(--glass-border); border-radius:8px; padding:12px 14px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div>
+              <span class="label-muted" style="color:#38bdf8;">📈 Espectros FFT / Gráficos / Evidencias Fotográficas</span>
+              <div style="font-size:0.7rem; color:var(--text-muted);">Puedes seleccionar varias imágenes a la vez (PNG, JPG).</div>
+            </div>
+            <button type="button" class="btn-base btn-primary" onclick="document.getElementById('inputSubirEspectros').click()">
+              📷 Adjuntar Fotos/Espectros
+            </button>
+            <input type="file" id="inputSubirEspectros" accept="image/*" multiple class="visually-hidden" onchange="window.CIO.procesarSubidaEspectros(event)">
+          </div>
+
+          <div id="previewEspectrosContainer" class="galeria-espectros-grid"></div>
+        </div>
+
         <footer class="modal-footer-actions">
-          <button type="button" class="btn-base btn-danger" onclick="window.CIO.eliminarComponenteActual()">🗑️ Eliminar Componente</button>
+          <button type="button" class="btn-base btn-danger" onclick="window.CIO.eliminarComponenteActual()">🗑️ Eliminar Punto</button>
           <button type="submit" class="btn-base btn-success">💾 Guardar Cambios</button>
         </footer>
       </form>
@@ -276,7 +333,7 @@
           <textarea id="infResumenGeneral" rows="3" placeholder="Redacta la conclusión ejecutiva del estado general del equipo..."></textarea>
         </div>
 
-        <h3 class="label-muted" style="margin-bottom:10px; color:#93c5fd;">Componentes y Puntos de Inspección a Reportar (Editables)</h3>
+        <h3 class="label-muted" style="margin-bottom:10px; color:#93c5fd;">Puntos de Inspección a Reportar (Editables)</h3>
         <div id="infComponentesContainer" class="components-stack-container" style="max-height:40vh; overflow-y:auto; padding-right:6px;"></div>
 
         <footer class="modal-footer-actions">
@@ -287,51 +344,55 @@
     </div>
   </dialog>
 
-  <!-- MODAL AUTENTICACIÓN -->
+  <!-- MODAL AUTENTICACIÓN MEJORADO -->
   <dialog id="modalAuth" class="modal-dialog">
     <div class="modal-content modal-auth-box">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalAuth').close()" aria-label="Cerrar modal">&times;</button>
       
-      <nav class="auth-tabs-segmented">
-        <button type="button" id="tabBtnLogin" class="auth-tab-btn is-active" onclick="window.CIO.setAuthMode('login')">Iniciar Sesión</button>
-        <button type="button" id="tabBtnRegister" class="auth-tab-btn" onclick="window.CIO.setAuthMode('register')">Crear Cuenta</button>
+      <nav class="auth-segmented-control">
+        <button type="button" id="tabBtnLogin" class="auth-segment-btn is-active" onclick="window.CIO.setAuthMode('login')">
+          🔑 Iniciar Sesión
+        </button>
+        <button type="button" id="tabBtnRegister" class="auth-segment-btn" onclick="window.CIO.setAuthMode('register')">
+          👤 Crear Cuenta
+        </button>
       </nav>
 
-      <div class="auth-header">
+      <header class="auth-modal-header">
         <h3 id="authModalHeaderTitle">Acceso Operador CIO</h3>
         <p id="authModalHeaderDesc">Ingresa tus credenciales autorizadas por CPF para gestionar condición y emitir informes.</p>
-      </div>
+      </header>
       
       <form class="auth-form-vertical" onsubmit="event.preventDefault(); window.CIO.handleAuthSubmission();">
-        <div id="boxFullName" class="auth-input-group" style="display: none !important;">
+        <div id="boxFullName" class="auth-field-group" style="display: none !important;">
           <label for="authFullname">Nombre y Apellido</label>
           <div class="auth-input-wrapper">
             <span class="auth-input-icon">👤</span>
-            <input type="text" id="authFullname" class="auth-input-field" placeholder="Ej: Francisco Leiva" autocomplete="name" />
+            <input type="text" id="authFullname" class="auth-input-control" placeholder="Ej: Francisco Leiva" autocomplete="name" />
           </div>
         </div>
 
-        <div class="auth-input-group">
+        <div class="auth-field-group">
           <label for="authUsername">Usuario / Correo Corporativo</label>
           <div class="auth-input-wrapper">
             <span class="auth-input-icon">✉️</span>
-            <input type="text" id="authUsername" class="auth-input-field" placeholder="ej: fleiva@cpf.cl" required autocomplete="username" />
+            <input type="text" id="authUsername" class="auth-input-control code-font" placeholder="ej: fleiva@cpf.cl" required autocomplete="username" />
           </div>
         </div>
 
-        <div class="auth-input-group">
+        <div class="auth-field-group">
           <label for="authPassword">Contraseña</label>
           <div class="auth-input-wrapper">
             <span class="auth-input-icon">🔒</span>
-            <input type="password" id="authPassword" class="auth-input-field" placeholder="••••••••" required autocomplete="current-password" />
+            <input type="password" id="authPassword" class="auth-input-control" placeholder="••••••••" required autocomplete="current-password" />
           </div>
         </div>
 
-        <div id="boxFaenaSite" class="auth-input-group" style="display: none !important;">
-          <label for="authSelectedSite" style="color:var(--accent-color);">📍 Faena Asignada (Escritura)</label>
+        <div id="boxFaenaSite" class="auth-field-group" style="display: none !important;">
+          <label for="authSelectedSite" style="color:#93c5fd;">📍 Faena Asignada (Escritura)</label>
           <div class="auth-input-wrapper">
             <span class="auth-input-icon">🏭</span>
-            <select id="authSelectedSite" class="auth-input-field">
+            <select id="authSelectedSite" class="auth-input-control">
               <option value="Planta, Mina los Colorados">Planta, Mina los Colorados</option>
               <option value="Mina, Mina los Colorados">Mina, Mina los Colorados</option>
               <option value="Planta de Pellets">Planta de Pellets</option>
@@ -341,7 +402,7 @@
           </div>
         </div>
 
-        <button type="submit" id="authSubmitActionBtn" class="auth-submit-btn">
+        <button type="submit" id="authSubmitActionBtn" class="btn-auth-submit">
           Ingresar al Sistema
         </button>
       </form>
@@ -398,6 +459,7 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=9"></script>
+  <canvas id="resizeCanvas" style="display:none;"></canvas>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
