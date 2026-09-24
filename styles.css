@@ -23,10 +23,18 @@
   --card-title-color: #ffffff;
   --panel-bg: rgba(14, 16, 24, 0.7);
   --ticker-bg: rgba(16, 18, 24, 0.55);
+
+  /* Bloques de detalle en modal */
+  --box-diag-bg: rgba(15, 16, 22, 0.75);
+  --box-diag-text: #f3f4f6;
+  --box-recom-bg: rgba(6, 78, 59, 0.25);
+  --box-recom-text: #a7f3d0;
+  --box-sap-bg: rgba(20, 25, 38, 0.7);
+  --box-sap-border: rgba(59, 130, 246, 0.35);
 }
 
 /* ==========================================================================
-   PALETA REFINADA: MODO CLARO (HIGH CONTRAST INDUSTRIAL)
+   PALETA REFINADA: MODO CLARO (HIGH CONTRAST INDUSTRIAL & CLEAN SAAS)
    ========================================================================== */
 body.light-mode {
   --bg-main: #f1f5f9;
@@ -51,6 +59,14 @@ body.light-mode {
   --card-title-color: #0f172a;
   --panel-bg: #ffffff;
   --ticker-bg: rgba(255, 255, 255, 0.9);
+
+  /* Bloques de detalle en modal - Modo Claro */
+  --box-diag-bg: #f8fafc;
+  --box-diag-text: #1e293b;
+  --box-recom-bg: #ecfdf5;
+  --box-recom-text: #065f46;
+  --box-sap-bg: #eff6ff;
+  --box-sap-border: #bfdbfe;
 }
 
 body {
@@ -276,9 +292,7 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   box-shadow: 0 16px 36px -8px rgba(0,0,0,0.15);
 }
 
-/* ==========================================================================
-   TARJETAS DE EQUIPO Y SEVERIDAD (RESPETA COLORES EN OSCURO Y CLARO)
-   ========================================================================== */
+/* Tarjetas de Equipo y Severidad */
 .card-equipo {
   background: var(--glass-card);
   backdrop-filter: blur(12px);
@@ -482,7 +496,7 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 
 .detalle-grid-layout {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 1.15fr 0.85fr;
   gap: 20px;
 }
 
@@ -490,21 +504,31 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   .detalle-grid-layout { grid-template-columns: 1fr; }
 }
 
-/* Galería de Espectros */
+/* ==========================================================================
+   GALERÍA DE ESPECTROS Y FOTOS ADJUNTAS
+   ========================================================================== */
 .galeria-espectros-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
   margin-top: 10px;
 }
 
 .item-espectro-preview {
   position: relative;
-  border-radius: 8px;
+  border-radius: 9px;
   overflow: hidden;
   border: 1px solid var(--glass-border);
-  background: #000;
+  background: #0f172a;
   aspect-ratio: 4 / 3;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.item-espectro-preview:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  border-color: #38bdf8;
 }
 
 .item-espectro-preview img {
@@ -519,12 +543,12 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   position: absolute;
   top: 4px;
   right: 4px;
-  background: rgba(220, 38, 38, 0.85);
+  background: rgba(220, 38, 38, 0.9);
   color: #fff;
   border: none;
   border-radius: 4px;
-  padding: 3px 6px;
-  font-size: 0.65rem;
+  padding: 3px 7px;
+  font-size: 0.7rem;
   cursor: pointer;
   font-weight: bold;
 }
@@ -763,11 +787,10 @@ textarea { min-height: 75px; line-height: 1.4; }
 }
 
 /* ==========================================================================
-   REGLAS EXCLUSIVAS DE MODO CLARO (CONSERVAN BORDE LATERAL Y RESPLANDOR)
+   REGLAS EXCLUSIVAS DE MODO CLARO - MÁXIMO CONTRASTE Y LEGIBILIDAD
    ========================================================================== */
 body.light-mode .card-equipo {
   background: #ffffff !important;
-  /* Se elimina border-color !important para que .sev-rojo / .sev-verde apliquen su borde y sombra */
 }
 
 body.light-mode .card-equipo .eq-tag {
@@ -778,7 +801,7 @@ body.light-mode .card-equipo .eq-type {
   color: #475569 !important;
 }
 
-/* Refuerzo de halos e iluminación de severidad en modo claro */
+/* Halos e iluminación de severidad en modo claro */
 body.light-mode .sev-rojo {
   border-left: 6px solid #ef4444 !important;
   border-color: #fca5a5 !important;
@@ -828,9 +851,10 @@ body.light-mode .btn-back-nav:hover {
   background: #e2e8f0 !important;
 }
 
+/* Modales en Modo Claro */
 body.light-mode .modal-content,
 body.light-mode .fullscreen-inner {
-  background: rgba(255, 255, 255, 0.98) !important;
+  background: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
   box-shadow: 0 25px 60px -12px rgba(15, 23, 42, 0.25) !important;
@@ -875,6 +899,36 @@ body.light-mode textarea::placeholder {
   color: #94a3b8 !important;
 }
 
+/* Bloques de Diagnóstico y Recomendación en el Modal (Alto Contraste) */
+body.light-mode #detCompAnalisisTxt {
+  color: #1e293b !important;
+  font-weight: 500;
+}
+
+body.light-mode #detCompRecomTxt {
+  color: #065f46 !important;
+  font-weight: 600;
+}
+
+body.light-mode #detCompParesSapBox {
+  background: #eff6ff !important;
+  border-color: #bfdbfe !important;
+}
+
+body.light-mode #detCompParesSapBox span {
+  color: #1e3a8a !important;
+}
+
+body.light-mode #detCompParesSapBox .code-font {
+  color: #1d4ed8 !important;
+}
+
+body.light-mode #modalDetalleComponente .detalle-grid-layout > div > div {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
 body.light-mode .diagnostico-activo-panel,
 body.light-mode .main-info-section,
 body.light-mode .card-component-editor {
@@ -904,6 +958,7 @@ body.light-mode .menu-item-info {
   border-color: #f1f5f9 !important;
 }
 
+/* Modal de Autenticación en Modo Claro */
 body.light-mode .modal-auth-box {
   background: rgba(255, 255, 255, 0.98) !important;
   border-color: #cbd5e1 !important;
