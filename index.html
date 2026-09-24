@@ -59,7 +59,7 @@
 
   <!-- Contenedor Principal de Pantallas -->
   <main class="views-wrapper">
-    <!-- Pantalla 1: Nivel 1 - Vista Global de Faenas -->
+    <!-- PANTALLA 1: NIVEL 1 - VISTA GLOBAL DE FAENAS -->
     <section id="screen-1" class="screen-view active">
       <div class="view-section-header">
         <h2>Nivel 1: Visualización Global de Faenas (Criticidad Máxima)</h2>
@@ -67,7 +67,7 @@
       <section id="viewScreen1Content" class="grid-container"></section>
     </section>
 
-    <!-- Pantalla 2: Nivel 2 - Vista de Áreas y Equipos -->
+    <!-- PANTALLA 2: NIVEL 2 - VISTA DE ÁREAS Y EQUIPOS -->
     <section id="screen-2" class="screen-view">
       <header class="site-nav-bar">
         <div class="site-nav-left">
@@ -94,8 +94,39 @@
       <section id="viewScreen2Container" class="grid-container"></section>
     </section>
 
-    <!-- Pantalla 3: SuperAdmin Global -->
+    <!-- PANTALLA 3: NIVEL 3 - DASHBOARD COMPLETO DE COMPONENTES DEL EQUIPO -->
     <section id="screen-3" class="screen-view">
+      <header class="site-nav-bar">
+        <div class="site-nav-left">
+          <button type="button" class="btn-back-nav" onclick="window.CIO.volverDeNivel3()">
+            ⬅️ Volver a Equipos
+          </button>
+          <div>
+            <span class="label-muted" id="n3Breadcrumb">Faena | Área | TAG</span>
+            <h2 id="n3Title" class="site-title-heading" style="margin:2px 0 0 0;">Nombre del Equipo</h2>
+            <div id="n3BannerMedicion" style="margin-top:4px;"></div>
+          </div>
+        </div>
+
+        <nav class="site-actions">
+          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.agregarNuevoComponenteDirecto()">➕ Añadir Componente</button>
+          <button type="button" class="btn-base btn-primary auth-only" onclick="window.CIO.editarDatosGeneralesActivo()">✏️ Editar Datos Equipo</button>
+          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.abrirEditorInformeModal()">📄 Generar Informe Editable</button>
+        </nav>
+      </header>
+
+      <!-- Banner de Resumen Ejecutivo y Pares SAP del Equipo -->
+      <section id="n3DiagnosticoBox" class="diagnostico-activo-panel" style="margin-bottom:18px;"></section>
+
+      <!-- Grilla de Tarjetas Interactivas de Componentes + Terreno -->
+      <div class="view-section-header">
+        <h2 style="font-size:0.88rem; color:#93c5fd;">⚙️ Componentes del Tren Motriz & Bitácora de Terreno</h2>
+      </div>
+      <section id="n3GridCards" class="grid-nivel3-cards"></section>
+    </section>
+
+    <!-- PANTALLA 4: SUPERADMIN GLOBAL -->
+    <section id="screen-4" class="screen-view">
       <header class="superadmin-bar">
         <div>
           <button type="button" class="btn-back-nav" onclick="window.CIO.goScreen(2)">⬅️ Salir SuperAdmin</button>
@@ -109,7 +140,7 @@
       </header>
 
       <div class="filter-box">
-        <select id="superAdminFilterSite" class="filter-select" onchange="window.CIO.renderScreen3Global()">
+        <select id="superAdminFilterSite" class="filter-select" onchange="window.CIO.renderScreen4Global()">
           <option value="TODAS">Ver Todas las Faenas</option>
           <option value="Planta, Mina los Colorados">Planta, Mina los Colorados</option>
           <option value="Mina, Mina los Colorados">Mina, Mina los Colorados</option>
@@ -119,60 +150,17 @@
         </select>
       </div>
 
-      <section id="viewScreen3Global" class="grid-equipos"></section>
+      <section id="viewScreen4Global" class="grid-equipos"></section>
     </section>
   </main>
 
-  <!-- MODAL NIVEL 3: DETALLE DEL ACTIVO & TARJETAS INTERACTIVAS DE COMPONENTES -->
-  <dialog id="modalDetalleActivo" class="modal-dialog">
-    <div class="modal-content modal-lg">
-      <button type="button" class="modal-close-btn" onclick="window.CIO.cerrarModalDetalle()">&times;</button>
-      
-      <!-- Cabecera del Activo -->
-      <header class="modal-header">
-        <div>
-          <span class="label-muted" id="detSiteTag">FAENA / TAG</span>
-          <h2 id="detTitle" class="modal-title-heading">Detalle Activo</h2>
-          <div id="detContadorMedicionBanner" style="margin-top:6px;"></div>
-        </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="button" class="btn-base btn-primary auth-only" onclick="window.CIO.editarDatosGeneralesActivo()">✏️ Editar Datos Equipo</button>
-          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.abrirEditorInformeModal()">📄 Generar Informe Editable</button>
-        </div>
-      </header>
-
-      <!-- Panel Superior: Resumen de Criticidad Heredada y SAP Consolidado -->
-      <section id="detDiagnosticoBox" class="diagnostico-activo-panel"></section>
-
-      <!-- SECCIÓN NIVEL 3: TARJETAS INTERACTIVAS (COMPONENTES + BITÁCORA DE TERRENO) -->
-      <section style="margin-top: 20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-          <div>
-            <h3 class="label-muted section-heading" style="margin:0; font-size:0.85rem; color:#93c5fd;">
-              ⚙️ Nivel 3: Componentes del Tren Motriz & Bitácora de Terreno
-            </h3>
-            <span style="font-size:0.75rem; color:var(--text-muted);">
-              Haz clic en cualquier tarjeta para ver su detalle o presiona <strong>Editar</strong> para modificar sólo ese componente.
-            </span>
-          </div>
-          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.agregarNuevoComponenteDirecto()">
-            ➕ Añadir Componente
-          </button>
-        </div>
-
-        <!-- Grilla de Tarjetas Interactivas de Nivel 3 -->
-        <div id="gridNivel3Componentes" class="grid-nivel3-cards"></div>
-      </section>
-    </div>
-  </dialog>
-
-  <!-- MODAL INDIVIDUAL: EDITAR UN SOLO COMPONENTE (MÁS CÓMODO Y DIRECTO) -->
+  <!-- MODAL INDIVIDUAL: EDITAR UN SOLO COMPONENTE -->
   <dialog id="modalEditarComponenteIndividual" class="modal-dialog">
     <div class="modal-content" style="max-width: 680px; border-top: 4px solid #3b82f6;">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEditarComponenteIndividual').close()">&times;</button>
       <header class="modal-header">
         <div>
-          <span class="label-muted">Edición Específica de Componente</span>
+          <span class="label-muted">Edición de Componente</span>
           <h2 id="edCompModalTitle" style="margin:2px 0 0 0; font-size:1.25rem;">Editar Componente</h2>
         </div>
       </header>
@@ -252,7 +240,7 @@
     </div>
   </dialog>
 
-  <!-- Modal Editor de Informe Pre-Impresión (Solo Usuarios Autenticados) -->
+  <!-- MODAL EDITOR DE INFORME TÉCNICO EDITABLE PRE-IMPRESIÓN (CON LOGO CPF) -->
   <dialog id="modalEditorInforme" class="modal-dialog">
     <div class="modal-content modal-lg" style="border-top: 4px solid #16a34a;">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEditorInforme').close()">&times;</button>
@@ -294,7 +282,7 @@
     </div>
   </dialog>
 
-  <!-- Modal Autenticación -->
+  <!-- MODAL AUTENTICACIÓN -->
   <dialog id="modalAuth" class="modal-dialog">
     <div class="modal-content modal-auth-box">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalAuth').close()" aria-label="Cerrar modal">&times;</button>
@@ -355,7 +343,7 @@
     </div>
   </dialog>
 
-  <!-- Modal Edición Datos Generales del Activo -->
+  <!-- MODAL EDICIÓN DATOS GENERALES DEL ACTIVO -->
   <dialog id="modalEdicion" class="modal-fullscreen-dialog">
     <div class="fullscreen-inner" style="max-width: 800px;">
       <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEdicion').close()">&times;</button>
@@ -405,6 +393,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
