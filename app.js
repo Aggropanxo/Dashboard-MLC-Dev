@@ -15,7 +15,6 @@
   try {
     if (typeof firebase !== 'undefined') {
       if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-      // Nodos aislados para el entorno DEV
       db = firebase.database().ref('activos_criticos_dev');
       dbUsers = firebase.database().ref('usuarios_registrados_dev');
       dbAlertasTerreno = firebase.database().ref('alertas_terreno_dev');
@@ -46,8 +45,6 @@
     equipoIdModal: null,
     siteMapVisible: false,
     authMode: 'login',
-    mapaGlobal: null,
-    capaGlobal: null,
     mapaSite: null,
     capaSite: null,
     equipos: [],
@@ -59,7 +56,7 @@
     const areas = ['AREA 61', 'AREA 55', 'AREA 54', 'AREA 52', 'AREA 50', 'SSEE'];
     const now = new Date();
 
-    for (let i = 1; i <= 25; i++) {
+    for (let i = 1; i <= 24; i++) {
       const area = areas[i % areas.length];
       const sevRand = i % 5 === 0 ? 'Rojo' : (i % 3 === 0 ? 'Naranja' : 'Verde');
       const diasAtras = (i % 4 === 0) ? 35 : 12;
@@ -79,8 +76,8 @@
         estatusHallazgo: sevRand === 'Rojo' ? 'Abierto' : 'Cerrado / Normal',
         avisoSap: '',
         omSap: '',
-        analisis: 'Estado inicial cargado.',
-        recomendacion: 'Mantener monitoreo continuo.',
+        analisis: 'Monitoreo de vibraciones rutinario.',
+        recomendacion: 'Mantener frecuencia.',
         analisisIA: '',
         recomendacionIA: '',
         componentes: [{ nombre: 'Spot Principal', severidad: sevRand, rms: '2.5', om: '' }]
@@ -89,7 +86,7 @@
     return list;
   }
 
-  // Carga inicial para asegurar que la pantalla NUNCA quede en blanco
+  // Carga inicial local para garantizar respuesta inmediata
   state.equipos = generarSeedLocal();
 
   const sanitize = (str) => (str || '').replace(/[<>&"']/g, (m) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -312,11 +309,11 @@
 
       if (bounds.length) state.mapaSite.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
     } catch (e) {
-      console.warn("Mapa error:", e);
+      console.warn("Error mapa:", e);
     }
   }
 
-  // Recepción en tiempo real desde Firebase (con protección contra null)
+  // Sincronización en tiempo real desde Firebase DEV
   if (db) {
     db.on('value', (snap) => {
       const raw = snap.val();
@@ -351,12 +348,9 @@
     });
 
     if (dbAlertasTerreno) {
-      let inicializacionCompletada = false;
-
       dbAlertasTerreno.on('value', (snap) => {
         const raw = snap.val();
         state.alertasTerreno = raw ? Object.keys(raw).map((k) => ({ id: k, ...(raw[k] || {}) })) : [];
-        inicializacionCompletada = true;
         refresh();
 
         if (state.equipoIdModal) {
@@ -375,7 +369,7 @@
       else if (state.currentScreen === 2) renderScreen2();
       else if (state.currentScreen === 3) renderScreen3();
     } catch (e) {
-      console.error("Error en refresh:", e);
+      console.error("Error al refrescar interfaz:", e);
     }
   }
 
@@ -1046,7 +1040,6 @@
       window.CIO.abrirEdicion(idToEdit);
     },
 
-    // PROCESADOR DE CARGA MASIVA EXCEL BLINDADO
     procesarCargaExcelFaena: (e) => {
       const file = e.target.files[0];
       if (!file || !db) return;
@@ -1063,7 +1056,7 @@
           const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
           if (!rawRows || rawRows.length === 0) {
-            alert("⚠️ La planilla seleccionada no contiene filas o está vacía.");
+            alert("⚠️ La planilla seleccionada está vacía.");
             return;
           }
 
@@ -1124,20 +1117,20 @@
           });
 
           if (cargados === 0) {
-            alert("⚠️ No se pudieron identificar equipos válidos en la planilla.");
+            alert("⚠️ No se encontraron equipos válidos en las columnas.");
             return;
           }
 
           db.update(actualizaciones)
             .then(() => {
-              alert(`✅ Carga masiva exitosa: ${cargados} equipos importados y actualizados en ${targetSite}.`);
+              alert(`✅ Carga masiva exitosa: ${cargados} equipos importados en ${targetSite}.`);
             })
             .catch((err) => {
               alert(`❌ Error al guardar en Firebase: ${err.message}`);
             });
 
         } catch (err) {
-          console.error("Error procesando Excel:", err);
+          console.error("Error al procesar Excel:", err);
           alert(`❌ Error al leer el archivo Excel: ${err.message}`);
         }
       };
@@ -1147,9 +1140,9 @@
     }
   };
 
-  // Ejecución segura una vez que el DOM está completamente disponible
+  // Arranque garantizado
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => { refresh(); });
+    document.addEventListener('DOMContentLoaded', refresh);
   } else {
     refresh();
   }
