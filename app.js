@@ -1,17 +1,16 @@
 (() => {
   'use strict';
 
-  // Configuración de Firebase DEV
-  const firebaseConfig = {
+  var firebaseConfig = {
     apiKey: "AIzaSyBd5MEZdMmgzBs1xCyeGYeKtQx5gJIeY3w",
     authDomain: "dashboard-vulnerabilidades-mlc.firebaseapp.com",
     databaseURL: "https://dashboard-vulnerabilidades-mlc-default-rtdb.firebaseio.com",
     projectId: "dashboard-vulnerabilidades-mlc"
   };
 
-  let db = null;
-  let dbUsers = null;
-  let dbAlertasTerreno = null;
+  var db = null;
+  var dbUsers = null;
+  var dbAlertasTerreno = null;
 
   try {
     if (typeof firebase !== 'undefined') {
@@ -24,7 +23,7 @@
     console.warn("Firebase Dev fallback:", err);
   }
 
-  const FAENAS = Object.freeze([
+  var FAENAS = Object.freeze([
     'Planta, Mina los Colorados',
     'Mina, Mina los Colorados',
     'Planta de Pellets',
@@ -32,10 +31,10 @@
     'Mina, Mina el Romeral'
   ]);
 
-  const SEV_PESO = Object.freeze({ Rojo: 5, Naranja: 4, Amarillo: 3, Verde: 2, Plomo: 1 });
-  const SEV_COLOR = Object.freeze({ Rojo: '#ef4444', Naranja: '#f97316', Amarillo: '#eab308', Verde: '#22c55e', Plomo: '#6b7280' });
+  var SEV_PESO = Object.freeze({ Rojo: 5, Naranja: 4, Amarillo: 3, Verde: 2, Plomo: 1 });
+  var SEV_COLOR = Object.freeze({ Rojo: '#ef4444', Naranja: '#f97316', Amarillo: '#eab308', Verde: '#22c55e', Plomo: '#6b7280' });
 
-  const state = {
+  var state = {
     currentScreen: 1,
     usuarioActivo: null,
     faenaAsignada: null,
@@ -53,45 +52,48 @@
   };
 
   function sanitize(str) {
-    return (str || '').replace(/[<>&"']/g, (m) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[m]));
+    return (str || '').replace(/[<>&"']/g, function(m) {
+      return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[m];
+    });
   }
 
   function normalizarFaena(f) {
-    return FAENAS.includes(f) ? f : FAENAS[0];
+    return FAENAS.indexOf(f) !== -1 ? f : FAENAS[0];
   }
 
   function matchTags(t1, t2) {
     if (!t1 || !t2) return false;
-    const clean = (s) => String(s).trim().toUpperCase().replace(/[\s\-_]/g, '');
+    var clean = function(s) { return String(s).trim().toUpperCase().replace(/[\s\-_]/g, ''); };
     return clean(t1) === clean(t2);
   }
 
   function calcularDiasDesdeMedicion(fechaStr) {
     if (!fechaStr) return { dias: null, vencido: true, texto: 'Sin fecha registrada' };
-    const partes = String(fechaStr).split('-');
+    var partes = String(fechaStr).split('-');
     if (partes.length !== 3) return { dias: null, vencido: true, texto: 'Fecha no válida' };
     
-    const fechaMed = new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
-    const hoy = new Date();
+    var fechaMed = new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
+    var hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     fechaMed.setHours(0, 0, 0, 0);
 
-    const diffMs = hoy.getTime() - fechaMed.getTime();
-    const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const vencido = dias > 30;
+    var diffMs = hoy.getTime() - fechaMed.getTime();
+    var dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    var vencido = dias > 30;
 
     return {
       dias: dias,
       vencido: vencido,
-      texto: dias >= 0 ? `Hace ${dias} día(s)` : `En ${Math.abs(dias)} día(s)`
+      texto: dias >= 0 ? ('Hace ' + dias + ' día(s)') : ('En ' + Math.abs(dias) + ' día(s)')
     };
   }
 
+  // 1. EL ACTIVO TOMA EL COLOR MÁS CRÍTICO
   function calcMaxSev(comps) {
     if (!comps || !comps.length) return 'Plomo';
-    let max = 1;
-    let maxSev = 'Plomo';
-    comps.forEach((c) => {
+    var max = 1;
+    var maxSev = 'Plomo';
+    comps.forEach(function(c) {
       if (c && SEV_PESO[c.severidad] > max) {
         max = SEV_PESO[c.severidad];
         maxSev = c.severidad;
@@ -100,605 +102,103 @@
     return maxSev;
   }
 
-  // Objeto Global CIO registrado de inmediato para evitar errores de undefined
-  window.CIO = {
-    goScreen: (num) => {
-      state.currentScreen = num;
-      document.querySelectorAll('.screen-view').forEach((el) => el.classList.remove('active'));
-      const sc = document.getElementById(`screen-${num}`);
-      if (sc) sc.classList.add('active');
-      const titles = { 1: 'Vista Pública (Global - DEV)', 2: `Faena: ${state.faenaSeleccionada || 'Operativa (DEV)'}`, 3: 'Consola SuperAdmin (DEV)' };
-      const headerTitle = document.getElementById('headerScreenTitle');
-      if (headerTitle) headerTitle.innerText = titles[num] || 'CIO';
-      if (num !== 2) state.siteMapVisible = false;
-      refresh();
-    },
+  // 2. CONSOLIDACIÓN DE PARES SAP (AVISO ➔ OM)
+  function consolidarSAPs(comps) {
+    var pares = [];
+    var avisosUnicos = [];
+    var omsUnicas = [];
 
-    seleccionarFaena: (f) => {
-      state.faenaSeleccionada = f;
-      state.areaSeleccionada = null;
-      state.siteMapVisible = false;
-      const b = document.getElementById('badgeFaenaAsignada');
-      if (b) b.innerText = f;
-      window.CIO.goScreen(2);
-    },
-
-    seleccionarArea: (a) => {
-      state.areaSeleccionada = a;
-      renderScreen2();
-    },
-
-    volverAreas: () => {
-      state.areaSeleccionada = null;
-      renderScreen2();
-    },
-
-    stepBackScreen2: () => {
-      if (state.siteMapVisible) {
-        window.CIO.toggleSiteMapTab();
-        return;
-      }
-      if (state.areaSeleccionada) {
-        window.CIO.volverAreas();
-        return;
-      }
-      window.CIO.goScreen(1);
-    },
-
-    toggleSiteMapTab: () => {
-      state.siteMapVisible = !state.siteMapVisible;
-      const mapBox = document.getElementById('view-site-map');
-      const container = document.getElementById('viewScreen2Container');
-      const lbl = document.getElementById('labelToggleSiteMap');
-      const target = state.faenaSeleccionada || FAENAS[0];
-
-      if (state.siteMapVisible) {
-        if (mapBox) mapBox.style.display = 'block';
-        if (container) container.style.display = 'none';
-        if (lbl) lbl.innerText = 'Ver Tarjetas';
-        setTimeout(() => actualizarMapaSite(state.equipos.filter((e) => normalizarFaena(e.siteId) === target)), 150);
-      } else {
-        if (mapBox) mapBox.style.display = 'none';
-        if (container) container.style.display = '';
-        if (lbl) lbl.innerText = 'Ver Mapa de Faena';
-      }
-    },
-
-    toggleTheme: () => {
-      document.body.classList.toggle('light-mode');
-    },
-
-    handleUserBtnClick: () => {
-      if (!state.usuarioActivo) {
-        window.CIO.setAuthMode('login');
-        const m = document.getElementById('modalAuth');
-        if (m) m.showModal();
-      } else {
-        const uMenu = document.getElementById('userDropdownMenu');
-        if (uMenu) uMenu.classList.toggle('is-active');
-      }
-    },
-
-    setAuthMode: (mode) => {
-      state.authMode = mode;
-      const isReg = (mode === 'register');
-      
-      const boxName = document.getElementById('boxFullName');
-      const boxSite = document.getElementById('boxFaenaSite');
-      const tabLogin = document.getElementById('tabBtnLogin');
-      const tabRegister = document.getElementById('tabBtnRegister');
-      const title = document.getElementById('authModalHeaderTitle');
-      const desc = document.getElementById('authModalHeaderDesc');
-      const btn = document.getElementById('authSubmitActionBtn');
-
-      if (boxName) boxName.style.setProperty('display', isReg ? 'flex' : 'none', 'important');
-      if (boxSite) boxSite.style.setProperty('display', isReg ? 'flex' : 'none', 'important');
-
-      if (tabLogin) tabLogin.classList.toggle('is-active', !isReg);
-      if (tabRegister) tabRegister.classList.toggle('is-active', isReg);
-
-      if (isReg) {
-        if (title) title.innerText = 'Crear Cuenta de Operador (DEV)';
-        if (desc) desc.innerText = 'Regístrate y selecciona tu faena base para habilitar la edición de condición.';
-        if (btn) btn.innerText = 'Registrarse y Entrar';
-      } else {
-        if (title) title.innerText = 'Acceso Operador CIO (DEV)';
-        if (desc) desc.innerText = 'Ingresa tus credenciales autorizadas por CPF para gestionar condición de activos.';
-        if (btn) btn.innerText = 'Ingresar al Sistema';
-      }
-    },
-
-    handleAuthSubmission: () => {
-      const uEl = document.getElementById('authUsername');
-      const pEl = document.getElementById('authPassword');
-      const fnEl = document.getElementById('authFullname');
-      const stEl = document.getElementById('authSelectedSite');
-
-      const u = uEl ? uEl.value.trim() : '';
-      const p = pEl ? pEl.value.trim() : '';
-      const fullname = fnEl ? fnEl.value.trim() : '';
-      const selectedSite = stEl ? stEl.value : 'Planta, Mina los Colorados';
-
-      if (!u || !p) {
-        alert("⚠️ Completa usuario y contraseña.");
-        return;
-      }
-
-      const lookupId = u.replace(/[^a-zA-Z0-9]/g, '_');
-
-      if (state.authMode === 'register') {
-        if (!fullname) {
-          alert("⚠️ Ingresa tu nombre y apellido para crear la cuenta.");
-          return;
+    (comps || []).forEach(function(c) {
+      (c.paresSap || []).forEach(function(p) {
+        var av = p.aviso ? p.aviso.trim() : '';
+        var om = p.om ? p.om.trim() : '';
+        if (av || om) {
+          pares.push({ componente: c.nombre || 'Componente', aviso: av || 'S/A', om: om || 'S/OM' });
+          if (av && avisosUnicos.indexOf(av) === -1) avisosUnicos.push(av);
+          if (om && omsUnicas.indexOf(om) === -1) omsUnicas.push(om);
         }
-        if (dbUsers) {
-          dbUsers.child(lookupId).set({
-            nombreCompleto: fullname,
-            usuario: u,
-            password: p,
-            faenaAsignada: selectedSite,
-            creadoEn: new Date().toISOString()
-          }).then(() => {
-            alert(`✅ Cuenta DEV registrada: ${selectedSite}`);
-            loginLocal(fullname, selectedSite);
-          }).catch(err => alert("Error: " + err.message));
-        } else {
-          loginLocal(fullname, selectedSite);
-        }
-      } else {
-        if (dbUsers) {
-          dbUsers.child(lookupId).once('value', (snap) => {
-            const uData = snap.val();
-            if (uData && uData.password === p) {
-              const nombreFinal = uData.nombreCompleto || uData.usuario || u.split('@')[0];
-              const faenaLigada = uData.faenaAsignada || 'Planta, Mina los Colorados';
-              loginLocal(nombreFinal, faenaLigada);
-            } else if (uData && uData.password !== p) {
-              alert("❌ Contraseña incorrecta.");
-            } else {
-              loginLocal(u.split('@')[0], 'Planta, Mina los Colorados');
-            }
-          });
-        } else {
-          loginLocal(u.split('@')[0], 'Planta, Mina los Colorados');
-        }
-      }
-
-      function loginLocal(nombre, faena) {
-        state.usuarioActivo = nombre;
-        state.faenaAsignada = faena;
-        document.body.classList.add('user-authenticated');
-        const lbl = document.getElementById('labelUsuarioBtn');
-        if (lbl) lbl.innerText = nombre.split(' ')[0];
-        const dropInfo = document.getElementById('dropUserInfo');
-        if (dropInfo) dropInfo.innerText = `Activo (DEV): ${nombre} | Faena: ${faena}`;
-        const modal = document.getElementById('modalAuth');
-        if (modal) modal.close();
-        alert(`✅ Bienvenido ${nombre} al Entorno DEV.`);
-      }
-    },
-
-    cerrarSesionUsuario: () => {
-      state.usuarioActivo = null;
-      state.faenaAsignada = null;
-      document.body.classList.remove('user-authenticated');
-      const lbl = document.getElementById('labelUsuarioBtn');
-      if (lbl) lbl.innerText = 'Entrar';
-      const dropInfo = document.getElementById('dropUserInfo');
-      if (dropInfo) dropInfo.innerText = 'Invitado (Solo Lectura)';
-      const uMenu = document.getElementById('userDropdownMenu');
-      if (uMenu) uMenu.classList.remove('is-active');
-      window.CIO.goScreen(1);
-    },
-
-    solicitarPermisoSuperAdmin: () => {
-      const p = prompt("🔑 Clave SuperAdmin (DEV):");
-      if (p === "Moncon2026") {
-        state.isSuperAdmin = true;
-        window.CIO.goScreen(3);
-      } else if (p !== null) {
-        alert("❌ Clave incorrecta.");
-      }
-    },
-
-    renderScreen3Global: () => {
-      renderScreen3();
-    },
-
-    exportarReporteGerenciaAlta: () => {
-      const txt = `REPORTE ALTA GERENCIA CIO - CMP [DEV]\nTotal: ${state.equipos.length}\nFecha: ${new Date().toISOString()}`;
-      const blob = new Blob([txt], { type: 'text/plain' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `Reporte_DEV_${Date.now()}.txt`;
-      a.click();
-    },
-
-    exportarReporteGerenciaPorFaena: () => {
-      const filterEl = document.getElementById('superAdminFilterSite');
-      const target = filterEl ? filterEl.value : FAENAS[0];
-      const count = state.equipos.filter((e) => normalizarFaena(e.siteId) === target).length;
-      const txt = `REPORTE FAENA [${target}] [DEV]\nTotal Activos: ${count}\nFecha: ${new Date().toISOString()}`;
-      const blob = new Blob([txt], { type: 'text/plain' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `Reporte_${target.replace(/[^a-zA-Z0-9]/g, '_')}_DEV.txt`;
-      a.click();
-    },
-
-    seleccionarPestanaAnalisis: (tab) => {
-      const pnlHumano = document.getElementById('panelAnalisisHumano');
-      const pnlIA = document.getElementById('panelAnalisisIA');
-      const tabHumano = document.getElementById('tabAnalistaHumano');
-      const tabIA = document.getElementById('tabAnalisisIA');
-
-      if (tab === 'humano') {
-        if (pnlHumano) pnlHumano.style.display = 'block';
-        if (pnlIA) pnlIA.style.display = 'none';
-        if (tabHumano) tabHumano.classList.add('is-active');
-        if (tabIA) tabIA.classList.remove('is-active');
-      } else {
-        if (pnlHumano) pnlHumano.style.display = 'none';
-        if (pnlIA) pnlIA.style.display = 'block';
-        if (tabHumano) tabHumano.classList.remove('is-active');
-        if (tabIA) tabIA.classList.add('is-active');
-      }
-    },
-
-    ejecutarGeneracionIA: () => {
-      const tagEl = document.getElementById('edTag');
-      const tag = tagEl ? tagEl.value : 'Activo';
-      const spots = [];
-      document.querySelectorAll('.comp-item').forEach((el) => {
-        const nomIn = el.querySelector('.c-nom');
-        const rmsIn = el.querySelector('.c-rms');
-        const sevIn = el.querySelector('.c-sev');
-        spots.push({
-          nom: nomIn ? nomIn.value : 'Punto',
-          rms: rmsIn ? (parseFloat(rmsIn.value) || 0) : 0,
-          sev: sevIn ? sevIn.value : 'Verde'
-        });
       });
+    });
 
-      const maxComp = spots.reduce((prev, curr) => (SEV_PESO[curr.sev] > SEV_PESO[prev.sev] ? curr : prev), { sev: 'Plomo', rms: 0, nom: '' });
-      const sevMax = maxComp.sev;
+    return {
+      pares: pares,
+      avisosStr: avisosUnicos.length > 0 ? avisosUnicos.join(', ') : 'Sin Avisos',
+      omsStr: omsUnicas.length > 0 ? omsUnicas.join(', ') : 'Sin OM',
+      countAvisos: avisosUnicos.length,
+      countOms: omsUnicas.length
+    };
+  }
 
-      let diagnosticoGenerado = "";
-      let recomendacionGenerada = "";
+  function generarSeedLocal() {
+    var list = [];
+    var areas = ['AREA 61', 'AREA 55', 'AREA 54', 'AREA 52', 'AREA 50', 'SSEE'];
+    var now = new Date();
 
-      if (sevMax === 'Rojo') {
-        diagnosticoGenerado = `[IA Predictiva - Criticidad Alta en ${tag}]: Energía vibratoria crítica en ${maxComp.nom} (RMS: ${maxComp.rms || 'Elevado'}). Patrón armónico a 1X y 2X consistente con desalineación severa y holgura mecánica.`;
-        recomendacionGenerada = "1) Inspección termográfica en descansos. 2) Alineamiento láser de precisión. 3) Muestra de lubricante para ferrografía.";
-      } else if (sevMax === 'Naranja') {
-        diagnosticoGenerado = `[IA Predictiva - Alerta en ${tag}]: Incremento vibratorio en ${maxComp.nom}. Sugiere desbalanceo dinámico o fatiga en elementos rodantes.`;
-        recomendacionGenerada = "1) Frecuencia de inspección cada 7 días. 2) Relubricación según carta de mantención.";
-      } else {
-        diagnosticoGenerado = `[IA Predictiva - Normal]: Parámetros dinámicos en ${tag} admisibles según norma ISO.`;
-        recomendacionGenerada = "Mantener monitoreo mensual estándar.";
-      }
+    for (var i = 1; i <= 24; i++) {
+      var area = areas[i % areas.length];
+      var sevRand = i % 5 === 0 ? 'Rojo' : (i % 3 === 0 ? 'Naranja' : 'Verde');
+      var diasAtras = (i % 4 === 0) ? 35 : 12;
+      var fechaMed = new Date(now.getTime() - diasAtras * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-      const anIA = document.getElementById('edAnalisisIA');
-      const recIA = document.getElementById('edRecomendacionIA');
-      if (anIA) anIA.value = diagnosticoGenerado;
-      if (recIA) recIA.value = recomendacionGenerada;
-      window.CIO.seleccionarPestanaAnalisis('ia');
-    },
-
-    adoptarDiagnosticoIA: (tipo) => {
-      const anIA = document.getElementById('edAnalisisIA');
-      const recIA = document.getElementById('edRecomendacionIA');
-      const iaAnalisis = anIA ? anIA.value : '';
-      const iaRecom = recIA ? recIA.value : '';
-
-      if (!iaAnalisis && !iaRecom) {
-        alert("Primero presiona 'Generar Diagnóstico IA'.");
-        return;
-      }
-
-      if (tipo === 'analisis' || tipo === 'todo') {
-        const hum = document.getElementById('edAnalisisHumano');
-        if (hum) hum.value = iaAnalisis;
-      }
-      if (tipo === 'recomendacion' || tipo === 'todo') {
-        const rec = document.getElementById('edRecomendacionHumano');
-        if (rec) rec.value = iaRecom;
-      }
-
-      window.CIO.seleccionarPestanaAnalisis('humano');
-      alert("✅ Diagnóstico de la IA adoptado.");
-    },
-
-    auditarDiasMedicionForm: () => {
-      const medEl = document.getElementById('edFechaMedicion');
-      const val = medEl ? medEl.value : '';
-      const box = document.getElementById('edFeedbackContadorDias');
-      if (!box) return;
-
-      const aud = calcularDiasDesdeMedicion(val);
-      if (!val) {
-        box.innerHTML = '';
-        return;
-      }
-
-      box.innerHTML = aud.vencido
-        ? `<span class="banner-contador-alerta vencido" style="font-size:0.7rem; padding:4px 8px;">⚠️ RUTA VENCIDA: ${aud.dias} días sin medir</span>`
-        : `<span class="banner-contador-alerta al-dia" style="font-size:0.7rem; padding:4px 8px;">✅ Medición vigente: ${aud.texto}</span>`;
-    },
-
-    abrirEdicionEquipoNuevoAuth: () => {
-      const targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
-      state.equipoSeleccionado = {
-        id: 'EQ_' + Date.now(),
-        siteId: targetSite,
+      list.push({
+        id: 'seed_eq_' + i,
+        siteId: 'Planta, Mina los Colorados',
         domain: 'planta',
-        area: state.areaSeleccionada || 'Área General',
-        componentes: [],
-        fechaMedicion: new Date().toISOString().split('T')[0],
-        fechaHallazgo: new Date().toISOString().split('T')[0],
-        estatusHallazgo: 'Abierto',
-        avisoSap: '',
-        omSap: '',
-        analisis: '',
-        recomendacion: '',
-        analisisIA: '',
-        recomendacionIA: ''
-      };
-      window.CIO.abrirEdicionModalObj();
-    },
-
-    abrirEdicionGlobalNuevo: () => {
-      state.equipoSeleccionado = {
-        id: 'EQ_' + Date.now(),
-        siteId: FAENAS[0],
-        domain: 'planta',
-        componentes: [],
-        fechaMedicion: new Date().toISOString().split('T')[0],
-        fechaHallazgo: new Date().toISOString().split('T')[0],
-        estatusHallazgo: 'Abierto',
-        avisoSap: '',
-        omSap: '',
-        analisis: '',
-        recomendacion: '',
-        analisisIA: '',
-        recomendacionIA: ''
-      };
-      window.CIO.abrirEdicionModalObj();
-    },
-
-    abrirEdicion: (id) => {
-      state.equipoSeleccionado = state.equipos.find((e) => e.id === id);
-      if (state.equipoSeleccionado) window.CIO.abrirEdicionModalObj();
-    },
-
-    abrirEdicionModalObj: () => {
-      const eq = state.equipoSeleccionado;
-      const setVal = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.value = val || '';
-      };
-
-      setVal('edSiteId', eq.siteId);
-      setVal('edDomain', eq.domain || 'planta');
-      setVal('edArea', eq.area || '');
-      setVal('edTag', eq.tag || eq.Tag || eq.id || '');
-      setVal('edTipo', eq.tipo || '');
-      setVal('edLat', eq.lat || '');
-      setVal('edLng', eq.lng || '');
-
-      setVal('edEstatusHallazgo', eq.estatusHallazgo || 'Abierto');
-      setVal('edAvisoSap', eq.avisoSap || '');
-      setVal('edOmSap', eq.omSap || '');
-      setVal('edFechaMedicion', eq.fechaMedicion || eq.fecha || '');
-      setVal('edFechaHallazgo', eq.fechaHallazgo || '');
-
-      setVal('edAnalisisHumano', eq.analisis || '');
-      setVal('edRecomendacionHumano', eq.recomendacion || '');
-      setVal('edAnalisisIA', eq.analisisIA || '');
-      setVal('edRecomendacionIA', eq.recomendacionIA || '');
-
-      window.CIO.seleccionarPestanaAnalisis('humano');
-      window.CIO.auditarDiasMedicionForm();
-
-      const cont = document.getElementById('edComponentesContainer');
-      if (cont) {
-        cont.innerHTML = '';
-        (eq.componentes || []).forEach((c) => window.CIO.agregarFormComponente(c));
-      }
-      const modalEd = document.getElementById('modalEdicion');
-      if (modalEd) modalEd.showModal();
-    },
-
-    agregarFormComponente: (data = {}) => {
-      const cont = document.getElementById('edComponentesContainer');
-      if (!cont) return;
-      const div = document.createElement('div');
-      div.style.cssText = "background:var(--input-bg); padding:10px; border:1px solid var(--border-card); border-radius:6px; position:relative;";
-      div.className = 'comp-item';
-      
-      div.innerHTML = `
-        <button type="button" class="btn-base btn-danger" style="position:absolute; top:8px; right:8px; padding:2px 6px; font-size:0.6rem;" onclick="this.parentElement.remove()">Eliminar</button>
-        <div class="form-grid">
-          <div><label>Spot</label><input type="text" class="c-nom" value="${sanitize(data.nombre || '')}"></div>
-          <div><label>RMS</label><input type="text" class="c-rms" value="${sanitize(data.rms || '')}"></div>
-          <div class="span-2"><label>Severidad</label><select class="c-sev">
-            <option value="Rojo" ${data.severidad === 'Rojo' ? 'selected' : ''}>Rojo</option>
-            <option value="Naranja" ${data.severidad === 'Naranja' ? 'selected' : ''}>Naranja</option>
-            <option value="Amarillo" ${data.severidad === 'Amarillo' ? 'selected' : ''}>Amarillo</option>
-            <option value="Verde" ${data.severidad === 'Verde' ? 'selected' : ''}>Verde</option>
-          </select></div>
-        </div>
-      `;
-      cont.appendChild(div);
-    },
-
-    guardarEquipo: () => {
-      if (!state.equipoSeleccionado) return;
-      const comps = [];
-      document.querySelectorAll('.comp-item').forEach((el) => {
-        const nomIn = el.querySelector('.c-nom');
-        const rmsIn = el.querySelector('.c-rms');
-        const sevIn = el.querySelector('.c-sev');
-        comps.push({
-          nombre: nomIn ? nomIn.value : '',
-          rms: rmsIn ? rmsIn.value : '',
-          severidad: sevIn ? sevIn.value : 'Verde'
-        });
+        area: area,
+        tag: 'MH' + (2700 + i),
+        tipo: i % 2 === 0 ? 'Transportador' : 'Modulo',
+        lat: (-28.2876 + (Math.random() * 0.01 - 0.005)).toFixed(5),
+        lng: (-70.8130 + (Math.random() * 0.01 - 0.005)).toFixed(5),
+        fechaMedicion: fechaMed,
+        fechaHallazgo: fechaMed,
+        estatusHallazgo: sevRand === 'Rojo' ? 'Abierto' : 'Cerrado / Normal',
+        componentes: [
+          {
+            nombre: 'Motor Eléctrico',
+            rms: '2.4',
+            severidad: 'Verde',
+            paresSap: [],
+            analisis: 'Comportamiento vibratorio normal bajo norma ISO.',
+            recomendacion: 'Mantener frecuencia estándar cada 30 días.'
+          },
+          {
+            nombre: 'Reductor Principal',
+            rms: sevRand === 'Rojo' ? '7.8' : '3.2',
+            severidad: sevRand,
+            paresSap: sevRand === 'Rojo' ? [
+              { aviso: '100' + (200 + i), om: '400' + (100 + i) },
+              { aviso: '100' + (300 + i), om: '400' + (150 + i) }
+            ] : [],
+            analisis: sevRand === 'Rojo' ? 'Modulación en frecuencia de engrane con armónicos 1X y 2X predominantes.' : 'Espectro en orden.',
+            recomendacion: sevRand === 'Rojo' ? 'Efectuar boroscopía de piñón/corona y reemplazo de lubricante.' : 'Mantener ruta rutinaria.'
+          },
+          {
+            nombre: 'Polea Motriz',
+            rms: '1.8',
+            severidad: 'Verde',
+            paresSap: [],
+            analisis: 'Estado dinámico satisfactorio.',
+            recomendacion: 'Relubricación según pauta de mantención.'
+          }
+        ]
       });
-
-      const getVal = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
-
-      const payload = {
-        siteId: getVal('edSiteId'),
-        domain: getVal('edDomain'),
-        area: getVal('edArea'),
-        tag: getVal('edTag'),
-        tipo: getVal('edTipo'),
-        lat: getVal('edLat'),
-        lng: getVal('edLng'),
-        fechaMedicion: getVal('edFechaMedicion'),
-        fechaHallazgo: getVal('edFechaHallazgo'),
-        estatusHallazgo: getVal('edEstatusHallazgo'),
-        avisoSap: getVal('edAvisoSap'),
-        omSap: getVal('edOmSap'),
-        analisis: getVal('edAnalisisHumano'),
-        recomendacion: getVal('edRecomendacionHumano'),
-        analisisIA: getVal('edAnalisisIA'),
-        recomendacionIA: getVal('edRecomendacionIA'),
-        componentes: comps
-      };
-
-      if (db) db.child(state.equipoSeleccionado.id).update(payload);
-      const modalEd = document.getElementById('modalEdicion');
-      if (modalEd) modalEd.close();
-    },
-
-    eliminarEquipo: () => {
-      if (confirm('¿Eliminar activo en DEV?') && db && state.equipoSeleccionado) {
-        db.child(state.equipoSeleccionado.id).remove();
-        const modalEd = document.getElementById('modalEdicion');
-        if (modalEd) modalEd.close();
-      }
-    },
-
-    editarActivoActualDesdeDetalle: () => {
-      if (!state.equipoIdModal) return;
-      const idToEdit = state.equipoIdModal;
-      window.CIO.cerrarModalDetalle();
-      window.CIO.abrirEdicion(idToEdit);
-    },
-
-    procesarCargaExcelFaena: (e) => {
-      const file = e.target.files[0];
-      if (!file || !db) return;
-
-      const targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
-      const reader = new FileReader();
-
-      reader.onload = (evt) => {
-        try {
-          const data = new Uint8Array(evt.target.result);
-          const wb = XLSX.read(data, { type: 'array', cellDates: true });
-          const firstSheetName = wb.SheetNames[0];
-          const worksheet = wb.Sheets[firstSheetName];
-          const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-
-          if (!rawRows || rawRows.length === 0) {
-            alert("⚠️ La planilla seleccionada está vacía.");
-            return;
-          }
-
-          let cargados = 0;
-          const actualizaciones = {};
-
-          rawRows.forEach((row) => {
-            const normalizedRow = {};
-            Object.keys(row).forEach((k) => {
-              normalizedRow[k.trim().toUpperCase()] = row[k];
-            });
-
-            const rawTag = normalizedRow['EQUIPO'] || normalizedRow['TAG'] || normalizedRow['ACTIVO'] || normalizedRow['NOMBRE'];
-            const rawArea = normalizedRow['AREA'] || normalizedRow['ÁREA'] || 'Área General';
-            const rawTipo = normalizedRow['TIPO EQUIPO'] || normalizedRow['TIPO'] || normalizedRow['CLASE'] || 'Activo';
-            const rawFecha = normalizedRow['ULTIMA FECHA'] || normalizedRow['FECHA MEDICION'] || normalizedRow['FECHA'];
-
-            if (rawTag && String(rawTag).trim() !== '') {
-              const tagStr = String(rawTag).trim();
-              const areaStr = String(rawArea).trim() || 'General';
-              const tipoStr = String(rawTipo).trim() || 'Activo';
-
-              let fechaMedicionFinal = '';
-              if (rawFecha instanceof Date && !isNaN(rawFecha.getTime())) {
-                fechaMedicionFinal = rawFecha.toISOString().split('T')[0];
-              } else if (typeof rawFecha === 'string' && rawFecha.trim() !== '') {
-                const dateParsed = new Date(rawFecha);
-                if (!isNaN(dateParsed.getTime())) {
-                  fechaMedicionFinal = dateParsed.toISOString().split('T')[0];
-                }
-              }
-
-              const safeTagId = tagStr.replace(/[\/\.\#\$\[\]]/g, '_');
-              const recordId = 'EQ_' + safeTagId;
-
-              actualizaciones[recordId] = {
-                siteId: targetSite,
-                domain: areaStr.toUpperCase().includes('MINA') ? 'mina' : 'planta',
-                area: areaStr,
-                tag: tagStr,
-                tipo: tipoStr,
-                lat: '',
-                lng: '',
-                fechaMedicion: fechaMedicionFinal,
-                fechaHallazgo: '',
-                estatusHallazgo: 'Abierto',
-                avisoSap: '',
-                omSap: '',
-                analisis: '',
-                recomendacion: '',
-                analisisIA: '',
-                recomendacionIA: '',
-                componentes: [{ nombre: 'Spot Principal', severidad: 'Verde', rms: '2.0', om: '' }]
-              };
-
-              cargados++;
-            }
-          });
-
-          if (cargados === 0) {
-            alert("⚠️ No se encontraron equipos válidos en las columnas.");
-            return;
-          }
-
-          db.update(actualizaciones)
-            .then(() => {
-              alert(`✅ Carga masiva exitosa: ${cargados} equipos importados en ${targetSite}.`);
-            })
-            .catch((err) => {
-              alert(`❌ Error al guardar en Firebase: ${err.message}`);
-            });
-
-        } catch (err) {
-          console.error("Error al procesar Excel:", err);
-          alert(`❌ Error al leer el archivo Excel: ${err.message}`);
-        }
-      };
-
-      reader.readAsArrayBuffer(file);
-      e.target.value = '';
     }
-  };
+    return list;
+  }
 
-  // Renderizado Seguro de Pantalla 1 usando nodos DOM sin concatenaciones de riesgo
+  state.equipos = generarSeedLocal();
+
   function renderScreen1() {
-    const container = document.getElementById('viewScreen1Content');
+    var container = document.getElementById('viewScreen1Content');
     if (!container) return;
 
-    const stats = {};
-    FAENAS.forEach((f) => { stats[f] = { count: 0, critical: 0, maxSev: 'Plomo', maxPeso: 1 }; });
+    var stats = {};
+    FAENAS.forEach(function(f) { stats[f] = { count: 0, critical: 0, maxSev: 'Plomo', maxPeso: 1 }; });
 
-    state.equipos.forEach((eq) => {
-      const f = normalizarFaena(eq.siteId);
+    state.equipos.forEach(function(eq) {
+      var f = normalizarFaena(eq.siteId);
       stats[f].count++;
-      const s = calcMaxSev(eq.componentes);
+      var s = calcMaxSev(eq.componentes);
       if (s === 'Rojo' || s === 'Naranja') stats[f].critical++;
       if (SEV_PESO[s] > stats[f].maxPeso) {
         stats[f].maxPeso = SEV_PESO[s];
@@ -706,48 +206,48 @@
       }
     });
 
-    const sortedFaenas = FAENAS.map((f) => ({ name: f, ...stats[f] }))
-      .sort((a, b) => b.maxPeso - a.maxPeso || b.critical - a.critical);
+    var sortedFaenas = FAENAS.map(function(f) {
+      var obj = { name: f };
+      for (var k in stats[f]) { obj[k] = stats[f][k]; }
+      return obj;
+    }).sort(function(a, b) { return (b.maxPeso - a.maxPeso) || (b.critical - a.critical); });
 
     container.innerHTML = '';
-    sortedFaenas.forEach((d) => {
-      const card = document.createElement('article');
-      card.className = `card-area ${d.maxSev === 'Rojo' || d.maxSev === 'Naranja' ? 'anim-' + d.maxSev.toLowerCase() : ''}`;
-      card.onclick = () => window.CIO.seleccionarFaena(d.name);
+    sortedFaenas.forEach(function(d) {
+      var card = document.createElement('article');
+      card.className = 'card-area ' + (d.maxSev === 'Rojo' || d.maxSev === 'Naranja' ? 'anim-' + d.maxSev.toLowerCase() : '');
+      card.onclick = function() { window.CIO.seleccionarFaena(d.name); };
 
-      card.innerHTML = `
-        <header>
-          <span class="label-muted">Faena Operativa CMP</span>
-          <h3 class="value-strong" style="margin:4px 0 8px 0;">${sanitize(d.name)}</h3>
-        </header>
-        <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-card); padding-top:8px;">
-          <div><span class="label-muted">Activos</span><div class="value-strong">${d.count}</div></div>
-          <div><span class="label-muted">Condición</span><div class="value-strong" style="color:${SEV_COLOR[d.maxSev]}">${d.critical > 0 ? d.critical + ' Alertas' : 'Normal'}</div></div>
-        </div>
-      `;
+      card.innerHTML = '<header>' +
+          '<span class="label-muted">Faena Operativa CMP</span>' +
+          '<h3 class="value-strong" style="margin:4px 0 8px 0;">' + sanitize(d.name) + '</h3>' +
+        '</header>' +
+        '<div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-card); padding-top:8px;">' +
+          '<div><span class="label-muted">Activos</span><div class="value-strong">' + d.count + '</div></div>' +
+          '<div><span class="label-muted">Condición</span><div class="value-strong" style="color:' + SEV_COLOR[d.maxSev] + '">' + (d.critical > 0 ? (d.critical + ' Alertas') : 'Normal') + '</div></div>' +
+        '</div>';
       container.appendChild(card);
     });
   }
 
-  // Renderizado Seguro de Pantalla 2
   function renderScreen2() {
-    const target = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
-    const titleEl = document.getElementById('screen2SiteTitle');
+    var target = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
+    var titleEl = document.getElementById('screen2SiteTitle');
     if (titleEl) titleEl.innerText = target;
 
-    const container = document.getElementById('viewScreen2Container');
+    var container = document.getElementById('viewScreen2Container');
     if (!container) return;
     container.style.display = state.siteMapVisible ? 'none' : '';
 
-    const eqsFaena = state.equipos.filter((e) => normalizarFaena(e.siteId) === target);
+    var eqsFaena = state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; });
 
     if (!state.areaSeleccionada) {
-      const areas = {};
-      eqsFaena.forEach((eq) => {
-        const a = eq.area || 'Sin Área';
+      var areas = {};
+      eqsFaena.forEach(function(eq) {
+        var a = eq.area || 'Sin Área';
         if (!areas[a]) areas[a] = { count: 0, critical: 0, maxSev: 'Plomo', maxPeso: 1 };
         areas[a].count++;
-        const s = calcMaxSev(eq.componentes);
+        var s = calcMaxSev(eq.componentes);
         if (s === 'Rojo' || s === 'Naranja') areas[a].critical++;
         if (SEV_PESO[s] > areas[a].maxPeso) {
           areas[a].maxPeso = SEV_PESO[s];
@@ -755,8 +255,12 @@
         }
       });
 
-      const sortedAreas = Object.keys(areas).map((a) => ({ name: a, ...areas[a] }))
-        .sort((a, b) => b.maxPeso - a.maxPeso || b.critical - a.critical);
+      var areaKeys = Object.keys(areas);
+      var sortedAreas = areaKeys.map(function(a) {
+        var obj = { name: a };
+        for (var k in areas[a]) { obj[k] = areas[a][k]; }
+        return obj;
+      }).sort(function(a, b) { return (b.maxPeso - a.maxPeso) || (b.critical - a.critical); });
 
       container.className = 'grid-container';
       container.innerHTML = '';
@@ -766,89 +270,86 @@
         return;
       }
 
-      sortedAreas.forEach((a) => {
-        const card = document.createElement('article');
-        card.className = `card-area ${a.maxSev === 'Rojo' || a.maxSev === 'Naranja' ? 'anim-' + a.maxSev.toLowerCase() : ''}`;
-        card.onclick = () => window.CIO.seleccionarArea(a.name);
+      sortedAreas.forEach(function(a) {
+        var card = document.createElement('article');
+        card.className = 'card-area ' + (a.maxSev === 'Rojo' || a.maxSev === 'Naranja' ? 'anim-' + a.maxSev.toLowerCase() : '');
+        card.onclick = function() { window.CIO.seleccionarArea(a.name); };
 
-        card.innerHTML = `
-          <span class="label-muted">Área Operacional</span>
-          <h3 class="value-strong" style="margin:4px 0 8px 0;">${sanitize(a.name)}</h3>
-          <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-card); padding-top:8px;">
-            <div><span class="label-muted">Activos</span><div class="value-strong">${a.count}</div></div>
-            <div><span class="label-muted">Condición</span><div class="value-strong" style="color:${SEV_COLOR[a.maxSev]}">${a.critical > 0 ? a.critical + ' Alertas' : 'Normal'}</div></div>
-          </div>
-        `;
+        card.innerHTML = '<span class="label-muted">Área Operacional</span>' +
+          '<h3 class="value-strong" style="margin:4px 0 8px 0;">' + sanitize(a.name) + '</h3>' +
+          '<div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-card); padding-top:8px;">' +
+            '<div><span class="label-muted">Activos</span><div class="value-strong">' + a.count + '</div></div>' +
+            '<div><span class="label-muted">Condición</span><div class="value-strong" style="color:' + SEV_COLOR[a.maxSev] + '">' + (a.critical > 0 ? (a.critical + ' Alertas') : 'Normal') + '</div></div>' +
+          '</div>';
         container.appendChild(card);
       });
     } else {
       container.className = 'grid-equipos';
       container.innerHTML = '';
 
-      const eqsArea = eqsFaena.filter((e) => (e.area || 'Sin Área') === state.areaSeleccionada);
-      eqsArea.sort((a, b) => SEV_PESO[calcMaxSev(b.componentes)] - SEV_PESO[calcMaxSev(a.componentes)]);
+      var eqsArea = eqsFaena.filter(function(e) { return (e.area || 'Sin Área') === state.areaSeleccionada; });
+      // El activo hereda el color más crítico para ordenar
+      eqsArea.sort(function(a, b) { return SEV_PESO[calcMaxSev(b.componentes)] - SEV_PESO[calcMaxSev(a.componentes)]; });
 
-      const navHeader = document.createElement('div');
+      var navHeader = document.createElement('div');
       navHeader.style.cssText = "grid-column: 1/-1; display:flex; align-items:center; gap:10px; margin-bottom:4px; background:var(--glass-card); backdrop-filter:blur(8px); padding:8px 12px; border-radius:8px; border:1px solid var(--glass-border);";
-      navHeader.innerHTML = `
-        <button class="btn-base" type="button" onclick="window.CIO.volverAreas()">⬅️ Volver a Áreas</button>
-        <span style="font-weight:700; color:var(--accent-color); font-size:0.85rem;">Área: ${sanitize(state.areaSeleccionada)}</span>
-      `;
+      navHeader.innerHTML = '<button class="btn-base" type="button" onclick="window.CIO.volverAreas()">⬅️ Volver a Áreas</button>' +
+        '<span style="font-weight:700; color:var(--accent-color); font-size:0.85rem;">Área: ' + sanitize(state.areaSeleccionada) + '</span>';
       container.appendChild(navHeader);
 
-      eqsArea.forEach((eq) => {
-        const s = calcMaxSev(eq.componentes);
-        const tagValue = eq.tag || eq.Tag || eq.TAG || eq.equipo || eq.id || 'S/T';
-        const fieldCount = state.alertasTerreno.filter((a) => matchTags(a.tag, tagValue)).length;
-        const aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
+      eqsArea.forEach(function(eq) {
+        var s = calcMaxSev(eq.componentes);
+        var tagValue = eq.tag || eq.Tag || eq.TAG || eq.equipo || eq.id || 'S/T';
+        var fieldReports = state.alertasTerreno.filter(function(a) { return matchTags(a.tag, tagValue); });
+        var aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
+        var saps = consolidarSAPs(eq.componentes);
 
-        const card = document.createElement('article');
-        card.className = `card-equipo sev-${s.toLowerCase()} ${s === 'Rojo' || s === 'Naranja' ? 'anim-' + s.toLowerCase() : ''}`;
-        card.onclick = () => window.CIO.abrirDetalle(eq.id);
+        var card = document.createElement('article');
+        card.className = 'card-equipo sev-' + s.toLowerCase() + ' ' + (s === 'Rojo' || s === 'Naranja' ? 'anim-' + s.toLowerCase() : '');
+        card.onclick = function() { window.CIO.abrirDetalle(eq.id); };
 
-        card.innerHTML = `
-          ${fieldCount > 0 ? `<span class="badge-field-floating">💬 Terreno (${fieldCount})</span>` : ''}
-          ${aud.vencido ? `<span class="badge-vencido-floating" title="Medición vencida: ${aud.texto}">⏱️ >30d</span>` : ''}
-          <span class="eq-type">${sanitize(eq.tipo || eq.area)}</span>
-          <div class="eq-tag code-font">${sanitize(tagValue)}</div>
-          <span class="eq-type" style="color:${SEV_COLOR[s]}">${s.toUpperCase()}</span>
-        `;
+        var badgeTerreno = fieldReports.length > 0 ? ('<span class="badge-field-floating">💬 Ronda (' + fieldReports.length + ')</span>') : '';
+        var badgeSap = saps.countAvisos > 0 ? ('<div style="font-size:0.58rem; color:#60a5fa; font-weight:700; margin-top:2px;">AV: ' + saps.countAvisos + ' | OM: ' + saps.countOms + '</div>') : '';
+
+        card.innerHTML = badgeTerreno +
+          (aud.vencido ? ('<span class="badge-vencido-floating" title="Medición vencida: ' + aud.texto + '">⏱️ >30d</span>') : '') +
+          '<span class="eq-type">' + sanitize(eq.tipo || eq.area) + '</span>' +
+          '<div class="eq-tag code-font">' + sanitize(tagValue) + '</div>' +
+          '<span class="eq-type" style="color:' + SEV_COLOR[s] + '; font-weight:bold;">' + s.toUpperCase() + '</span>' +
+          badgeSap;
         container.appendChild(card);
       });
     }
   }
 
-  // Renderizado Seguro de Pantalla 3
   function renderScreen3() {
-    const filterEl = document.getElementById('superAdminFilterSite');
-    const filter = filterEl ? filterEl.value : 'TODAS';
-    const eqs = filter === 'TODAS' ? state.equipos : state.equipos.filter((e) => normalizarFaena(e.siteId) === filter);
-    eqs.sort((a, b) => SEV_PESO[calcMaxSev(b.componentes)] - SEV_PESO[calcMaxSev(a.componentes)]);
+    var filterEl = document.getElementById('superAdminFilterSite');
+    var filter = filterEl ? filterEl.value : 'TODAS';
+    var eqs = filter === 'TODAS' ? state.equipos : state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === filter; });
+    eqs.sort(function(a, b) { return SEV_PESO[calcMaxSev(b.componentes)] - SEV_PESO[calcMaxSev(a.componentes)]; });
 
-    const container = document.getElementById('viewScreen3Global');
+    var container = document.getElementById('viewScreen3Global');
     if (!container) return;
 
     container.innerHTML = '';
-    eqs.forEach((eq) => {
-      const s = calcMaxSev(eq.componentes);
-      const tagValue = eq.tag || eq.Tag || eq.TAG || eq.id || 'S/T';
+    eqs.forEach(function(eq) {
+      var s = calcMaxSev(eq.componentes);
+      var tagValue = eq.tag || eq.Tag || eq.TAG || eq.id || 'S/T';
 
-      const card = document.createElement('article');
-      card.className = `card-equipo sev-${s.toLowerCase()} ${s === 'Rojo' || s === 'Naranja' ? 'anim-' + s.toLowerCase() : ''}`;
-      card.innerHTML = `
-        <span class="label-muted">${sanitize(eq.siteId)}</span>
-        <div class="eq-tag code-font">${sanitize(tagValue)}</div>
-        <div style="margin-top:6px;">
-          <button class="btn-base btn-primary" type="button" style="padding:2px 8px; font-size:0.65rem;" onclick="window.CIO.abrirEdicion('${eq.id}')">✏️ Editar</button>
-        </div>
-      `;
+      var card = document.createElement('article');
+      card.className = 'card-equipo sev-' + s.toLowerCase() + ' ' + (s === 'Rojo' || s === 'Naranja' ? 'anim-' + s.toLowerCase() : '');
+      card.innerHTML = '<span class="label-muted">' + sanitize(eq.siteId) + '</span>' +
+        '<div class="eq-tag code-font">' + sanitize(tagValue) + '</div>' +
+        '<div style="margin-top:6px;">' +
+          '<button class="btn-base btn-primary" type="button" style="padding:2px 8px; font-size:0.65rem;" onclick="window.CIO.abrirEdicion(\'' + eq.id + '\')">✏️ Editar</button>' +
+        '</div>';
       container.appendChild(card);
     });
   }
 
   function actualizarMapaSite(eqs) {
     if (typeof L === 'undefined') return;
-    const mapBox = document.getElementById('view-site-map');
+    var mapBox = document.getElementById('view-site-map');
     if (!mapBox) return;
 
     try {
@@ -861,23 +362,23 @@
       }
 
       state.capaSite.clearLayers();
-      const bounds = [];
+      var bounds = [];
 
-      eqs.forEach((eq) => {
-        const lat = parseFloat(eq.lat);
-        const lng = parseFloat(eq.lng);
+      eqs.forEach(function(eq) {
+        var lat = parseFloat(eq.lat);
+        var lng = parseFloat(eq.lng);
         if (!isNaN(lat) && !isNaN(lng) && lat !== 0) {
-          const s = calcMaxSev(eq.componentes);
-          const col = SEV_COLOR[s] || '#6b7280';
-          const pulse = s === 'Rojo' ? 'map-pin-pulse' : '';
-          const tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
-          const icon = L.divIcon({
+          var s = calcMaxSev(eq.componentes);
+          var col = SEV_COLOR[s] || '#6b7280';
+          var pulse = s === 'Rojo' ? 'map-pin-pulse' : '';
+          var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
+          var icon = L.divIcon({
             className: 'custom-pin',
-            html: `<div class="${pulse}" style="background:${col}; width:20px; height:20px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 10px ${col};"></div>`,
+            html: '<div class="' + pulse + '" style="background:' + col + '; width:20px; height:20px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 10px ' + col + ';"></div>',
             iconSize: [20, 20],
             iconAnchor: [10, 10]
           });
-          L.marker([lat, lng], { icon }).bindPopup(`<strong>${sanitize(tagValue)}</strong><br>${sanitize(eq.area)}<br><span style="color:${col};font-weight:bold;">${s}</span>`).addTo(state.capaSite);
+          L.marker([lat, lng], { icon: icon }).bindPopup('<strong>' + sanitize(tagValue) + '</strong><br>' + sanitize(eq.area) + '<br><span style="color:' + col + ';font-weight:bold;">' + s + '</span>').addTo(state.capaSite);
           bounds.push([lat, lng]);
         }
       });
@@ -890,14 +391,14 @@
 
   // Recepción en tiempo real desde Firebase DEV
   if (db) {
-    db.on('value', (snap) => {
-      const raw = snap.val();
+    db.on('value', function(snap) {
+      var raw = snap.val();
       if (raw && Object.keys(raw).length > 0) {
-        state.equipos = Object.keys(raw).map((k) => {
-          const item = raw[k] || {};
-          const detectedTag = item.tag || item.Tag || item.TAG || item.equipo || item.Equipo || item.nombre || k;
-          const detectedArea = item.area || item.Area || item.AREA || 'Sin Área';
-          const detectedSite = item.siteId || item.site || item.faena || item.Faena || 'Planta, Mina los Colorados';
+        state.equipos = Object.keys(raw).map(function(k) {
+          var item = raw[k] || {};
+          var detectedTag = item.tag || item.Tag || item.TAG || item.equipo || item.Equipo || item.nombre || k;
+          var detectedArea = item.area || item.Area || item.AREA || 'Sin Área';
+          var detectedSite = item.siteId || item.site || item.faena || item.Faena || 'Planta, Mina los Colorados';
 
           return {
             id: k,
@@ -908,16 +409,13 @@
             tipo: item.tipo || item.Tipo || item['Tipo equipo'] || 'Activo',
             lat: item.lat || '',
             lng: item.lng || '',
-            componentes: item.componentes || item.spots || [{ nombre: 'Spot Principal', severidad: 'Verde', rms: '2.0', om: '' }],
+            componentes: item.componentes || [
+              { nombre: 'Motor Eléctrico', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '' },
+              { nombre: 'Reductor', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '' }
+            ],
             fechaMedicion: item.fechaMedicion || item.fecha || '',
             fechaHallazgo: item.fechaHallazgo || '',
-            estatusHallazgo: item.estatusHallazgo || 'Abierto',
-            avisoSap: item.avisoSap || '',
-            omSap: item.omSap || '',
-            analisis: item.analisis || '',
-            recomendacion: item.recomendacion || '',
-            analisisIA: item.analisisIA || '',
-            recomendacionIA: item.recomendacionIA || ''
+            estatusHallazgo: item.estatusHallazgo || 'Abierto'
           };
         });
       }
@@ -925,13 +423,17 @@
     });
 
     if (dbAlertasTerreno) {
-      dbAlertasTerreno.on('value', (snap) => {
-        const raw = snap.val();
-        state.alertasTerreno = raw ? Object.keys(raw).map((k) => ({ id: k, ...(raw[k] || {}) })) : [];
+      dbAlertasTerreno.on('value', function(snap) {
+        var raw = snap.val();
+        state.alertasTerreno = raw ? Object.keys(raw).map(function(k) {
+          var alertData = raw[k] || {};
+          alertData.id = k;
+          return alertData;
+        }) : [];
         refresh();
 
         if (state.equipoIdModal) {
-          const currentEq = state.equipos.find((e) => e.id === state.equipoIdModal);
+          var currentEq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
           if (currentEq) {
             window.CIO.renderBitacoraTerreno(currentEq);
           }
@@ -950,7 +452,932 @@
     }
   }
 
-  // Inicialización limpia
+  window.CIO = {
+    goScreen: function(num) {
+      state.currentScreen = num;
+      document.querySelectorAll('.screen-view').forEach(function(el) { el.classList.remove('active'); });
+      var sc = document.getElementById('screen-' + num);
+      if (sc) sc.classList.add('active');
+      var titles = { 1: 'Vista Pública (Global - DEV)', 2: 'Faena: ' + (state.faenaSeleccionada || 'Operativa (DEV)'), 3: 'Consola SuperAdmin (DEV)' };
+      var headerTitle = document.getElementById('headerScreenTitle');
+      if (headerTitle) headerTitle.innerText = titles[num] || 'CIO';
+      if (num !== 2) state.siteMapVisible = false;
+      refresh();
+    },
+
+    seleccionarFaena: function(f) {
+      state.faenaSeleccionada = f;
+      state.areaSeleccionada = null;
+      state.siteMapVisible = false;
+      var b = document.getElementById('badgeFaenaAsignada');
+      if (b) b.innerText = f;
+      window.CIO.goScreen(2);
+    },
+
+    seleccionarArea: function(a) {
+      state.areaSeleccionada = a;
+      renderScreen2();
+    },
+
+    volverAreas: function() {
+      state.areaSeleccionada = null;
+      renderScreen2();
+    },
+
+    stepBackScreen2: function() {
+      if (state.siteMapVisible) {
+        window.CIO.toggleSiteMapTab();
+        return;
+      }
+      if (state.areaSeleccionada) {
+        window.CIO.volverAreas();
+        return;
+      }
+      window.CIO.goScreen(1);
+    },
+
+    toggleSiteMapTab: function() {
+      state.siteMapVisible = !state.siteMapVisible;
+      var mapBox = document.getElementById('view-site-map');
+      var container = document.getElementById('viewScreen2Container');
+      var lbl = document.getElementById('labelToggleSiteMap');
+      var target = state.faenaSeleccionada || FAENAS[0];
+
+      if (state.siteMapVisible) {
+        if (mapBox) mapBox.style.display = 'block';
+        if (container) container.style.display = 'none';
+        if (lbl) lbl.innerText = 'Ver Tarjetas';
+        setTimeout(function() {
+          actualizarMapaSite(state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }));
+        }, 150);
+      } else {
+        if (mapBox) mapBox.style.display = 'none';
+        if (container) container.style.display = '';
+        if (lbl) lbl.innerText = 'Ver Mapa de Faena';
+      }
+    },
+
+    toggleTheme: function() {
+      document.body.classList.toggle('light-mode');
+    },
+
+    handleUserBtnClick: function() {
+      if (!state.usuarioActivo) {
+        window.CIO.setAuthMode('login');
+        var m = document.getElementById('modalAuth');
+        if (m) m.showModal();
+      } else {
+        var uMenu = document.getElementById('userDropdownMenu');
+        if (uMenu) uMenu.classList.toggle('is-active');
+      }
+    },
+
+    setAuthMode: function(mode) {
+      state.authMode = mode;
+      var isReg = (mode === 'register');
+      
+      var boxName = document.getElementById('boxFullName');
+      var boxSite = document.getElementById('boxFaenaSite');
+      var tabLogin = document.getElementById('tabBtnLogin');
+      var tabRegister = document.getElementById('tabBtnRegister');
+      var title = document.getElementById('authModalHeaderTitle');
+      var desc = document.getElementById('authModalHeaderDesc');
+      var btn = document.getElementById('authSubmitActionBtn');
+
+      if (boxName) boxName.style.setProperty('display', isReg ? 'flex' : 'none', 'important');
+      if (boxSite) boxSite.style.setProperty('display', isReg ? 'flex' : 'none', 'important');
+
+      if (tabLogin) tabLogin.classList.toggle('is-active', !isReg);
+      if (tabRegister) tabRegister.classList.toggle('is-active', isReg);
+
+      if (isReg) {
+        if (title) title.innerText = 'Crear Cuenta de Operador (DEV)';
+        if (desc) desc.innerText = 'Regístrate y selecciona tu faena base para habilitar la edición de condición.';
+        if (btn) btn.innerText = 'Registrarse y Entrar';
+      } else {
+        if (title) title.innerText = 'Acceso Operador CIO (DEV)';
+        if (desc) desc.innerText = 'Ingresa tus credenciales autorizadas por CPF para gestionar condición de activos.';
+        if (btn) btn.innerText = 'Ingresar al Sistema';
+      }
+    },
+
+    handleAuthSubmission: function() {
+      var uEl = document.getElementById('authUsername');
+      var pEl = document.getElementById('authPassword');
+      var fnEl = document.getElementById('authFullname');
+      var stEl = document.getElementById('authSelectedSite');
+
+      var u = uEl ? uEl.value.trim() : '';
+      var p = pEl ? pEl.value.trim() : '';
+      var fullname = fnEl ? fnEl.value.trim() : '';
+      var selectedSite = stEl ? stEl.value : 'Planta, Mina los Colorados';
+
+      if (!u || !p) {
+        alert("⚠️ Completa usuario y contraseña.");
+        return;
+      }
+
+      var lookupId = u.replace(/[^a-zA-Z0-9]/g, '_');
+
+      if (state.authMode === 'register') {
+        if (!fullname) {
+          alert("⚠️ Ingresa tu nombre y apellido para crear la cuenta.");
+          return;
+        }
+        if (dbUsers) {
+          dbUsers.child(lookupId).set({
+            nombreCompleto: fullname,
+            usuario: u,
+            password: p,
+            faenaAsignada: selectedSite,
+            creadoEn: new Date().toISOString()
+          }).then(function() {
+            alert('✅ Cuenta DEV registrada: ' + selectedSite);
+            loginLocal(fullname, selectedSite);
+          }).catch(function(err) { alert("Error: " + err.message); });
+        } else {
+          loginLocal(fullname, selectedSite);
+        }
+      } else {
+        if (dbUsers) {
+          dbUsers.child(lookupId).once('value', function(snap) {
+            var uData = snap.val();
+            if (uData && uData.password === p) {
+              var nombreFinal = uData.nombreCompleto || uData.usuario || u.split('@')[0];
+              var faenaLigada = uData.faenaAsignada || 'Planta, Mina los Colorados';
+              loginLocal(nombreFinal, faenaLigada);
+            } else if (uData && uData.password !== p) {
+              alert("❌ Contraseña incorrecta.");
+            } else {
+              loginLocal(u.split('@')[0], 'Planta, Mina los Colorados');
+            }
+          });
+        } else {
+          loginLocal(u.split('@')[0], 'Planta, Mina los Colorados');
+        }
+      }
+
+      function loginLocal(nombre, faena) {
+        state.usuarioActivo = nombre;
+        state.faenaAsignada = faena;
+        document.body.classList.add('user-authenticated');
+        var lbl = document.getElementById('labelUsuarioBtn');
+        if (lbl) lbl.innerText = nombre.split(' ')[0];
+        var dropInfo = document.getElementById('dropUserInfo');
+        if (dropInfo) dropInfo.innerText = 'Activo (DEV): ' + nombre + ' | Faena: ' + faena;
+        var modal = document.getElementById('modalAuth');
+        if (modal) modal.close();
+        alert('✅ Bienvenido ' + nombre + ' al Entorno DEV.');
+      }
+    },
+
+    cerrarSesionUsuario: function() {
+      state.usuarioActivo = null;
+      state.faenaAsignada = null;
+      document.body.classList.remove('user-authenticated');
+      var lbl = document.getElementById('labelUsuarioBtn');
+      if (lbl) lbl.innerText = 'Entrar';
+      var dropInfo = document.getElementById('dropUserInfo');
+      if (dropInfo) dropInfo.innerText = 'Invitado (Solo Lectura)';
+      var uMenu = document.getElementById('userDropdownMenu');
+      if (uMenu) uMenu.classList.remove('is-active');
+      window.CIO.goScreen(1);
+    },
+
+    solicitarPermisoSuperAdmin: function() {
+      var p = prompt("🔑 Clave SuperAdmin (DEV):");
+      if (p === "Moncon2026") {
+        state.isSuperAdmin = true;
+        window.CIO.goScreen(3);
+      } else if (p !== null) {
+        alert("❌ Clave incorrecta.");
+      }
+    },
+
+    renderScreen3Global: function() {
+      renderScreen3();
+    },
+
+    exportarReporteGerenciaAlta: function() {
+      var txt = 'REPORTE ALTA GERENCIA CIO - CMP [DEV]\nTotal: ' + state.equipos.length + '\nFecha: ' + new Date().toISOString();
+      var blob = new Blob([txt], { type: 'text/plain' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Reporte_DEV_' + Date.now() + '.txt';
+      a.click();
+    },
+
+    exportarReporteGerenciaPorFaena: function() {
+      var filterEl = document.getElementById('superAdminFilterSite');
+      var target = filterEl ? filterEl.value : FAENAS[0];
+      var count = state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }).length;
+      var txt = 'REPORTE FAENA [' + target + '] [DEV]\nTotal Activos: ' + count + '\nFecha: ' + new Date().toISOString();
+      var blob = new Blob([txt], { type: 'text/plain' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Reporte_' + target.replace(/[^a-zA-Z0-9]/g, '_') + '_DEV.txt';
+      a.click();
+    },
+
+    auditarDiasMedicionForm: function() {
+      var medEl = document.getElementById('edFechaMedicion');
+      var val = medEl ? medEl.value : '';
+      var box = document.getElementById('edFeedbackContadorDias');
+      if (!box) return;
+
+      var aud = calcularDiasDesdeMedicion(val);
+      if (!val) {
+        box.innerHTML = '';
+        return;
+      }
+
+      box.innerHTML = aud.vencido
+        ? ('<span class="banner-contador-alerta vencido" style="font-size:0.7rem; padding:4px 8px;">⚠️ RUTA VENCIDA: ' + aud.dias + ' días sin medir</span>')
+        : ('<span class="banner-contador-alerta al-dia" style="font-size:0.7rem; padding:4px 8px;">✅ Medición vigente: ' + aud.texto + '</span>');
+    },
+
+    // APERTURA DE MODAL CON COLOR HEREDADO Y LISTADO ORDENADO DE PARES SAP
+    abrirDetalle: function(id) {
+      state.equipoIdModal = id;
+      var eq = state.equipos.find(function(e) { return e.id === id; });
+      if (!eq) return;
+
+      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
+      var detTag = document.getElementById('detSiteTag');
+      if (detTag) detTag.innerText = eq.siteId + ' | TAG: ' + tagValue;
+      var detTit = document.getElementById('detTitle');
+      if (detTit) detTit.innerText = (eq.tipo || 'Activo') + ' - ' + eq.area;
+
+      var aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
+      var contadorBox = document.getElementById('detContadorMedicionBanner');
+      if (contadorBox) {
+        contadorBox.innerHTML = aud.vencido
+          ? ('<span class="banner-contador-alerta vencido">⚠️ ALERTA RUTA: Medición realizada ' + aud.texto + ' (> 30 días sin inspeccionar)</span>')
+          : ('<span class="banner-contador-alerta al-dia">✅ RUTA AL DÍA: Última medición ' + aud.texto + ' (dentro de ciclo)</span>');
+      }
+
+      var sevGlobal = calcMaxSev(eq.componentes);
+      var saps = consolidarSAPs(eq.componentes);
+
+      // Bloque Superior: Resumen Consolidado
+      var diagBox = document.getElementById('detDiagnosticoBox');
+      if (diagBox) {
+        var paresHtml = '';
+        if (saps.pares.length > 0) {
+          paresHtml = saps.pares.map(function(p) {
+            return '<span style="background:rgba(30,58,138,0.3); border:1px solid #3b82f6; padding:3px 8px; border-radius:5px; margin-right:6px; margin-bottom:4px; display:inline-block; font-size:0.75rem;">' +
+              '<strong>' + sanitize(p.componente) + ':</strong> <span style="color:#60a5fa;">AV ' + sanitize(p.aviso) + '</span> ➔ <span style="color:#34d399;">OM ' + sanitize(p.om) + '</span>' +
+            '</span>';
+          }).join('');
+        } else {
+          paresHtml = '<span style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">Sin Avisos / OM SAP asociadas</span>';
+        }
+
+        diagBox.innerHTML = '<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; align-items:center; border-bottom:1px solid var(--glass-border); padding-bottom:10px; margin-bottom:10px;">' +
+            '<div>' +
+              '<span class="label-muted">Condición Crítica Heredada</span>' +
+              '<div style="font-weight:900; font-size:1.1rem; color:' + SEV_COLOR[sevGlobal] + ';">' + sevGlobal.toUpperCase() + '</div>' +
+            '</div>' +
+            '<div><span class="label-muted">Estatus Hallazgo</span><div style="font-weight:700; margin-top:2px;">' + sanitize(eq.estatusHallazgo || 'Abierto') + '</div></div>' +
+            '<div><span class="label-muted">Última Medición</span><div style="font-weight:700; margin-top:2px;">' + (eq.fechaMedicion || 'S/F') + '</div></div>' +
+          '</div>' +
+          '<div>' +
+            '<span class="label-muted">Avisos & Órdenes OM SAP Vinculadas:</span>' +
+            '<div style="margin-top:6px;">' + paresHtml + '</div>' +
+          '</div>';
+      }
+
+      // Bloque Izquierdo: Despliegue de Componentes con sus pares SAP
+      var list = document.getElementById('detComponentesList');
+      if (list) {
+        var comps = (eq.componentes || []).slice().sort(function(a, b) {
+          return SEV_PESO[b.severidad || 'Plomo'] - SEV_PESO[a.severidad || 'Plomo'];
+        });
+
+        if (comps.length === 0) {
+          list.innerHTML = '<div class="label-muted" style="padding:14px;">Sin componentes motrices registrados.</div>';
+        } else {
+          var htmlSpots = '';
+          comps.forEach(function(c) {
+            var col = SEV_COLOR[c.severidad] || '#6b7280';
+            var sapsCompHtml = '';
+            if (c.paresSap && c.paresSap.length > 0) {
+              sapsCompHtml = '<div style="background:rgba(20,25,35,0.7); padding:6px 10px; border-radius:6px; font-size:0.75rem; margin-bottom:8px;">' +
+                c.paresSap.map(function(p) {
+                  return '<span style="margin-right:12px;"><strong>Aviso:</strong> <span class="code-font" style="color:#60a5fa;">' + sanitize(p.aviso || 'S/A') + '</span> ➔ <strong>OM:</strong> <span class="code-font" style="color:#34d399;">' + sanitize(p.om || 'S/OM') + '</span></span>';
+                }).join('') +
+              '</div>';
+            }
+
+            htmlSpots += '<div style="background:var(--input-bg); padding:14px 16px; border-radius:10px; border:1px solid var(--glass-border); border-left:5px solid ' + col + '; margin-bottom:10px;">' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--glass-border); padding-bottom:8px; margin-bottom:8px;">' +
+                  '<div>' +
+                    '<span class="label-muted">Componente Motriz</span>' +
+                    '<h4 style="margin:2px 0 0 0; font-size:1rem; color:#fff;">' + sanitize(c.nombre || 'Componente') + '</h4>' +
+                  '</div>' +
+                  '<div style="text-align:right;">' +
+                    '<span class="label-muted">Severidad / RMS</span>' +
+                    '<div style="font-weight:800; font-size:0.9rem; color:' + col + ';">' + (c.severidad || 'Verde').toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)</div>' +
+                  '</div>' +
+                '</div>' +
+                sapsCompHtml +
+                '<div style="margin-bottom:6px;">' +
+                  '<span class="label-muted" style="color:#60a5fa;">Diagnóstico & Análisis de Vibraciones</span>' +
+                  '<div style="font-size:0.85rem; color:#f3f4f6; margin-top:2px; line-height:1.35;">' + sanitize(c.analisis || 'Sin análisis registrado para este componente.') + '</div>' +
+                '</div>' +
+                '<div>' +
+                  '<span class="label-muted" style="color:#34d399;">Recomendación Mecánica / Operativa</span>' +
+                  '<div style="font-size:0.85rem; color:#a7f3d0; margin-top:2px; line-height:1.35;">' + sanitize(c.recomendacion || 'Mantener monitoreo rutinario.') + '</div>' +
+                '</div>' +
+              '</div>';
+          });
+          list.innerHTML = htmlSpots;
+        }
+      }
+
+      window.CIO.renderBitacoraTerreno(eq);
+      var modalDet = document.getElementById('modalDetalleActivo');
+      if (modalDet) modalDet.showModal();
+    },
+
+    abrirDetallePorTag: function(tag) {
+      var eq = state.equipos.find(function(e) { return matchTags(e.tag, tag); });
+      if (eq) {
+        window.CIO.abrirDetalle(eq.id);
+      }
+    },
+
+    abrirFotoEnNuevaPestana: function(base64Data) {
+      var win = window.open("");
+      win.document.write('<body style="margin:0; background:#0a0a0c; display:flex; justify-content:center; align-items:center; height:100vh;"><img src="' + base64Data + '" style="max-width:98%; max-height:98%; object-fit:contain; border-radius:6px; box-shadow:0 0 30px rgba(0,0,0,0.8);" /></body>');
+    },
+
+    cerrarModalDetalle: function() {
+      state.equipoIdModal = null;
+      var modalDet = document.getElementById('modalDetalleActivo');
+      if (modalDet) modalDet.close();
+    },
+
+    // 3. VISUALIZACIÓN DE HALLAZGOS DE TERRENO CON FOTOS
+    renderBitacoraTerreno: function(eq) {
+      var terList = document.getElementById('detTerrenoList');
+      if (!terList) return;
+      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
+      
+      var myReports = state.alertasTerreno
+        .filter(function(a) { return matchTags(a.tag, tagValue); })
+        .sort(function(a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
+
+      if (myReports.length === 0) {
+        terList.innerHTML = '<div class="label-muted" style="padding:14px; font-style:italic;">No se registran hallazgos de ronda en terreno para este activo.</div>';
+        return;
+      }
+
+      var htmlReports = myReports.map(function(r) {
+        var fotoHtml = r.fotoBase64 ? ('<div style="margin-top:8px;"><img src="' + r.fotoBase64 + '" class="img-terreno-preview-lg" alt="Evidencia" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + r.fotoBase64 + '\')" /></div>') : '';
+        return '<article class="card-reporte-terreno-lg">' +
+            '<div style="display:flex; justify-content:space-between; color:var(--text-muted); font-size:0.75rem;">' +
+              '<span>🕒 <strong>' + (r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D') + '</strong></span>' +
+              '<span style="color:' + (SEV_COLOR[r.severidad] || '#fff') + '; font-weight:bold; font-size:0.85rem;">' + (r.severidad || 'Seguimiento') + '</span>' +
+            '</div>' +
+            '<div style="font-size:0.9rem; color:#fff; line-height:1.4;">' + sanitize(r.detalle) + '</div>' +
+            fotoHtml +
+          '</article>';
+      });
+      terList.innerHTML = htmlReports.join('');
+    },
+
+    // 4. EDITOR DE INFORME TÉCNICO INTERACTIVO PRE-IMPRESIÓN (MODO USUARIO)
+    abrirEditorInformeModal: function() {
+      if (!state.usuarioActivo) {
+        alert("🔒 Acción restringida: Debes iniciar sesión con tu cuenta de usuario para emitir o editar informes ejecutivos.");
+        return;
+      }
+
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
+      if (!eq) return;
+
+      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
+      document.getElementById('infModalTitle').innerText = 'Edición de Informe: ' + tagValue + ' (' + eq.siteId + ')';
+
+      var saps = consolidarSAPs(eq.componentes);
+      document.getElementById('infAvisosSap').value = saps.avisosStr !== 'Sin Avisos' ? saps.avisosStr : '';
+      document.getElementById('infOmSap').value = saps.omsStr !== 'Sin OM' ? saps.omsStr : '';
+      document.getElementById('infResumenGeneral').value = 'Se realiza evaluación de condición dinámica al tren motriz del activo ' + tagValue + '. Condición global evaluada: ' + calcMaxSev(eq.componentes).toUpperCase() + '.';
+
+      var cont = document.getElementById('infComponentesContainer');
+      cont.innerHTML = '';
+
+      (eq.componentes || []).forEach(function(c, idx) {
+        var card = document.createElement('div');
+        card.className = 'card-component-editor';
+        card.style.padding = '12px 16px';
+        card.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+            '<strong style="color:#60a5fa;">Componente: ' + sanitize(c.nombre || 'Componente') + '</strong>' +
+            '<span style="font-weight:bold; color:' + (SEV_COLOR[c.severidad] || '#fff') + ';">' + (c.severidad || 'Verde') + ' (' + (c.rms || '0.0') + ' mm/s)</span>' +
+          '</div>' +
+          '<div style="margin-bottom:8px;">' +
+            '<label style="font-size:0.7rem; color:var(--text-muted);">Diagnóstico Técnico del Componente (Editable):</label>' +
+            '<textarea class="inf-c-analisis" rows="2">' + sanitize(c.analisis || '') + '</textarea>' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:0.7rem; color:var(--text-muted);">Recomendación Operativa / Mantención (Editable):</label>' +
+            '<textarea class="inf-c-recom" rows="2">' + sanitize(c.recomendacion || '') + '</textarea>' +
+          '</div>';
+        cont.appendChild(card);
+      });
+
+      document.getElementById('modalEditorInforme').showModal();
+    },
+
+    // 5. EMISIÓN FINAL DEL INFORME EDITADO A PDF
+    emitirInformeFinalImpresion: function() {
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdModal; });
+      if (!eq) return;
+
+      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
+      var avisosEditados = document.getElementById('infAvisosSap').value.trim() || 'Sin Avisos';
+      var omsEditadas = document.getElementById('infOmSap').value.trim() || 'Sin OM';
+      var conclusionGeneral = document.getElementById('infResumenGeneral').value.trim();
+
+      var aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
+      var sevGlobal = calcMaxSev(eq.componentes);
+
+      // Extraer datos editados de componentes
+      var compCards = document.querySelectorAll('#infComponentesContainer .card-component-editor');
+      var compsHtml = '';
+
+      (eq.componentes || []).forEach(function(c, i) {
+        var card = compCards[i];
+        var analisisTxt = card ? card.querySelector('.inf-c-analisis').value : c.analisis;
+        var recomTxt = card ? card.querySelector('.inf-c-recom').value : c.recomendacion;
+        var col = SEV_COLOR[c.severidad] || '#4b5563';
+
+        var sapsHtml = '';
+        if (c.paresSap && c.paresSap.length > 0) {
+          sapsHtml = '<div style="font-size:0.8rem; color:#1e40af; margin-bottom:6px;">' +
+            c.paresSap.map(function(p) { return '<strong>Aviso:</strong> ' + sanitize(p.aviso || 'S/A') + ' ➔ <strong>OM:</strong> ' + sanitize(p.om || 'S/OM'); }).join(' | ') +
+          '</div>';
+        }
+
+        compsHtml += '<div style="border:1px solid #e5e7eb; border-left:5px solid ' + col + '; border-radius:6px; padding:12px 14px; margin-bottom:12px; page-break-inside:avoid;">' +
+            '<div style="display:flex; justify-content:space-between; font-weight:bold; font-size:0.95rem; margin-bottom:6px;">' +
+              '<span>' + sanitize(c.nombre || 'Componente') + '</span>' +
+              '<span style="color:' + col + ';">' + (c.severidad || 'Verde').toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)</span>' +
+            '</div>' +
+            sapsHtml +
+            '<div style="font-size:0.88rem; color:#1f2937; margin-bottom:6px; line-height:1.4;"><strong>Diagnóstico Técnico:</strong><br>' + sanitize(analisisTxt || 'Sin análisis registrado.') + '</div>' +
+            '<div style="font-size:0.88rem; color:#065f46; line-height:1.4;"><strong>Recomendación Mecánica:</strong><br>' + sanitize(recomTxt || 'Mantener monitoreo.') + '</div>' +
+          '</div>';
+      });
+
+      // Hallazgos de terreno a incluir
+      var myReports = state.alertasTerreno
+        .filter(function(a) { return matchTags(a.tag, tagValue); })
+        .sort(function(a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
+
+      var reportsHtml = '';
+      if (myReports.length > 0) {
+        myReports.forEach(function(r, i) {
+          var imgTag = r.fotoBase64 ? ('<div><img src="' + r.fotoBase64 + '" style="max-width:320px; max-height:220px; border-radius:4px; margin-top:8px; border:1px solid #ccc;" alt="Evidencia"></div>') : '';
+          reportsHtml += '<div style="border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; margin-bottom:10px; page-break-inside:avoid;">' +
+              '<div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#6b7280; margin-bottom:4px;">' +
+                '<span><strong>Reporte #' + (myReports.length - i) + '</strong> | ' + (r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D') + '</span>' +
+                '<span style="font-weight:bold; color:' + (SEV_COLOR[r.severidad] || '#000') + ';">' + r.severidad + '</span>' +
+              '</div>' +
+              '<div style="font-size:0.9rem;">' + sanitize(r.detalle) + '</div>' +
+              imgTag +
+            '</div>';
+        });
+      } else {
+        reportsHtml = '<div style="font-size:0.85rem; color:#6b7280; font-style:italic;">No se registran eventos de terreno para este activo.</div>';
+      }
+
+      var win = window.open('', '_blank');
+      win.document.write(
+        '<!DOCTYPE html>' +
+        '<html lang="es">' +
+        '<head>' +
+          '<meta charset="UTF-8">' +
+          '<title>Informe Técnico Oficial - ' + tagValue + ' - CPF Ingeniería</title>' +
+          '<style>' +
+            'body { font-family: "Helvetica Neue", Arial, sans-serif; padding: 30px; color: #1f2937; margin: 0; background: #fff; line-height:1.4; }' +
+            '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e3a8a; padding-bottom: 14px; margin-bottom: 18px; }' +
+            '.header-report h1 { margin: 0; font-size: 1.35rem; color: #1e3a8a; text-transform: uppercase; }' +
+            '.header-report p { margin: 2px 0 0 0; font-size: 0.8rem; color: #6b7280; font-weight: bold; }' +
+            '.badge-sev { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: bold; color: #fff; background: ' + (SEV_COLOR[sevGlobal] || '#4b5563') + '; text-transform: uppercase; }' +
+            '.data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin-bottom: 18px; font-size: 0.85rem; }' +
+            '.data-item strong { display: block; font-size: 0.7rem; color: #4b5563; text-transform: uppercase; margin-bottom:2px; }' +
+            '.section-title { font-size: 1rem; color: #1e3a8a; border-left: 4px solid #1e3a8a; padding-left: 8px; margin: 22px 0 10px 0; text-transform: uppercase; font-weight: bold; }' +
+            '.box-conclusion { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 12px 14px; font-size: 0.9rem; margin-bottom: 18px; }' +
+            '.print-btn-bar { margin-bottom: 20px; display: flex; gap: 10px; }' +
+            '.btn-print { background: #1e3a8a; color: #fff; border: none; padding: 8px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; }' +
+            '@media print { .print-btn-bar { display: none; } body { padding: 10px; } }' +
+          '</style>' +
+        '</head>' +
+        '<body>' +
+          '<div class="print-btn-bar">' +
+            '<button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>' +
+            '<button class="btn-print" style="background:#4b5563;" onclick="window.close()">Cerrar</button>' +
+          '</div>' +
+          '<div class="header-report">' +
+            '<div>' +
+              '<h1>INFORME OFICIAL DE MONITOREO TREN MOTRIZ</h1>' +
+              '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO | CIO</p>' +
+            '</div>' +
+            '<div><span class="badge-sev">CONDICIÓN: ' + sevGlobal + '</span></div>' +
+          '</div>' +
+          '<div class="data-grid">' +
+            '<div class="data-item"><strong>Faena Operativa</strong>' + sanitize(eq.siteId) + '</div>' +
+            '<div class="data-item"><strong>Área</strong>' + sanitize(eq.area) + '</div>' +
+            '<div class="data-item"><strong>Tag Equipo</strong>' + sanitize(tagValue) + '</div>' +
+            '<div class="data-item"><strong>Clase</strong>' + sanitize(eq.tipo || 'Activo Crítico') + '</div>' +
+            '<div class="data-item"><strong>Avisos SAP Totales</strong>' + sanitize(avisosEditados) + '</div>' +
+            '<div class="data-item"><strong>Órdenes OM SAP</strong>' + sanitize(omsEditadas) + '</div>' +
+            '<div class="data-item"><strong>Última Medición</strong>' + (eq.fechaMedicion || 'S/F') + ' (' + aud.texto + ')</div>' +
+            '<div class="data-item"><strong>Auditoría de Ruta</strong>' + (aud.vencido ? '⚠️ RUTA VENCIDA (>30 Días)' : '✅ RUTA AL DÍA') + '</div>' +
+            '<div class="data-item"><strong>Especialista Emisor</strong>' + sanitize(state.usuarioActivo || 'Supervisor Predictivo') + '</div>' +
+          '</div>' +
+          '<div class="section-title">1. Resumen Ejecutivo & Conclusiones Generales</div>' +
+          '<div class="box-conclusion">' + sanitize(conclusionGeneral) + '</div>' +
+          '<div class="section-title">2. Diagnóstico Técnico por Componente & Avisos Asignados</div>' +
+          compsHtml +
+          '<div class="section-title">3. Bitácora de Inspecciones y Hallazgos en Terreno (' + myReports.length + ')</div>' +
+          reportsHtml +
+          '<footer style="margin-top:35px; border-top:1px solid #ccc; padding-top:10px; font-size:0.75rem; color:#6b7280; text-align:center;">' +
+            'Documento Técnico Emitido por el Centro Integrado de Operaciones (CIO) - CPF Ingeniería Ltda.' +
+          '</footer>' +
+        '</body>' +
+        '</html>'
+      );
+      win.document.close();
+      document.getElementById('modalEditorInforme').close();
+    },
+
+    abrirEdicionEquipoNuevoAuth: function() {
+      var targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
+      state.equipoSeleccionado = {
+        id: 'EQ_' + Date.now(),
+        siteId: targetSite,
+        domain: 'planta',
+        area: state.areaSeleccionada || 'Área General',
+        componentes: [
+          { nombre: 'Motor Eléctrico', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '' },
+          { nombre: 'Reductor Principal', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '' },
+          { nombre: 'Polea Motriz / Descansos', severidad: 'Verde', rms: '1.8', paresSap: [], analisis: '', recomendacion: '' }
+        ],
+        fechaMedicion: new Date().toISOString().split('T')[0],
+        fechaHallazgo: new Date().toISOString().split('T')[0],
+        estatusHallazgo: 'Abierto'
+      };
+      window.CIO.abrirEdicionModalObj();
+    },
+
+    abrirEdicionGlobalNuevo: function() {
+      state.equipoSeleccionado = {
+        id: 'EQ_' + Date.now(),
+        siteId: FAENAS[0],
+        domain: 'planta',
+        componentes: [
+          { nombre: 'Motor Eléctrico', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '' },
+          { nombre: 'Reductor Principal', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '' }
+        ],
+        fechaMedicion: new Date().toISOString().split('T')[0],
+        fechaHallazgo: new Date().toISOString().split('T')[0],
+        estatusHallazgo: 'Abierto'
+      };
+      window.CIO.abrirEdicionModalObj();
+    },
+
+    abrirEdicion: function(id) {
+      state.equipoSeleccionado = state.equipos.find(function(e) { return e.id === id; });
+      if (state.equipoSeleccionado) window.CIO.abrirEdicionModalObj();
+    },
+
+    abrirEdicionModalObj: function() {
+      var eq = state.equipoSeleccionado;
+      var setVal = function(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.value = val || '';
+      };
+
+      setVal('edSiteId', eq.siteId);
+      setVal('edDomain', eq.domain || 'planta');
+      setVal('edArea', eq.area || '');
+      setVal('edTag', eq.tag || eq.Tag || eq.id || '');
+      setVal('edTipo', eq.tipo || '');
+      setVal('edLat', eq.lat || '');
+      setVal('edLng', eq.lng || '');
+
+      setVal('edEstatusHallazgo', eq.estatusHallazgo || 'Abierto');
+      setVal('edFechaMedicion', eq.fechaMedicion || eq.fecha || '');
+      setVal('edFechaHallazgo', eq.fechaHallazgo || '');
+
+      window.CIO.auditarDiasMedicionForm();
+
+      var cont = document.getElementById('edComponentesContainer');
+      if (cont) {
+        cont.innerHTML = '';
+        var comps = eq.componentes && eq.componentes.length > 0 ? eq.componentes : [
+          { nombre: 'Motor Eléctrico', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '' },
+          { nombre: 'Reductor', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: '', recomendacion: '' }
+        ];
+        comps.forEach(function(c) {
+          window.CIO.agregarFormComponente(c);
+        });
+      }
+      var modalEd = document.getElementById('modalEdicion');
+      if (modalEd) modalEd.showModal();
+    },
+
+    // AÑADIR COMPONENTE CON SUB-LISTA DINÁMICA DE PARES SAP (AVISO ➔ OM)
+    agregarFormComponente: function(data) {
+      data = data || {};
+      var cont = document.getElementById('edComponentesContainer');
+      if (!cont) return;
+
+      var card = document.createElement('div');
+      card.className = 'card-component-editor';
+
+      card.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">' +
+          '<strong style="font-size:0.95rem; color:#93c5fd;">⚙️ Componente Motriz</strong>' +
+          '<button type="button" class="btn-base btn-danger" style="padding:3px 8px; font-size:0.65rem;" onclick="this.closest(\'.card-component-editor\').remove()">Eliminar Componente</button>' +
+        '</div>' +
+        '<div class="card-component-header">' +
+          '<div>' +
+            '<label>Nombre del Componente</label>' +
+            '<input type="text" class="c-nom" placeholder="Ej: Motor Eléctrico, Reductor, Polea Motriz" value="' + sanitize(data.nombre || 'Motor Eléctrico') + '">' +
+          '</div>' +
+          '<div>' +
+            '<label>RMS (mm/s)</label>' +
+            '<input type="text" class="c-rms" placeholder="2.5" value="' + sanitize(data.rms || '2.0') + '">' +
+          '</div>' +
+          '<div>' +
+            '<label>Severidad</label>' +
+            '<select class="c-sev">' +
+              '<option value="Rojo"' + (data.severidad === 'Rojo' ? ' selected' : '') + '>🔴 Rojo</option>' +
+              '<option value="Naranja"' + (data.severidad === 'Naranja' ? ' selected' : '') + '>🟠 Naranja</option>' +
+              '<option value="Amarillo"' + (data.severidad === 'Amarillo' ? ' selected' : '') + '>🟡 Amarillo</option>' +
+              '<option value="Verde"' + (data.severidad === 'Verde' ? ' selected' : '') + '>🟢 Verde</option>' +
+            '</select>' +
+          '</div>' +
+          '<div>' +
+            '<button type="button" class="btn-base btn-primary" style="margin-bottom:1px;" onclick="window.CIO.ejecutarIAComponente(this)">✨ Asistente IA</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="background:rgba(20,25,35,0.7); border:1px solid var(--glass-border); border-radius:8px; padding:10px 14px; margin-bottom:12px;">' +
+          '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+            '<span class="label-muted" style="color:#60a5fa;">Avisos SAP & Órdenes OM Asignadas a este Componente</span>' +
+            '<button type="button" class="btn-base btn-success" style="font-size:0.65rem; padding:2px 8px;" onclick="window.CIO.agregarFilaParSap(this)">+ Añadir Aviso / OM</button>' +
+          '</div>' +
+          '<div class="pares-sap-container"></div>' +
+        '</div>' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">' +
+          '<div>' +
+            '<label style="color:#94a3b8;">Análisis Diagnóstico del Componente</label>' +
+            '<textarea class="c-analisis" rows="2" placeholder="Diagnóstico de vibraciones para este componente...">' + sanitize(data.analisis || '') + '</textarea>' +
+          '</div>' +
+          '<div>' +
+            '<label style="color:#94a3b8;">Recomendación Mecánica / Operativa</label>' +
+            '<textarea class="c-recom" rows="2" placeholder="Acciones preventivas / correctivas...">' + sanitize(data.recomendacion || '') + '</textarea>' +
+          '</div>' +
+        '</div>';
+
+      var paresBox = card.querySelector('.pares-sap-container');
+      if (data.paresSap && data.paresSap.length > 0) {
+        data.paresSap.forEach(function(p) {
+          window.CIO.insertarFilaParSapEnContenedor(paresBox, p.aviso, p.om);
+        });
+      } else {
+        // Al menos una fila vacía para ingresar fácilmente
+        window.CIO.insertarFilaParSapEnContenedor(paresBox, '', '');
+      }
+
+      cont.appendChild(card);
+    },
+
+    agregarFilaParSap: function(btn) {
+      var box = btn.closest('.card-component-editor').querySelector('.pares-sap-container');
+      window.CIO.insertarFilaParSapEnContenedor(box, '', '');
+    },
+
+    insertarFilaParSapEnContenedor: function(container, avisoVal, omVal) {
+      var row = document.createElement('div');
+      row.style.cssText = "display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:center; margin-bottom:6px;";
+      row.className = 'fila-par-sap';
+      row.innerHTML = '<input type="text" class="p-aviso code-font" placeholder="Aviso SAP (Ej: 10054321)" value="' + sanitize(avisoVal || '') + '" style="font-size:0.82rem; padding:6px 10px;">' +
+        '<input type="text" class="p-om code-font" placeholder="OM SAP (Ej: 40012984)" value="' + sanitize(omVal || '') + '" style="font-size:0.82rem; padding:6px 10px;">' +
+        '<button type="button" class="btn-base btn-danger" style="padding:4px 8px; font-size:0.65rem;" onclick="this.parentElement.remove()">&times;</button>';
+      container.appendChild(row);
+    },
+
+    ejecutarIAComponente: function(btn) {
+      var card = btn.closest('.card-component-editor');
+      if (!card) return;
+
+      var nomIn = card.querySelector('.c-nom');
+      var rmsIn = card.querySelector('.c-rms');
+      var sevIn = card.querySelector('.c-sev');
+      var anIn = card.querySelector('.c-analisis');
+      var recIn = card.querySelector('.c-recom');
+
+      var nom = nomIn ? nomIn.value.trim() : 'Componente';
+      var rms = rmsIn ? rmsIn.value.trim() : '2.0';
+      var sev = sevIn ? sevIn.value : 'Verde';
+
+      var diag = '';
+      var recom = '';
+
+      if (sev === 'Rojo') {
+        if (nom.toLowerCase().indexOf('motor') !== -1) {
+          diag = '[IA - Criticidad Alta en ' + nom + ']: Nivel RMS crítico (' + rms + ' mm/s). Predominio de armónico 1X y 2X axial compatible con desalineación angular severa o entrehierro excéntrico.';
+          recom = '1) Chequear alineamiento láser motor-reductor. 2) Medir resistencia de aislamiento y temperatura de descansos.';
+        } else if (nom.toLowerCase().indexOf('reductor') !== -1) {
+          diag = '[IA - Criticidad Alta en ' + nom + ']: Nivel RMS crítico (' + rms + ' mm/s). Modulación en frecuencias de engrane (GMF) indicativa de desgaste severo en dentado o desalineación interna.';
+          recom = '1) Detención programada para boroscopía de piñón/corona. 2) Toma de muestra de aceite para ferrografía analítica.';
+        } else if (nom.toLowerCase().indexOf('polea') !== -1) {
+          diag = '[IA - Criticidad Alta en ' + nom + ']: Nivel RMS (' + rms + ' mm/s) con energía en alta frecuencia (PeakVue) consistente con daño en pista externa de rodamiento.';
+          recom = '1) Reemplazo de rodamiento en próxima ventana operativa. 2) Verificar apriete de fijaciones y estado de sellos laberínticos.';
+        } else {
+          diag = '[IA - Criticidad Alta]: Energía vibratoria crítica en ' + nom + ' (' + rms + ' mm/s). Posible soltura mecánica estructural o holgura basal.';
+          recom = '1) Inspección termográfica inmediata y reapriete de pernos basales.';
+        }
+      } else if (sev === 'Naranja') {
+        diag = '[IA - Alerta en ' + nom + ']: Nivel RMS (' + rms + ' mm/s) en zona de degradación incipiente. Sugiere desbalanceo dinámico o lubricación deficiente.';
+        recom = '1) Reducir frecuencia de monitoreo a 7 días. 2) Relubricar con grasa recomendada verificando temperatura.';
+      } else {
+        diag = '[IA - Normal]: Comportamiento dinámico de ' + nom + ' dentro de tolerancia admisible (RMS: ' + rms + ' mm/s).';
+        recom = 'Mantener frecuencia de medición mensual estándar (30 días).';
+      }
+
+      if (anIn) anIn.value = diag;
+      if (recIn) recIn.value = recom;
+    },
+
+    guardarEquipo: function() {
+      if (!state.equipoSeleccionado) return;
+      var comps = [];
+
+      document.querySelectorAll('.card-component-editor').forEach(function(el) {
+        var nomIn = el.querySelector('.c-nom');
+        var rmsIn = el.querySelector('.c-rms');
+        var sevIn = el.querySelector('.c-sev');
+        var anIn = el.querySelector('.c-analisis');
+        var recIn = el.querySelector('.c-recom');
+
+        var pares = [];
+        el.querySelectorAll('.fila-par-sap').forEach(function(row) {
+          var av = row.querySelector('.p-aviso')?.value.trim() || '';
+          var om = row.querySelector('.p-om')?.value.trim() || '';
+          if (av || om) {
+            pares.push({ aviso: av, om: om });
+          }
+        });
+
+        comps.push({
+          nombre: nomIn ? nomIn.value : 'Componente',
+          rms: rmsIn ? rmsIn.value : '2.0',
+          severidad: sevIn ? sevIn.value : 'Verde',
+          paresSap: pares,
+          analisis: anIn ? anIn.value : '',
+          recomendacion: recIn ? recIn.value : ''
+        });
+      });
+
+      var getVal = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
+
+      var payload = {
+        siteId: getVal('edSiteId'),
+        domain: getVal('edDomain'),
+        area: getVal('edArea'),
+        tag: getVal('edTag'),
+        tipo: getVal('edTipo'),
+        lat: getVal('edLat'),
+        lng: getVal('edLng'),
+        fechaMedicion: getVal('edFechaMedicion'),
+        fechaHallazgo: getVal('edFechaHallazgo'),
+        estatusHallazgo: getVal('edEstatusHallazgo'),
+        componentes: comps
+      };
+
+      if (db) db.child(state.equipoSeleccionado.id).update(payload);
+      var modalEd = document.getElementById('modalEdicion');
+      if (modalEd) modalEd.close();
+    },
+
+    eliminarEquipo: function() {
+      if (confirm('¿Eliminar activo en DEV?') && db && state.equipoSeleccionado) {
+        db.child(state.equipoSeleccionado.id).remove();
+        var modalEd = document.getElementById('modalEdicion');
+        if (modalEd) modalEd.close();
+      }
+    },
+
+    editarActivoActualDesdeDetalle: function() {
+      if (!state.equipoIdModal) return;
+      var idToEdit = state.equipoIdModal;
+      window.CIO.cerrarModalDetalle();
+      window.CIO.abrirEdicion(idToEdit);
+    },
+
+    procesarCargaExcelFaena: function(e) {
+      var file = e.target.files[0];
+      if (!file || !db) return;
+
+      var targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
+      var reader = new FileReader();
+
+      reader.onload = function(evt) {
+        try {
+          var data = new Uint8Array(evt.target.result);
+          var wb = XLSX.read(data, { type: 'array', cellDates: true });
+          var firstSheetName = wb.SheetNames[0];
+          var worksheet = wb.Sheets[firstSheetName];
+          var rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+          if (!rawRows || rawRows.length === 0) {
+            alert("⚠️ La planilla seleccionada está vacía.");
+            return;
+          }
+
+          var cargados = 0;
+          var actualizaciones = {};
+
+          rawRows.forEach(function(row) {
+            var normalizedRow = {};
+            Object.keys(row).forEach(function(k) {
+              normalizedRow[k.trim().toUpperCase()] = row[k];
+            });
+
+            var rawTag = normalizedRow['EQUIPO'] || normalizedRow['TAG'] || normalizedRow['ACTIVO'] || normalizedRow['NOMBRE'];
+            var rawArea = normalizedRow['AREA'] || normalizedRow['ÁREA'] || 'Área General';
+            var rawTipo = normalizedRow['TIPO EQUIPO'] || normalizedRow['TIPO'] || normalizedRow['CLASE'] || 'Activo';
+            var rawFecha = normalizedRow['ULTIMA FECHA'] || normalizedRow['FECHA MEDICION'] || normalizedRow['FECHA'];
+
+            if (rawTag && String(rawTag).trim() !== '') {
+              var tagStr = String(rawTag).trim();
+              var areaStr = String(rawArea).trim() || 'General';
+              var tipoStr = String(rawTipo).trim() || 'Activo';
+
+              var fechaMedicionFinal = '';
+              if (rawFecha instanceof Date && !isNaN(rawFecha.getTime())) {
+                fechaMedicionFinal = rawFecha.toISOString().split('T')[0];
+              } else if (typeof rawFecha === 'string' && rawFecha.trim() !== '') {
+                var dateParsed = new Date(rawFecha);
+                if (!isNaN(dateParsed.getTime())) {
+                  fechaMedicionFinal = dateParsed.toISOString().split('T')[0];
+                }
+              }
+
+              var safeTagId = tagStr.replace(/[\/\.\#\$\[\]]/g, '_');
+              var recordId = 'EQ_' + safeTagId;
+
+              actualizaciones[recordId] = {
+                siteId: targetSite,
+                domain: areaStr.toUpperCase().indexOf('MINA') !== -1 ? 'mina' : 'planta',
+                area: areaStr,
+                tag: tagStr,
+                tipo: tipoStr,
+                lat: '',
+                lng: '',
+                fechaMedicion: fechaMedicionFinal,
+                fechaHallazgo: '',
+                estatusHallazgo: 'Abierto',
+                componentes: [
+                  { nombre: 'Motor Eléctrico', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.' },
+                  { nombre: 'Reductor', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.' },
+                  { nombre: 'Polea / Descansos', severidad: 'Verde', rms: '1.8', paresSap: [], analisis: 'Condición normal.', recomendacion: 'Ruta mensual.' }
+                ]
+              };
+
+              cargados++;
+            }
+          });
+
+          if (cargados === 0) {
+            alert("⚠️ No se encontraron equipos válidos en las columnas.");
+            return;
+          }
+
+          db.update(actualizaciones)
+            .then(function() {
+              alert('✅ Carga masiva exitosa: ' + cargados + ' equipos importados en ' + targetSite + '.');
+            })
+            .catch(function(err) {
+              alert('❌ Error al guardar en Firebase: ' + err.message);
+            });
+
+        } catch (err) {
+          console.error("Error al procesar Excel:", err);
+          alert('❌ Error al leer el archivo Excel: ' + err.message);
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+      e.target.value = '';
+    }
+  };
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', refresh);
   } else {
