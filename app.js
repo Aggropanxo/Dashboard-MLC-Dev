@@ -162,21 +162,22 @@
       return obj;
     }).sort(function(a, b) { return (b.maxPeso - a.maxPeso) || (b.critical - a.critical); });
 
-    var html = '';
-    sortedFaenas.forEach(function(d) {
+    var cards = sortedFaenas.map(function(d) {
       var anim = (d.maxSev === 'Rojo' || d.maxSev === 'Naranja') ? ('anim-' + d.maxSev.toLowerCase()) : '';
-      html += '<article class="card-area ' + anim + '" onclick="window.CIO.seleccionarFaena(\'' + sanitize(d.name) + '\')">' +
-        '<header>' +
-          '<span class="label-muted">Faena Operativa CMP</span>' +
-          '<h3 class="value-strong" style="margin:4px 0 8px 0;">' + sanitize(d.name) + '</h3>' +
-        </header>' +
-        '<div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-card); padding-top:8px;">' +
-          '<div><span class="label-muted">Activos</span><div class="value-strong">' + d.count + '</div></div>' +
-          '<div><span class="label-muted">Condición</span><div class="value-strong" style="color:' + SEV_COLOR[d.maxSev] + '">' + (d.critical > 0 ? (d.critical + ' Alertas') : 'Normal') + '</div></div>' +
-        '</div>' +
-      '</article>';
+      return [
+        '<article class="card-area ', anim, '" onclick="window.CIO.seleccionarFaena(\'', sanitize(d.name), '\')">',
+          '<header>',
+            '<span class="label-muted">Faena Operativa CMP</span>',
+            '<h3 class="value-strong" style="margin:4px 0 8px 0;">', sanitize(d.name), '</h3>',
+          '</header>',
+          '<div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-card); padding-top:8px;">',
+            '<div><span class="label-muted">Activos</span><div class="value-strong">', d.count, '</div></div>',
+            '<div><span class="label-muted">Condición</span><div class="value-strong" style="color:', SEV_COLOR[d.maxSev], '">', (d.critical > 0 ? (d.critical + ' Alertas') : 'Normal'), '</div></div>',
+          '</div>',
+        '</article>'
+      ].join('');
     });
-    container.innerHTML = html;
+    container.innerHTML = cards.join('');
   }
 
   function renderScreen2() {
@@ -217,31 +218,33 @@
         return;
       }
 
-      var htmlAreas = '';
-      sortedAreas.forEach(function(a) {
+      var areaCards = sortedAreas.map(function(a) {
         var anim = (a.maxSev === 'Rojo' || a.maxSev === 'Naranja') ? ('anim-' + a.maxSev.toLowerCase()) : '';
-        htmlAreas += '<article class="card-area ' + anim + '" onclick="window.CIO.seleccionarArea(\'' + sanitize(a.name) + '\')">' +
-          '<span class="label-muted">Área Operacional</span>' +
-          '<h3 class="value-strong" style="margin:4px 0 8px 0;">' + sanitize(a.name) + '</h3>' +
-          '<div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-card); padding-top:8px;">' +
-            '<div><span class="label-muted">Activos</span><div class="value-strong">' + a.count + '</div></div>' +
-            '<div><span class="label-muted">Condición</span><div class="value-strong" style="color:' + SEV_COLOR[a.maxSev] + '">' + (a.critical > 0 ? (a.critical + ' Alertas') : 'Normal') + '</div></div>' +
-          '</div>' +
-        '</article>';
+        return [
+          '<article class="card-area ', anim, '" onclick="window.CIO.seleccionarArea(\'', sanitize(a.name), '\')">',
+            '<span class="label-muted">Área Operacional</span>',
+            '<h3 class="value-strong" style="margin:4px 0 8px 0;">', sanitize(a.name), '</h3>',
+            '<div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-card); padding-top:8px;">',
+              '<div><span class="label-muted">Activos</span><div class="value-strong">', a.count, '</div></div>',
+              '<div><span class="label-muted">Condición</span><div class="value-strong" style="color:', SEV_COLOR[a.maxSev], '">', (a.critical > 0 ? (a.critical + ' Alertas') : 'Normal'), '</div></div>',
+            '</div>',
+          '</article>'
+        ].join('');
       });
-      container.innerHTML = htmlAreas;
+      container.innerHTML = areaCards.join('');
     } else {
       container.className = 'grid-equipos';
       var eqsArea = eqsFaena.filter(function(e) { return (e.area || 'Sin Área') === state.areaSeleccionada; });
       eqsArea.sort(function(a, b) { return SEV_PESO[calcMaxSev(b.componentes)] - SEV_PESO[calcMaxSev(a.componentes)]; });
 
-      var navHeader = '<div style="grid-column: 1/-1; display:flex; align-items:center; gap:10px; margin-bottom:4px; background:var(--glass-card); backdrop-filter:blur(8px); padding:8px 12px; border-radius:8px; border:1px solid var(--glass-border);">' +
-        '<button class="btn-base" type="button" onclick="window.CIO.volverAreas()">⬅️ Volver a Áreas</button>' +
-        '<span style="font-weight:700; color:var(--accent-color); font-size:0.85rem;">Área: ' + sanitize(state.areaSeleccionada) + '</span>' +
-      '</div>';
+      var navHeader = [
+        '<div style="grid-column: 1/-1; display:flex; align-items:center; gap:10px; margin-bottom:4px; background:var(--glass-card); backdrop-filter:blur(8px); padding:8px 12px; border-radius:8px; border:1px solid var(--glass-border);">',
+          '<button class="btn-base" type="button" onclick="window.CIO.volverAreas()">⬅️ Volver a Áreas</button>',
+          '<span style="font-weight:700; color:var(--accent-color); font-size:0.85rem;">Área: ', sanitize(state.areaSeleccionada), '</span>',
+        '</div>'
+      ].join('');
 
-      var htmlEqs = navHeader;
-      eqsArea.forEach(function(eq) {
+      var eqCards = eqsArea.map(function(eq) {
         var s = calcMaxSev(eq.componentes);
         var anim = (s === 'Rojo' || s === 'Naranja') ? ('anim-' + s.toLowerCase()) : '';
         var tagValue = eq.tag || eq.Tag || eq.TAG || eq.equipo || eq.id || 'S/T';
@@ -250,15 +253,17 @@
         var aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
         var badgeVencido = aud.vencido ? ('<span class="badge-vencido-floating" title="Medición vencida: ' + aud.texto + '">⏱️ >30d</span>') : '';
 
-        htmlEqs += '<article class="card-equipo sev-' + s.toLowerCase() + ' ' + anim + '" onclick="window.CIO.abrirDetalle(\'' + eq.id + '\')">' +
-          badge +
-          badgeVencido +
-          '<span class="eq-type">' + sanitize(eq.tipo || eq.area) + '</span>' +
-          '<div class="eq-tag code-font">' + sanitize(tagValue) + '</div>' +
-          '<span class="eq-type" style="color:' + SEV_COLOR[s] + '">' + s.toUpperCase() + '</span>' +
-        '</article>';
+        return [
+          '<article class="card-equipo sev-', s.toLowerCase(), ' ', anim, '" onclick="window.CIO.abrirDetalle(\'', eq.id, '\')">',
+            badge,
+            badgeVencido,
+            '<span class="eq-type">', sanitize(eq.tipo || eq.area), '</span>',
+            '<div class="eq-tag code-font">', sanitize(tagValue), '</div>',
+            '<span class="eq-type" style="color:', SEV_COLOR[s], '">', s.toUpperCase(), '</span>',
+          '</article>'
+        ].join('');
       });
-      container.innerHTML = htmlEqs;
+      container.innerHTML = navHeader + eqCards.join('');
     }
   }
 
@@ -271,19 +276,20 @@
     var container = document.getElementById('viewScreen3Global');
     if (!container) return;
 
-    var html = '';
-    eqs.forEach(function(eq) {
+    var html = eqs.map(function(eq) {
       var s = calcMaxSev(eq.componentes);
       var anim = (s === 'Rojo' || s === 'Naranja') ? ('anim-' + s.toLowerCase()) : '';
       var tagValue = eq.tag || eq.Tag || eq.TAG || eq.id || 'S/T';
-      html += '<article class="card-equipo sev-' + s.toLowerCase() + ' ' + anim + '">' +
-        '<span class="label-muted">' + sanitize(eq.siteId) + '</span>' +
-        '<div class="eq-tag code-font">' + sanitize(tagValue) + '</div>' +
-        '<div style="margin-top:6px;">' +
-          '<button class="btn-base btn-primary" type="button" style="padding:2px 8px; font-size:0.65rem;" onclick="window.CIO.abrirEdicion(\'' + eq.id + '\')">✏️ Editar</button>' +
-        '</div>' +
-      '</article>';
-    });
+      return [
+        '<article class="card-equipo sev-', s.toLowerCase(), ' ', anim, '">',
+          '<span class="label-muted">', sanitize(eq.siteId), '</span>',
+          '<div class="eq-tag code-font">', sanitize(tagValue), '</div>',
+          '<div style="margin-top:6px;">',
+            '<button class="btn-base btn-primary" type="button" style="padding:2px 8px; font-size:0.65rem;" onclick="window.CIO.abrirEdicion(\'', eq.id, '\')">✏️ Editar</button>',
+          '</div>',
+        '</article>'
+      ].join('');
+    }).join('');
     container.innerHTML = html;
   }
 
@@ -473,22 +479,20 @@
         return;
       }
 
-      var htmlReports = '';
-      myReports.forEach(function(r) {
-        var fotoHtml = '';
-        if (r.fotoBase64) {
-          fotoHtml = '<div style="margin-top:8px;"><img src="' + r.fotoBase64 + '" class="img-terreno-preview-lg" alt="Evidencia" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + r.fotoBase64 + '\')" /></div>';
-        }
-        htmlReports += '<article class="card-reporte-terreno-lg">' +
-          '<div style="display:flex; justify-content:space-between; color:var(--text-muted); font-size:0.75rem;">' +
-            '<span>🕒 <strong>' + (r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D') + '</strong></span>' +
-            '<span style="color:' + (SEV_COLOR[r.severidad] || '#fff') + '; font-weight:bold; font-size:0.85rem;">' + (r.severidad || 'Seguimiento') + '</span>' +
-          '</div>' +
-          '<div style="font-size:0.9rem; color:#fff; line-height:1.4;">' + sanitize(r.detalle) + '</div>' +
-          fotoHtml +
-        '</article>';
+      var htmlReports = myReports.map(function(r) {
+        var fotoHtml = r.fotoBase64 ? ('<div style="margin-top:8px;"><img src="' + r.fotoBase64 + '" class="img-terreno-preview-lg" alt="Evidencia" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + r.fotoBase64 + '\')" /></div>') : '';
+        return [
+          '<article class="card-reporte-terreno-lg">',
+            '<div style="display:flex; justify-content:space-between; color:var(--text-muted); font-size:0.75rem;">',
+              '<span>🕒 <strong>', (r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D'), '</strong></span>',
+              '<span style="color:', (SEV_COLOR[r.severidad] || '#fff'), '; font-weight:bold; font-size:0.85rem;">', (r.severidad || 'Seguimiento'), '</span>',
+            '</div>',
+            '<div style="font-size:0.9rem; color:#fff; line-height:1.4;">', sanitize(r.detalle), '</div>',
+            fotoHtml,
+          '</article>'
+        ].join('');
       });
-      terList.innerHTML = htmlReports;
+      terList.innerHTML = htmlReports.join('');
     },
 
     exportarReporteTerrenoPDF: function(id) {
@@ -505,77 +509,79 @@
 
       var reportsHtml = '';
       if (myReports.length > 0) {
-        myReports.forEach(function(r, i) {
+        reportsHtml = myReports.map(function(r, i) {
           var imgTag = r.fotoBase64 ? ('<div><img src="' + r.fotoBase64 + '" class="img-report" alt="Evidencia"></div>') : '';
-          reportsHtml += '<div class="report-card">' +
-            '<div class="report-card-header">' +
-              '<span><strong>Hallazgo #' + (myReports.length - i) + '</strong> | Fecha: ' + (r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D') + '</span>' +
-              '<span style="font-weight:bold; color:' + (SEV_COLOR[r.severidad] || '#000') + ';">Severidad: ' + r.severidad + '</span>' +
-            '</div>' +
-            '<div style="font-size:0.9rem; margin-top:4px;">' + sanitize(r.detalle) + '</div>' +
-            imgTag +
-          '</div>';
-        });
+          return [
+            '<div class="report-card">',
+              '<div class="report-card-header">',
+                '<span><strong>Hallazgo #', (myReports.length - i), '</strong> | Fecha: ', (r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D'), '</span>',
+                '<span style="font-weight:bold; color:', (SEV_COLOR[r.severidad] || '#000'), ';">Severidad: ', r.severidad, '</span>',
+              '</div>',
+              '<div style="font-size:0.9rem; margin-top:4px;">', sanitize(r.detalle), '</div>',
+              imgTag,
+            '</div>'
+          ].join('');
+        }).join('');
       } else {
         reportsHtml = '<div style="font-size:0.85rem; color:#6b7280; font-style:italic;">No se registran eventos tácticos de terreno para este activo.</div>';
       }
 
       var win = window.open('', '_blank');
-      win.document.write(
-        '<!DOCTYPE html>' +
-        '<html lang="es">' +
-        '<head>' +
-          '<meta charset="UTF-8">' +
-          '<title>Informe Técnico - ' + tagValue + ' - CPF Ingeniería</title>' +
-          '<style>' +
-            'body { font-family: "Helvetica Neue", Arial, sans-serif; padding: 30px; color: #1f2937; margin: 0; background: #fff; }' +
-            '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e3a8a; padding-bottom: 14px; margin-bottom: 20px; }' +
-            '.header-report h1 { margin: 0; font-size: 1.4rem; color: #1e3a8a; text-transform: uppercase; }' +
-            '.header-report p { margin: 2px 0 0 0; font-size: 0.8rem; color: #6b7280; font-weight: bold; }' +
-            '.badge-sev { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: bold; color: #fff; background: ' + (SEV_COLOR[sevGlobal] || '#4b5563') + '; text-transform: uppercase; }' +
-            '.data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin-bottom: 20px; font-size: 0.85rem; }' +
-            '.data-item strong { display: block; font-size: 0.7rem; color: #4b5563; text-transform: uppercase; }' +
-            '.section-title { font-size: 1rem; color: #1e3a8a; border-left: 4px solid #1e3a8a; padding-left: 8px; margin: 22px 0 10px 0; text-transform: uppercase; font-weight: bold; }' +
-            '.box-text { background: #f3f4f6; border-radius: 6px; padding: 12px; font-size: 0.88rem; line-height: 1.5; margin-bottom: 15px; }' +
-            '.report-card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin-bottom: 14px; page-break-inside: avoid; }' +
-            '.report-card-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: #6b7280; margin-bottom: 6px; }' +
-            '.img-report { max-width: 320px; max-height: 240px; border-radius: 4px; border: 1px solid #d1d5db; margin-top: 8px; object-fit: cover; }' +
-            '.print-btn-bar { margin-bottom: 20px; display: flex; gap: 10px; }' +
-            '.btn-print { background: #1e3a8a; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }' +
-            '@media print { .print-btn-bar { display: none; } body { padding: 10px; } }' +
-          '</style>' +
-        '</head>' +
-        '<body>' +
-          '<div class="print-btn-bar">' +
-            '<button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>' +
-            '<button class="btn-print" style="background:#4b5563;" onclick="window.close()">Cerrar</button>' +
-          '</div>' +
-          '<div class="header-report">' +
-            '<div>' +
-              '<h1>INFORME DE CONDICIÓN & HALLAZGOS DE TERRENO [DEV]</h1>' +
-              '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO</p>' +
-            '</div>' +
-            '<div><span class="badge-sev">CONDICIÓN: ' + sevGlobal + '</span></div>' +
-          '</div>' +
-          '<div class="data-grid">' +
-            '<div class="data-item"><strong>Faena Operativa</strong>' + sanitize(eq.siteId) + '</div>' +
-            '<div class="data-item"><strong>Área</strong>' + sanitize(eq.area) + '</div>' +
-            '<div class="data-item"><strong>Tag Equipo</strong>' + sanitize(tagValue) + '</div>' +
-            '<div class="data-item"><strong>Clase</strong>' + sanitize(eq.tipo || 'Activo Crítico') + '</div>' +
-            '<div class="data-item"><strong>Estatus Hallazgo</strong>' + sanitize(eq.estatusHallazgo || 'Abierto') + '</div>' +
-            '<div class="data-item"><strong>Aviso / OM SAP</strong>' + sanitize(eq.avisoSap || 'S/N') + ' / ' + sanitize(eq.omSap || 'S/N') + '</div>' +
-            '<div class="data-item"><strong>Última Medición</strong>' + (eq.fechaMedicion || 'S/F') + ' (' + aud.texto + ')</div>' +
-            '<div class="data-item"><strong>Fecha Emisión</strong>' + new Date().toLocaleString() + '</div>' +
-            '<div class="data-item"><strong>Auditoría de Ruta</strong>' + (aud.vencido ? '⚠️ RUTA VENCIDA (>30 Días)' : '✅ RUTA DENTRO DE CICLO') + '</div>' +
-          '</div>' +
-          '<div class="section-title">1. Diagnóstico Predictivo & Estado Dinámico</div>' +
-          '<div class="box-text"><strong>Análisis Técnico:</strong><br>' + sanitize(eq.analisis || 'Sin análisis técnico registrado.') + '</div>' +
-          '<div class="box-text" style="background:#ecfdf5; border:1px solid #a7f3d0;"><strong style="color:#065f46;">Recomendación Operativa / Mantención:</strong><br>' + sanitize(eq.recomendacion || 'Sin recomendación registrada.') + '</div>' +
-          '<div class="section-title">2. Bitácora de Inspecciones y Hallazgos en Terreno (' + myReports.length + ')</div>' +
-          reportsHtml +
-        '</body>' +
+      win.document.write([
+        '<!DOCTYPE html>',
+        '<html lang="es">',
+        '<head>',
+          '<meta charset="UTF-8">',
+          '<title>Informe Técnico - ', tagValue, ' - CPF Ingeniería</title>',
+          '<style>',
+            'body { font-family: "Helvetica Neue", Arial, sans-serif; padding: 30px; color: #1f2937; margin: 0; background: #fff; }',
+            '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e3a8a; padding-bottom: 14px; margin-bottom: 20px; }',
+            '.header-report h1 { margin: 0; font-size: 1.4rem; color: #1e3a8a; text-transform: uppercase; }',
+            '.header-report p { margin: 2px 0 0 0; font-size: 0.8rem; color: #6b7280; font-weight: bold; }',
+            '.badge-sev { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: bold; color: #fff; background: ', (SEV_COLOR[sevGlobal] || '#4b5563'), '; text-transform: uppercase; }',
+            '.data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin-bottom: 20px; font-size: 0.85rem; }',
+            '.data-item strong { display: block; font-size: 0.7rem; color: #4b5563; text-transform: uppercase; }',
+            '.section-title { font-size: 1rem; color: #1e3a8a; border-left: 4px solid #1e3a8a; padding-left: 8px; margin: 22px 0 10px 0; text-transform: uppercase; font-weight: bold; }',
+            '.box-text { background: #f3f4f6; border-radius: 6px; padding: 12px; font-size: 0.88rem; line-height: 1.5; margin-bottom: 15px; }',
+            '.report-card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin-bottom: 14px; page-break-inside: avoid; }',
+            '.report-card-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: #6b7280; margin-bottom: 6px; }',
+            '.img-report { max-width: 320px; max-height: 240px; border-radius: 4px; border: 1px solid #d1d5db; margin-top: 8px; object-fit: cover; }',
+            '.print-btn-bar { margin-bottom: 20px; display: flex; gap: 10px; }',
+            '.btn-print { background: #1e3a8a; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }',
+            '@media print { .print-btn-bar { display: none; } body { padding: 10px; } }',
+          '</style>',
+        '</head>',
+        '<body>',
+          '<div class="print-btn-bar">',
+            '<button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>',
+            '<button class="btn-print" style="background:#4b5563;" onclick="window.close()">Cerrar</button>',
+          '</div>',
+          '<div class="header-report">',
+            '<div>',
+              '<h1>INFORME DE CONDICIÓN & HALLAZGOS DE TERRENO [DEV]</h1>',
+              '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO</p>',
+            '</div>',
+            '<div><span class="badge-sev">CONDICIÓN: ', sevGlobal, '</span></div>',
+          '</div>',
+          '<div class="data-grid">',
+            '<div class="data-item"><strong>Faena Operativa</strong>', sanitize(eq.siteId), '</div>',
+            '<div class="data-item"><strong>Área</strong>', sanitize(eq.area), '</div>',
+            '<div class="data-item"><strong>Tag Equipo</strong>', sanitize(tagValue), '</div>',
+            '<div class="data-item"><strong>Clase</strong>', sanitize(eq.tipo || 'Activo Crítico'), '</div>',
+            '<div class="data-item"><strong>Estatus Hallazgo</strong>', sanitize(eq.estatusHallazgo || 'Abierto'), '</div>',
+            '<div class="data-item"><strong>Aviso / OM SAP</strong>', sanitize(eq.avisoSap || 'S/N'), ' / ', sanitize(eq.omSap || 'S/N'), '</div>',
+            '<div class="data-item"><strong>Última Medición</strong>', (eq.fechaMedicion || 'S/F'), ' (', aud.texto, ')</div>',
+            '<div class="data-item"><strong>Fecha Emisión</strong>', new Date().toLocaleString(), '</div>',
+            '<div class="data-item"><strong>Auditoría de Ruta</strong>', (aud.vencido ? '⚠️ RUTA VENCIDA (>30 Días)' : '✅ RUTA DENTRO DE CICLO'), '</div>',
+          '</div>',
+          '<div class="section-title">1. Diagnóstico Predictivo & Estado Dinámico</div>',
+          '<div class="box-text"><strong>Análisis Técnico:</strong><br>', sanitize(eq.analisis || 'Sin análisis técnico registrado.'), '</div>',
+          '<div class="box-text" style="background:#ecfdf5; border:1px solid #a7f3d0;"><strong style="color:#065f46;">Recomendación Operativa / Mantención:</strong><br>', sanitize(eq.recomendacion || 'Sin recomendación registrada.'), '</div>',
+          '<div class="section-title">2. Bitácora de Inspecciones y Hallazgos en Terreno (', myReports.length, ')</div>',
+          reportsHtml,
+        '</body>',
         '</html>'
-      );
+      ].join(''));
       win.document.close();
     },
 
@@ -600,18 +606,20 @@
 
       var diagBox = document.getElementById('detDiagnosticoBox');
       if (diagBox) {
-        diagBox.innerHTML = '<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; border-bottom:1px solid var(--glass-border); padding-bottom:10px;">' +
-            '<div><span class="label-muted">Estatus de Hallazgo</span><div style="font-weight:800; font-size:0.95rem; margin-top:2px;">' + sanitize(eq.estatusHallazgo || 'Abierto') + '</div></div>' +
-            '<div><span class="label-muted">Aviso SAP</span><div class="code-font" style="font-weight:700; color:#60a5fa; margin-top:2px;">' + sanitize(eq.avisoSap || 'Sin Aviso') + '</div></div>' +
-            '<div><span class="label-muted">OM SAP</span><div class="code-font" style="font-weight:700; color:#34d399; margin-top:2px;">' + sanitize(eq.omSap || 'Sin OM') + '</div></div>' +
-            '<div style="display:flex; align-items:center;">' +
-              '<button type="button" class="btn-base btn-primary" onclick="window.CIO.exportarReporteTerrenoPDF(\'' + eq.id + '\')">' +
-                '📄 Exportar Informe Jefatura' +
-              '</button>' +
-            '</div>' +
-          '</div>' +
-          '<div style="margin-top:6px;"><span class="label-muted">Análisis Diagnóstico del Activo</span><div style="font-size:0.88rem; color:#f3f4f6; margin-top:4px; line-height:1.4;">' + sanitize(eq.analisis || 'Sin análisis registrado') + '</div></div>' +
-          '<div style="margin-top:6px;"><span class="label-muted" style="color:#34d399;">Recomendación Operativa / Mantención</span><div style="font-size:0.88rem; color:#a7f3d0; margin-top:4px; line-height:1.4;">' + sanitize(eq.recomendacion || 'Sin recomendación formulada') + '</div></div>';
+        diagBox.innerHTML = [
+          '<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; border-bottom:1px solid var(--glass-border); padding-bottom:10px;">',
+            '<div><span class="label-muted">Estatus de Hallazgo</span><div style="font-weight:800; font-size:0.95rem; margin-top:2px;">', sanitize(eq.estatusHallazgo || 'Abierto'), '</div></div>',
+            '<div><span class="label-muted">Aviso SAP</span><div class="code-font" style="font-weight:700; color:#60a5fa; margin-top:2px;">', sanitize(eq.avisoSap || 'Sin Aviso'), '</div></div>',
+            '<div><span class="label-muted">OM SAP</span><div class="code-font" style="font-weight:700; color:#34d399; margin-top:2px;">', sanitize(eq.omSap || 'Sin OM'), '</div></div>',
+            '<div style="display:flex; align-items:center;">',
+              '<button type="button" class="btn-base btn-primary" onclick="window.CIO.exportarReporteTerrenoPDF(\'', eq.id, '\')">',
+                '📄 Exportar Informe Jefatura',
+              '</button>',
+            '</div>',
+          '</div>',
+          '<div style="margin-top:6px;"><span class="label-muted">Análisis Diagnóstico del Activo</span><div style="font-size:0.88rem; color:#f3f4f6; margin-top:4px; line-height:1.4;">', sanitize(eq.analisis || 'Sin análisis registrado'), '</div></div>',
+          '<div style="margin-top:6px;"><span class="label-muted" style="color:#34d399;">Recomendación Operativa / Mantención</span><div style="font-size:0.88rem; color:#a7f3d0; margin-top:4px; line-height:1.4;">', sanitize(eq.recomendacion || 'Sin recomendación formulada'), '</div></div>'
+        ].join('');
       }
 
       var list = document.getElementById('detComponentesList');
@@ -623,16 +631,17 @@
         if (comps.length === 0) {
           list.innerHTML = '<div class="label-muted" style="padding:14px;">Sin spots oficiales registrados.</div>';
         } else {
-          var htmlSpots = '';
-          comps.forEach(function(c) {
-            htmlSpots += '<div style="background:var(--input-bg); padding:12px 16px; border-radius:8px; border:1px solid var(--glass-border); ' + (c.severidad === 'Rojo' ? 'border-left:4px solid #ef4444;' : '') + '">' +
-              '<div style="display:flex; justify-content:space-between; align-items:center;">' +
-                '<strong style="font-size:0.95rem;">' + sanitize(c.nombre || c.spot) + '</strong>' +
-                '<span style="color:' + SEV_COLOR[c.severidad] + '; font-weight:800; text-transform:uppercase;">' + c.severidad + '</span>' +
-              '</div>' +
-              '<div style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">RMS: <strong>' + (c.rms || 'N/D') + '</strong> | Orden de Trabajo: <strong>' + (c.om || 'S/N') + '</strong></div>' +
-            '</div>';
-          });
+          var htmlSpots = comps.map(function(c) {
+            return [
+              '<div style="background:var(--input-bg); padding:12px 16px; border-radius:8px; border:1px solid var(--glass-border); ', (c.severidad === 'Rojo' ? 'border-left:4px solid #ef4444;' : ''), '">',
+                '<div style="display:flex; justify-content:space-between; align-items:center;">',
+                  '<strong style="font-size:0.95rem;">', sanitize(c.nombre || c.spot), '</strong>',
+                  '<span style="color:', SEV_COLOR[c.severidad], '; font-weight:800; text-transform:uppercase;">', c.severidad, '</span>',
+                '</div>',
+                '<div style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">RMS: <strong>', (c.rms || 'N/D'), '</strong> | Orden de Trabajo: <strong>', (c.om || 'S/N'), '</strong></div>',
+              '</div>'
+            ].join('');
+          }).join('');
           list.innerHTML = htmlSpots;
         }
       }
@@ -1023,18 +1032,19 @@
       var div = document.createElement('div');
       div.style.cssText = "background:var(--input-bg); padding:10px; border:1px solid var(--border-card); border-radius:6px; position:relative;";
       div.className = 'comp-item';
-      div.innerHTML = '' +
-        '<button type="button" class="btn-base btn-danger" style="position:absolute; top:8px; right:8px; padding:2px 6px; font-size:0.6rem;" onclick="this.parentElement.remove()">Eliminar</button>' +
-        '<div class="form-grid">' +
-          '<div><label>Spot</label><input type="text" class="c-nom" value="' + (data.nombre || '') + '"></div>' +
-          '<div><label>RMS</label><input type="text" class="c-rms" value="' + (data.rms || '') + '"></div>' +
-          '<div class="span-2"><label>Severidad</label><select class="c-sev">' +
-            '<option value="Rojo"' + (data.severidad === 'Rojo' ? ' selected' : '') + '>Rojo</option>' +
-            '<option value="Naranja"' + (data.severidad === 'Naranja' ? ' selected' : '') + '>Naranja</option>' +
-            '<option value="Amarillo"' + (data.severidad === 'Amarillo' ? ' selected' : '') + '>Amarillo</option>' +
-            '<option value="Verde"' + (data.severidad === 'Verde' ? ' selected' : '') + '>Verde</option>' +
-          '</select></div>' +
-        '</div>';
+      div.innerHTML = [
+        '<button type="button" class="btn-base btn-danger" style="position:absolute; top:8px; right:8px; padding:2px 6px; font-size:0.6rem;" onclick="this.parentElement.remove()">Eliminar</button>',
+        '<div class="form-grid">',
+          '<div><label>Spot</label><input type="text" class="c-nom" value="', (data.nombre || ''), '"></div>',
+          '<div><label>RMS</label><input type="text" class="c-rms" value="', (data.rms || ''), '"></div>',
+          '<div class="span-2"><label>Severidad</label><select class="c-sev">',
+            '<option value="Rojo"', (data.severidad === 'Rojo' ? ' selected' : ''), '>Rojo</option>',
+            '<option value="Naranja"', (data.severidad === 'Naranja' ? ' selected' : ''), '>Naranja</option>',
+            '<option value="Amarillo"', (data.severidad === 'Amarillo' ? ' selected' : ''), '>Amarillo</option>',
+            '<option value="Verde"', (data.severidad === 'Verde' ? ' selected' : ''), '>Verde</option>',
+          '</select></div>',
+        '</div>'
+      ].join('');
       cont.appendChild(div);
     },
 
