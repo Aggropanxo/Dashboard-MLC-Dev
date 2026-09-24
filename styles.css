@@ -37,10 +37,10 @@ body.light-mode {
 
   /* Superficies Modo Claro */
   --glass-surface: rgba(255, 255, 255, 0.92);
-  --glass-card: rgba(255, 255, 255, 0.88);
-  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-card: #ffffff;
+  --glass-border: #cbd5e1;
   --glass-border-focus: rgba(29, 78, 216, 0.4);
-  --glass-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.07), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  --glass-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
 
   --input-bg: #ffffff;
   --btn-bg: #f8fafc;
@@ -50,7 +50,7 @@ body.light-mode {
   --card-bg-elevated: #ffffff;
   --card-title-color: #0f172a;
   --panel-bg: #ffffff;
-  --ticker-bg: rgba(255, 255, 255, 0.88);
+  --ticker-bg: rgba(255, 255, 255, 0.9);
 }
 
 body {
@@ -69,11 +69,18 @@ body {
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 .is-hidden, [hidden] { display: none !important; }
 
-/* Animaciones */
+/* Animaciones de Pulso de Severidad */
 @keyframes pulseGlowRed {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6), inset 3px 0 0 0 #ef4444; border-color: rgba(239, 68, 68, 0.9); }
-  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7), inset 4px 0 0 0 #ef4444;
+    border-color: rgba(239, 68, 68, 0.9);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0), inset 4px 0 0 0 #ef4444;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), inset 4px 0 0 0 #ef4444;
+  }
 }
 
 @keyframes markerPulseRed {
@@ -82,7 +89,10 @@ body {
   100% { transform: scale(1); opacity: 1; }
 }
 
-.anim-rojo { animation: pulseGlowRed 2s infinite; }
+.anim-rojo {
+  animation: pulseGlowRed 1.8s infinite !important;
+}
+
 .map-pin-pulse { animation: markerPulseRed 1.8s infinite; }
 
 /* Cabecera Principal */
@@ -113,7 +123,7 @@ body {
   min-width: 60px;
   min-height: 38px;
   justify-content: center;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.12);
 }
 
 .logo-img { height: 40px; width: auto; object-fit: contain; display: block; }
@@ -262,11 +272,13 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 
 .card-area:hover {
   transform: translateY(-3px);
-  border-color: rgba(0, 0, 0, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
   box-shadow: 0 16px 36px -8px rgba(0,0,0,0.15);
 }
 
-/* Tarjeta de Equipo y Componente Estándar */
+/* ==========================================================================
+   TARJETAS DE EQUIPO Y SEVERIDAD (RESPETA COLORES EN OSCURO Y CLARO)
+   ========================================================================== */
 .card-equipo {
   background: var(--glass-card);
   backdrop-filter: blur(12px);
@@ -287,27 +299,55 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 
 .card-equipo:hover {
   transform: translateY(-2px);
-  border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 10px 25px -4px rgba(0,0,0,0.12);
+}
+
+/* Bordes laterales y halos de severidad */
+.sev-rojo {
+  border-left: 6px solid #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 4px 16px -2px rgba(239, 68, 68, 0.35), inset 2px 0 0 rgba(239, 68, 68, 0.4) !important;
+}
+
+.sev-naranja {
+  border-left: 6px solid #f97316 !important;
+  border-color: rgba(249, 115, 22, 0.35);
+  box-shadow: 0 4px 16px -2px rgba(249, 115, 22, 0.3), inset 2px 0 0 rgba(249, 115, 22, 0.4) !important;
+}
+
+.sev-amarillo {
+  border-left: 6px solid #eab308 !important;
+  border-color: rgba(234, 179, 8, 0.35);
+  box-shadow: 0 4px 14px -2px rgba(234, 179, 8, 0.25) !important;
+}
+
+.sev-verde {
+  border-left: 6px solid #22c55e !important;
+  border-color: rgba(34, 197, 94, 0.35);
+  box-shadow: 0 4px 14px -2px rgba(34, 197, 94, 0.2) !important;
+}
+
+.sev-plomo {
+  border-left: 6px solid #6b7280 !important;
 }
 
 /* Tarjeta Interactiva de Terreno */
 .card-terreno-dashboard {
   background: linear-gradient(145deg, rgba(16, 28, 48, 0.85) 0%, rgba(12, 18, 30, 0.85) 100%) !important;
-  border-left: 5px solid #38bdf8 !important;
-  border-color: rgba(56, 189, 248, 0.4) !important;
+  border-left: 6px solid #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.5) !important;
+  box-shadow: 0 4px 16px -2px rgba(56, 189, 248, 0.3) !important;
 }
 
 .card-terreno-dashboard:hover {
-  box-shadow: 0 8px 25px rgba(56, 189, 248, 0.3) !important;
+  box-shadow: 0 8px 25px rgba(56, 189, 248, 0.4) !important;
 }
 
 .badge-field-floating {
   position: absolute;
   top: 6px;
   right: 6px;
-  background: rgba(59, 130, 246, 0.25);
-  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--accent-color);
   border: 1px solid rgba(59, 130, 246, 0.5);
   backdrop-filter: blur(6px);
   font-size: 0.58rem;
@@ -329,23 +369,7 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
   border-radius: 4px;
   font-weight: 800;
   z-index: 2;
-  animation: pulseGlowRed 1.8s infinite;
 }
-
-/* Severidades con bordes iluminados */
-.sev-rojo {
-  border-left: 5px solid #ef4444 !important;
-  box-shadow: 0 0 20px -6px rgba(239, 68, 68, 0.35);
-}
-
-.sev-naranja {
-  border-left: 5px solid #f97316 !important;
-  box-shadow: 0 0 20px -6px rgba(249, 115, 22, 0.3);
-}
-
-.sev-amarillo { border-left: 5px solid #eab308 !important; }
-.sev-verde { border-left: 5px solid #22c55e !important; }
-.sev-plomo { border-left: 5px solid #6b7280 !important; }
 
 .label-muted { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
 .value-strong { font-size: 0.95rem; font-weight: 800; color: var(--text-main); }
@@ -739,12 +763,11 @@ textarea { min-height: 75px; line-height: 1.4; }
 }
 
 /* ==========================================================================
-   REGLAS DE REFUERZO DE ALTO CONTRASTE EXCLUSIVAS PARA MODO CLARO
+   REGLAS EXCLUSIVAS DE MODO CLARO (CONSERVAN BORDE LATERAL Y RESPLANDOR)
    ========================================================================== */
 body.light-mode .card-equipo {
   background: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03) !important;
+  /* Se elimina border-color !important para que .sev-rojo / .sev-verde apliquen su borde y sombra */
 }
 
 body.light-mode .card-equipo .eq-tag {
@@ -755,10 +778,36 @@ body.light-mode .card-equipo .eq-type {
   color: #475569 !important;
 }
 
+/* Refuerzo de halos e iluminación de severidad en modo claro */
+body.light-mode .sev-rojo {
+  border-left: 6px solid #ef4444 !important;
+  border-color: #fca5a5 !important;
+  box-shadow: 0 4px 16px -2px rgba(239, 68, 68, 0.35), inset 3px 0 0 #ef4444 !important;
+}
+
+body.light-mode .sev-naranja {
+  border-left: 6px solid #f97316 !important;
+  border-color: #fdba74 !important;
+  box-shadow: 0 4px 16px -2px rgba(249, 115, 22, 0.3), inset 3px 0 0 #f97316 !important;
+}
+
+body.light-mode .sev-amarillo {
+  border-left: 6px solid #eab308 !important;
+  border-color: #fde047 !important;
+  box-shadow: 0 4px 14px -2px rgba(234, 179, 8, 0.25) !important;
+}
+
+body.light-mode .sev-verde {
+  border-left: 6px solid #22c55e !important;
+  border-color: #86efac !important;
+  box-shadow: 0 4px 14px -2px rgba(34, 197, 94, 0.2) !important;
+}
+
 body.light-mode .card-terreno-dashboard {
   background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%) !important;
-  border-left: 5px solid #0284c7 !important;
-  border-color: #bae6fd !important;
+  border-left: 6px solid #0284c7 !important;
+  border-color: #7dd3fc !important;
+  box-shadow: 0 4px 16px -2px rgba(2, 132, 199, 0.25) !important;
 }
 
 body.light-mode .card-terreno-dashboard .eq-tag {
@@ -829,8 +878,9 @@ body.light-mode textarea::placeholder {
 body.light-mode .diagnostico-activo-panel,
 body.light-mode .main-info-section,
 body.light-mode .card-component-editor {
-  background: #f8fafc !important;
+  background: #ffffff !important;
   border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.06) !important;
 }
 
 body.light-mode .card-reporte-terreno-lg {
@@ -854,7 +904,6 @@ body.light-mode .menu-item-info {
   border-color: #f1f5f9 !important;
 }
 
-/* Modal de Autenticación en Modo Claro */
 body.light-mode .modal-auth-box {
   background: rgba(255, 255, 255, 0.98) !important;
   border-color: #cbd5e1 !important;
