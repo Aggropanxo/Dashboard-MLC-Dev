@@ -9,7 +9,7 @@
     projectId: "dashboard-vulnerabilidades-mlc"
   };
 
-  // URL del Webhook Google Apps Script conectado a Google Sheets
+  // Webhook verificado de Google Apps Script conectado a Google Sheets
   var GOOGLE_SHEETS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxxSrWh52i2QlHP5KG9mI9BOdlBFgwbtD7Sx0zgE0VOyK6bRWokkFJy3raUvC8_x0IOnQ/exec";
 
   var db = null;
@@ -335,7 +335,7 @@
     }
   }
 
-  // PANTALLA 3: NIVEL 3 (VINCULACIÓN POR ÍNDICE ORIGINAL)
+  // PANTALLA 3: NIVEL 3 (MAPEO CON ÍNDICE REAL ORIGINAL)
   function renderScreen3() {
     if (!state.equipoIdNivel3) {
       window.CIO.goScreen(2);
@@ -394,7 +394,7 @@
     if (!grid) return;
     grid.innerHTML = '';
 
-    // Mapeo con índice original para evitar desalineación al ordenar por criticidad
+    // Mapeo con índice original exacto
     var compsIndexed = (eq.componentes || []).map(function(c, originalIndex) {
       return { comp: c, originalIndex: originalIndex };
     });
@@ -510,7 +510,7 @@
     }
   }
 
-  // Sincronización en tiempo real desde Firebase DEV
+  // Sincronización en tiempo real desde Firebase
   if (db) {
     db.on('value', function(snap) {
       var raw = snap.val();
@@ -820,17 +820,18 @@
         : ('<span class="banner-contador-alerta al-dia" style="font-size:0.7rem; padding:4px 8px;">✅ Medición vigente: ' + aud.texto + '</span>');
     },
 
-    // FUNCIÓN DE SINCRONIZACIÓN AUTOMÁTICA CON GOOGLE SHEETS
+    // FUNCIÓN DE SINCRONIZACIÓN OPTIMIZADA CON GOOGLE SHEETS
     sincronizarConGoogleSheets: function(payload) {
       if (!GOOGLE_SHEETS_WEBHOOK_URL || GOOGLE_SHEETS_WEBHOOK_URL.indexOf("http") !== 0) return;
 
       fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
         method: "POST",
         mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
+        cache: "no-cache",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
       }).then(function() {
-        console.log("☁️ Sincronización exitosa con Google Sheets:", payload.tag, payload.componente);
+        console.log("☁️ Sincronización transmitida a Google Sheets:", payload.tag, payload.componente);
       }).catch(function(err) {
         console.warn("Aviso al sincronizar con Sheets:", err);
       });
@@ -905,7 +906,7 @@
 
       state.tempEspectrosEdicion = (c.espectros || []).slice();
 
-      // Limpieza preventiva de textos que contengan prefijos tipo IA de pruebas previas
+      // Limpieza de cualquier residuo previo con prefijos artificiales
       var cleanAnalisis = (c.analisis || '').replace(/\[IA\s*-\s*[^\]]+\]:\s*/gi, '').trim();
       var cleanRecom = (c.recomendacion || '').replace(/\[IA\s*-\s*[^\]]+\]:\s*/gi, '').trim();
 
