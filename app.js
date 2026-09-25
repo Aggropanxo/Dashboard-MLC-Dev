@@ -1,12 +1,16 @@
 (() => {
   'use strict';
 
+  // Configuración Firebase Realtime Database
   var firebaseConfig = {
     apiKey: "AIzaSyBd5MEZdMmgzBs1xCyeGYeKtQx5gJIeY3w",
     authDomain: "dashboard-vulnerabilidades-mlc.firebaseapp.com",
     databaseURL: "https://dashboard-vulnerabilidades-mlc-default-rtdb.firebaseio.com",
     projectId: "dashboard-vulnerabilidades-mlc"
   };
+
+  // URL del Webhook Google Apps Script conectado a Google Sheets
+  var GOOGLE_SHEETS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxxSrWh52i2QlHP5KG9mI9BOdlBFgwbtD7Sx0zgE0VOyK6bRWokkFJy3raUvC8_x0IOnQ/exec";
 
   var db = null;
   var dbUsers = null;
@@ -331,7 +335,7 @@
     }
   }
 
-  // PANTALLA 3: NIVEL 3
+  // PANTALLA 3: NIVEL 3 (VINCULACIÓN POR ÍNDICE ORIGINAL)
   function renderScreen3() {
     if (!state.equipoIdNivel3) {
       window.CIO.goScreen(2);
@@ -359,7 +363,6 @@
     var sevGlobal = calcMaxSev(eq.componentes);
     var saps = consolidarSAPs(eq.componentes);
 
-    // Banner Superior Consolidado
     var diagBox = document.getElementById('n3DiagnosticoBox');
     if (diagBox) {
       var paresHtml = '';
@@ -391,15 +394,23 @@
     if (!grid) return;
     grid.innerHTML = '';
 
-    var comps = (eq.componentes || []).slice().sort(function(a, b) {
-      return SEV_PESO[b.severidad || 'Plomo'] - SEV_PESO[a.severidad || 'Plomo'];
+    // Mapeo con índice original para evitar desalineación al ordenar por criticidad
+    var compsIndexed = (eq.componentes || []).map(function(c, originalIndex) {
+      return { comp: c, originalIndex: originalIndex };
     });
 
-    comps.forEach(function(c, idx) {
+    compsIndexed.sort(function(a, b) {
+      return SEV_PESO[b.comp.severidad || 'Plomo'] - SEV_PESO[a.comp.severidad || 'Plomo'];
+    });
+
+    compsIndexed.forEach(function(item) {
+      var c = item.comp;
+      var realIndex = item.originalIndex;
       var s = c.severidad || 'Verde';
+
       var card = document.createElement('article');
       card.className = 'card-equipo sev-' + s.toLowerCase() + ' ' + (s === 'Rojo' || s === 'Naranja' ? 'anim-' + s.toLowerCase() : '');
-      card.onclick = function() { window.CIO.abrirDetalleComponenteModal(idx); };
+      card.onclick = function() { window.CIO.abrirDetalleComponenteModal(realIndex); };
 
       var cantEspectros = (c.espectros && c.espectros.length > 0) ? c.espectros.length : 0;
       var badgeFotos = cantEspectros > 0 ? ('<span class="badge-field-floating">📈 ' + cantEspectros + ' Espectro(s)</span>') : '';
@@ -556,9 +567,6 @@
     }
   }
 
-  // ==========================================================================
-  // OBJETO GLOBAL WINDOW.CIO
-  // ==========================================================================
   window.CIO = {
     goScreen: function(num) {
       state.currentScreen = num;
@@ -812,15 +820,29 @@
         : ('<span class="banner-contador-alerta al-dia" style="font-size:0.7rem; padding:4px 8px;">✅ Medición vigente: ' + aud.texto + '</span>');
     },
 
-    // ========================================================================
-    // DETALLE DEL COMPONENTE AL HACER CLIC EN LA TARJETA
-    // ========================================================================
-    abrirDetalleComponenteModal: function(idx) {
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
-      if (!eq || !eq.componentes || !eq.componentes[idx]) return;
+    // FUNCIÓN DE SINCRONIZACIÓN AUTOMÁTICA CON GOOGLE SHEETS
+    sincronizarConGoogleSheets: function(payload) {
+      if (!GOOGLE_SHEETS_WEBHOOK_URL || GOOGLE_SHEETS_WEBHOOK_URL.indexOf("http") !== 0) return;
 
-      state.componenteIndexDetalle = idx;
-      var c = eq.componentes[idx];
+      fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).then(function() {
+        console.log("☁️ Sincronización exitosa con Google Sheets:", payload.tag, payload.componente);
+      }).catch(function(err) {
+        console.warn("Aviso al sincronizar con Sheets:", err);
+      });
+    },
+
+    // DETALLE DEL COMPONENTE POR ÍNDICE REAL
+    abrirDetalleComponenteModal: function(realIndex) {
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
+      if (!eq || !eq.componentes || !eq.componentes[realIndex]) return;
+
+      state.componenteIndexDetalle = realIndex;
+      var c = eq.componentes[realIndex];
       var s = c.severidad || 'Verde';
       var col = SEV_COLOR[s] || '#22c55e';
 
@@ -866,9 +888,7 @@
       window.CIO.abrirEditorComponenteIndividual(idx);
     },
 
-    // ========================================================================
     // EDICIÓN DE COMPONENTE CON ANÁLISIS DUAL ISO 20816-3 Y ESPECTROS
-    // ========================================================================
     abrirEditorComponenteIndividual: function(idx) {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Debes iniciar sesión para editar componentes.");
@@ -885,14 +905,18 @@
 
       state.tempEspectrosEdicion = (c.espectros || []).slice();
 
+      // Limpieza preventiva de textos que contengan prefijos tipo IA de pruebas previas
+      var cleanAnalisis = (c.analisis || '').replace(/\[IA\s*-\s*[^\]]+\]:\s*/gi, '').trim();
+      var cleanRecom = (c.recomendacion || '').replace(/\[IA\s*-\s*[^\]]+\]:\s*/gi, '').trim();
+
       document.getElementById('edCompIndex').value = idx;
       document.getElementById('edCompModalTitle').innerText = 'Editar: ' + (c.nombre || 'Componente');
       document.getElementById('indCompNombre').value = c.nombre || '';
       document.getElementById('indCompPunto').value = c.punto || '';
       document.getElementById('indCompRms').value = c.rms || '2.0';
       document.getElementById('indCompSev').value = c.severidad || 'Verde';
-      document.getElementById('indCompAnalisis').value = c.analisis || '';
-      document.getElementById('indCompRecom').value = c.recomendacion || '';
+      document.getElementById('indCompAnalisis').value = cleanAnalisis;
+      document.getElementById('indCompRecom').value = cleanRecom;
       document.getElementById('indSugAnalisis').value = '';
       document.getElementById('indSugRecom').value = '';
 
@@ -1011,7 +1035,6 @@
       window.CIO.renderMiniaturasEspectrosEdicion();
     },
 
-    // CÁLCULO NORMATIVO DINÁMICO ISO 20816-3 (SIN PALABRAS ARTIFICIALES)
     generarDictamenTecnicoIso: function() {
       var nom = document.getElementById('indCompNombre').value.trim() || 'Componente';
       var punto = document.getElementById('indCompPunto').value.trim() || 'Punto de medición';
@@ -1102,20 +1125,48 @@
         }
       });
 
+      var compNom = document.getElementById('indCompNombre').value.trim() || 'Componente';
+      var compPunto = document.getElementById('indCompPunto').value.trim() || 'Punto';
+      var compRms = document.getElementById('indCompRms').value.trim() || '2.0';
+      var compSev = document.getElementById('indCompSev').value;
+      var compDiag = document.getElementById('indCompAnalisis').value.trim();
+      var compRecom = document.getElementById('indCompRecom').value.trim();
+
       eq.componentes[idx] = {
-        nombre: document.getElementById('indCompNombre').value.trim() || 'Componente',
-        punto: document.getElementById('indCompPunto').value.trim() || 'Punto',
-        rms: document.getElementById('indCompRms').value.trim() || '2.0',
-        severidad: document.getElementById('indCompSev').value,
+        nombre: compNom,
+        punto: compPunto,
+        rms: compRms,
+        severidad: compSev,
         paresSap: pares,
-        analisis: document.getElementById('indCompAnalisis').value.trim(),
-        recomendacion: document.getElementById('indCompRecom').value.trim(),
+        analisis: compDiag,
+        recomendacion: compRecom,
         espectros: state.tempEspectrosEdicion.slice()
       };
 
+      // 1. Guardar en Firebase Realtime Database
       if (db) {
         db.child(eq.id).child('componentes').set(eq.componentes);
       }
+
+      // 2. Disparar sincronización bidireccional automática a Google Sheets
+      var avisosArr = pares.map(function(p) { return p.aviso; }).filter(Boolean).join(", ");
+      var omsArr = pares.map(function(p) { return p.om; }).filter(Boolean).join(", ");
+
+      window.CIO.sincronizarConGoogleSheets({
+        idEquipo: eq.id,
+        faena: eq.siteId,
+        area: eq.area,
+        tag: eq.tag || eq.id,
+        tipo: eq.tipo || "Activo Crítico",
+        componente: compNom,
+        punto: compPunto,
+        rms: compRms,
+        severidad: compSev,
+        avisosSap: avisosArr,
+        omSap: omsArr,
+        diagnostico: compDiag,
+        recomendacion: compRecom
+      });
 
       document.getElementById('modalEditarComponenteIndividual').close();
       renderScreen3();
