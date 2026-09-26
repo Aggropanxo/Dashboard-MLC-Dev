@@ -740,33 +740,6 @@
   }
 
   // =============================================================
-  // FUNCIÓN MAESTRA DE IMPRESIÓN ROBUSTA MEDIANTE IFRAME
-  // (Elimina definitivamente el bug 'Cargando vista previa' en Brave/Chrome)
-  // =============================================================
-  function imprimirDocumentoSinBloqueo(htmlDocumento) {
-    var frame = document.getElementById('printReportFrame');
-    if (!frame) {
-      frame = document.createElement('iframe');
-      frame.id = 'printReportFrame';
-      frame.style.cssText = 'position:fixed; right:0; bottom:0; width:0; height:0; border:0; visibility:hidden;';
-      document.body.appendChild(frame);
-    }
-
-    // Inyección controlada mediante srcdoc
-    frame.srcdoc = htmlDocumento;
-    frame.onload = function() {
-      setTimeout(function() {
-        try {
-          frame.contentWindow.focus();
-          frame.contentWindow.print();
-        } catch (err) {
-          console.error("Error al imprimir frame:", err);
-        }
-      }, 400);
-    };
-  }
-
-  // =============================================================
   // OBJETO GLOBAL CIO
   // =============================================================
   window.CIO = {
@@ -1096,7 +1069,7 @@
     },
 
     // -------------------------------------------------------------
-    // GENERADOR DE REPORTES DE RONDA TERRENO (FILTRADO & IFRAME PRINT)
+    // GENERADOR DE REPORTES DE RONDA TERRENO (FILTRADO & VISTA PREVIA)
     // -------------------------------------------------------------
     abrirFiltrosReporteTerreno: function() {
       if (!state.usuarioActivo) {
@@ -1104,7 +1077,6 @@
         return;
       }
 
-      // POBLAR EXCLUSIVAMENTE EQUIPOS QUE TIENEN REGISTROS DE TERRENO[cite: 13]
       var selEq = document.getElementById('repTerrenoTagSelect');
       if (selEq) {
         selEq.innerHTML = '<option value="">-- Selecciona el Equipo --</option>';
@@ -1177,7 +1149,7 @@
       window.CIO.emitirReporteTerrenoImpresion(lista, tituloFiltro);
     },
 
-    // IMPRESIÓN ROBUSTA MEDIANTE IFRAME DIRECTO (SIN BLOQUEOS DE CHROMIUM)[cite: 14]
+    // VISTA PREVIA LIMPIA SIN AUTO-PRINT BLOQUEANTE
     emitirReporteTerrenoImpresion: function(reportes, tituloInforme) {
       var itemsHtml = reportes.map(function(r) {
         var col = SEV_COLOR[r.severidad] || '#0284c7';
@@ -1217,26 +1189,40 @@
           '</div>';
       }).join('');
 
-      var htmlContent = 
+      var win = window.open('', '_blank');
+      if (!win) {
+        alert("⚠️ Habilita las ventanas emergentes en tu navegador para ver el informe.");
+        return;
+      }
+
+      var htmlDoc = 
         '<!DOCTYPE html>' +
         '<html lang="es">' +
         '<head>' +
           '<meta charset="UTF-8">' +
-          '<title>Reporte de Ronda Terreno - CPF Ingeniería</title>' +
+          '<title>Reporte de Ronda Terreno - CPF</title>' +
           '<style>' +
             '@page { size: A4 portrait; margin: 12mm; }' +
-            'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
+            'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
+            '.btn-bar { display: flex; gap: 10px; margin-bottom: 20px; position: sticky; top: 0; background: #ffffff; padding: 10px 0; border-bottom: 2px solid #e2e8f0; z-index: 100; }' +
+            '.btn-action { background: #0284c7; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 800; cursor: pointer; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); }' +
+            '.btn-action:hover { background: #0369a1; }' +
+            '.btn-close { background: #64748b; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; }' +
             '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }' +
             '.header-left { display: flex; align-items: center; gap: 14px; }' +
-            '.logo-cpf { height: 44px; width: auto; object-fit: contain; }' +
-            '.header-report h1 { margin: 0; font-size: 1.15rem; color: #0f172a; text-transform: uppercase; }' +
+            '.header-report h1 { margin: 0; font-size: 1.2rem; color: #0f172a; text-transform: uppercase; }' +
             '.header-report p { margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b; font-weight: bold; }' +
+            '@media print { .btn-bar { display: none !important; } body { padding: 0; } }' +
           '</style>' +
         '</head>' +
         '<body>' +
+          '<div class="btn-bar">' +
+            '<button class="btn-action" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>' +
+            '<button class="btn-close" onclick="window.close()">Cerrar Pestaña</button>' +
+          '</div>' +
           '<div class="header-report">' +
             '<div class="header-left">' +
-              '<img src="logo-cpf.png" class="logo-cpf" alt="CPF Ingeniería" onerror="this.style.display=\'none\'" />' +
+              '<img src="logo-cpf.png" style="height:44px; width:auto; object-fit:contain;" alt="CPF" onerror="this.style.display=\'none\'" />' +
               '<div>' +
                 '<h1>' + sanitize(tituloInforme) + '</h1>' +
                 '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO | CIO</p>' +
@@ -1254,7 +1240,9 @@
         '</body>' +
         '</html>';
 
-      imprimirDocumentoSinBloqueo(htmlContent);
+      win.document.open();
+      win.document.write(htmlDoc);
+      win.document.close();
     },
 
     // -------------------------------------------------------------
@@ -1706,447 +1694,6 @@
       window.CIO.irANivel3Equipo(newId);
     },
 
-    sincronizarConGoogleSheets: function(payload) {
-      if (!GOOGLE_SHEETS_WEBHOOK_URL || GOOGLE_SHEETS_WEBHOOK_URL.indexOf("http") !== 0) return;
-
-      fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
-        method: "POST",
-        mode: "no-cors",
-        cache: "no-cache",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
-      }).then(function() {
-        console.log("☁️ Transmitido a Google Sheets:", payload.tag, payload.componente);
-      }).catch(function(err) {});
-    },
-
-    abrirDetalleComponenteModal: function(realIndex) {
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
-      if (!eq || !eq.componentes || !eq.componentes[realIndex]) return;
-
-      state.componenteIndexDetalle = realIndex;
-      var c = eq.componentes[realIndex];
-      var s = c.severidad || 'Verde';
-      var col = SEV_COLOR[s] || '#22c55e';
-
-      var hTag = document.getElementById('detCompTagHeader');
-      if (hTag) hTag.innerText = (eq.tag || 'EQUIPO') + ' | TREN MOTRIZ';
-
-      var hTitle = document.getElementById('detCompTitle');
-      if (hTitle) hTitle.innerText = (c.nombre || 'Componente') + ' - ' + (c.punto || 'Punto');
-      
-      var badgeSev = document.getElementById('detCompBadgeSev');
-      if (badgeSev) {
-        badgeSev.innerText = s.toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)';
-        badgeSev.style.color = col;
-        badgeSev.style.borderColor = col;
-      }
-
-      var sapBox = document.getElementById('detCompParesSapBox');
-      if (sapBox) {
-        if (c.paresSap && c.paresSap.length > 0) {
-          sapBox.innerHTML = '<span class="label-muted" style="color:#1d4ed8; margin-bottom:4px; display:block;">Órdenes SAP Asignadas:</span>' +
-            c.paresSap.map(function(p) {
-              return '<span style="display:inline-block; margin-right:14px; margin-top:4px;"><strong>AV:</strong> ' + sanitize(p.aviso || 'S/A') + ' ➔ <strong>OM:</strong> ' + sanitize(p.om || 'S/OM') + '</span>';
-            }).join('');
-        } else {
-          sapBox.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">Sin Avisos / Órdenes SAP vinculadas</span>';
-        }
-      }
-
-      var txtAn = document.getElementById('detCompAnalisisTxt');
-      if (txtAn) txtAn.innerText = limpiarPrefijosIA(c.analisis) || 'Sin análisis de vibraciones registrado.';
-
-      var txtRec = document.getElementById('detCompRecomTxt');
-      if (txtRec) txtRec.innerText = limpiarPrefijosIA(c.recomendacion) || 'Mantener monitoreo rutinario.';
-
-      var galeria = document.getElementById('detCompGaleriaFotos');
-      if (galeria) {
-        if (c.espectros && c.espectros.length > 0) {
-          galeria.innerHTML = c.espectros.map(function(item) {
-            var src = typeof item === 'string' ? item : item.src;
-            return '<div class="item-espectro-preview"><img src="' + src + '" alt="Evidencia" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" style="max-height:80px; border-radius:4px; cursor:pointer;" /></div>';
-          }).join('');
-        } else {
-          galeria.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No hay espectros cargados.</div>';
-        }
-      }
-
-      var btnEditDetalle = document.getElementById('btnEditarDesdeDetalle');
-      if (btnEditDetalle) {
-        btnEditDetalle.style.display = state.usuarioActivo ? 'inline-block' : 'none';
-      }
-
-      var mDet = document.getElementById('modalDetalleComponente');
-      if (mDet) mDet.showModal();
-    },
-
-    editarComponenteDesdeDetalleModal: function() {
-      if (!state.usuarioActivo) {
-        alert("🔒 Debes iniciar sesión para editar.");
-        return;
-      }
-      var idx = state.componenteIndexDetalle;
-      var mDet = document.getElementById('modalDetalleComponente');
-      if (mDet) mDet.close();
-      window.CIO.abrirEditorComponenteIndividual(idx);
-    },
-
-    abrirEditorComponenteIndividual: function(idx) {
-      if (!state.usuarioActivo) {
-        alert("🔒 Acción restringida: Solo usuarios registrados pueden editar componentes.");
-        return;
-      }
-
-      state.componenteIndexEdit = idx;
-      window.CIO.goScreen(5);
-    },
-
-    agregarNuevoComponenteDirecto: function() {
-      if (!state.usuarioActivo) {
-        alert("🔒 Acción restringida: Debes iniciar sesión.");
-        return;
-      }
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
-      if (!eq) return;
-
-      eq.componentes = eq.componentes || [];
-      var nuevoIdx = eq.componentes.length;
-      eq.componentes.push({
-        nombre: 'Nuevo Componente',
-        punto: 'Lado Libre',
-        rms: '2.0',
-        severidad: 'Verde',
-        paresSap: [],
-        analisis: '',
-        recomendacion: '',
-        espectros: []
-      });
-
-      window.CIO.abrirEditorComponenteIndividual(nuevoIdx);
-    },
-
-    agregarFilaParSapIndividual: function() {
-      var box = document.getElementById('indParesSapContainer');
-      if (box) window.CIO.insertarFilaParSapEnContenedor(box, '', '');
-    },
-
-    insertarFilaParSapEnContenedor: function(container, avisoVal, omVal) {
-      var row = document.createElement('div');
-      row.style.cssText = "display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:center; margin-bottom:8px;";
-      row.className = 'fila-par-sap';
-      row.innerHTML = '<input type="text" class="p-aviso code-font" placeholder="Aviso SAP" value="' + sanitize(avisoVal || '') + '" style="font-size:0.84rem; padding:8px 12px;">' +
-        '<input type="text" class="p-om code-font" placeholder="OM SAP" value="' + sanitize(omVal || '') + '" style="font-size:0.84rem; padding:8px 12px;">' +
-        '<button type="button" class="btn-base btn-danger" style="padding:6px 10px; font-size:0.75rem;" onclick="this.parentElement.remove()">&times;</button>';
-      container.appendChild(row);
-    },
-
-    seleccionarTipoSubida: function(tipo) {
-      state.tipoSubidaActual = tipo;
-      var lbl = document.getElementById('labelZonaSubida');
-      var nombres = {
-        espectro: '📈 Espectro / Cascada FFT',
-        termografia: '🌡️ Imagen Termográfica (IR)',
-        terreno: '🔍 Foto Evidencia de Terreno'
-      };
-      if (lbl) lbl.innerText = '📷 Clic para adjuntar archivo (Tipo: ' + nombres[tipo] + ')';
-      document.getElementById('subirEvidenciasMulti').click();
-    },
-
-    procesarSubidaEvidencias: function(event) {
-      var files = Array.from(event.target.files);
-      if (!files || files.length === 0) return;
-
-      var canvas = document.getElementById('resizeCanvas') || document.createElement('canvas');
-      var ctx = canvas.getContext('2d');
-      var procesados = 0;
-      var tipoSeleccionado = state.tipoSubidaActual || 'espectro';
-
-      files.forEach(function(file) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-          var img = new Image();
-          img.onload = function() {
-            var MAX_WIDTH = 950;
-            var width = img.width;
-            var height = img.height;
-            if (width > MAX_WIDTH) {
-              height = Math.round((height * MAX_WIDTH) / width);
-              width = MAX_WIDTH;
-            }
-            canvas.width = width;
-            canvas.height = height;
-            ctx.drawImage(img, 0, 0, width, height);
-
-            var base64 = canvas.toDataURL('image/jpeg', 0.70);
-            state.tempEvidenciasEdicion.push({
-              src: base64,
-              tipo: tipoSeleccionado
-            });
-            procesados++;
-
-            if (procesados === files.length) {
-              window.CIO.renderMiniaturasEvidencias();
-            }
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
-
-      event.target.value = '';
-    },
-
-    renderMiniaturasEvidencias: function() {
-      var cont = document.getElementById('previewEspectrosContainer');
-      if (!cont) return;
-
-      if (!state.tempEvidenciasEdicion || state.tempEvidenciasEdicion.length === 0) {
-        cont.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No hay imágenes cargadas para este punto.</div>';
-        return;
-      }
-
-      var badgesTipo = {
-        espectro: '<span style="position:absolute; bottom:4px; left:4px; font-size:0.6rem; background:#0284c7; color:#fff; padding:1px 5px; border-radius:3px;">FFT</span>',
-        termografia: '<span style="position:absolute; bottom:4px; left:4px; font-size:0.6rem; background:#ea580c; color:#fff; padding:1px 5px; border-radius:3px;">TERM</span>',
-        terreno: '<span style="position:absolute; bottom:4px; left:4px; font-size:0.6rem; background:#16a34a; color:#fff; padding:1px 5px; border-radius:3px;">FOTO</span>'
-      };
-
-      cont.innerHTML = state.tempEvidenciasEdicion.map(function(item, i) {
-        var src = typeof item === 'string' ? item : item.src;
-        var tipo = typeof item === 'string' ? 'espectro' : (item.tipo || 'espectro');
-        return '<div class="item-espectro-preview">' +
-            '<img src="' + src + '" alt="Evidencia" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" />' +
-            (badgesTipo[tipo] || '') +
-            '<button type="button" onclick="window.CIO.eliminarFotoEvidencia(' + i + ')">&times;</button>' +
-          '</div>';
-      }).join('');
-    },
-
-    eliminarFotoEvidencia: function(index) {
-      state.tempEvidenciasEdicion.splice(index, 1);
-      window.CIO.renderMiniaturasEvidencias();
-    },
-
-    generarDictamenTecnicoIso: async function() {
-      var nom = document.getElementById('indCompNombre')?.value.trim() || 'Componente';
-      var punto = document.getElementById('indCompPunto')?.value.trim() || 'Punto de medición';
-      var rms = parseFloat(document.getElementById('indCompRms')?.value) || 0;
-      var textoAnalista = document.getElementById('indCompAnalisis')?.value.trim();
-      var txtSugDiag = document.getElementById('indSugAnalisis');
-      var txtSugRecom = document.getElementById('indSugRecom');
-
-      var generarLocal = function() {
-        var diag = '', recom = '';
-        if (rms >= 7.1) {
-          diag = 'Condición Crítica según ISO 20816-3 (Zona D) en ' + nom + ' (' + punto + ') con velocidad RMS de ' + rms.toFixed(1) + ' mm/s. Nivel vibratorio severo con riesgo inminente de daño mecánico.';
-          recom = '1) Detención correctiva programada urgente. 2) Alineamiento láser y chequeo de holguras. 3) Inspección termográfica en descansos.';
-        } else if (rms >= 4.5) {
-          diag = 'Condición Inadmisible según ISO 20816-3 (Límite Zona D) en ' + nom + ' (' + punto + ') registrando ' + rms.toFixed(1) + ' mm/s RMS.';
-          recom = '1) Programar intervención a corto plazo. 2) Chequear apriete de fijaciones mecánicas y estado de lubricante.';
-        } else if (rms >= 2.8) {
-          diag = 'Condición de Alerta según ISO 20816-3 (Zona C) en ' + nom + ' (' + punto + ') con ' + rms.toFixed(1) + ' mm/s RMS. Desgaste incipiente o deficiencia de lubricación.';
-          recom = '1) Relubricar descanso según especificación. 2) Reducir frecuencia de monitoreo a 15 días.';
-        } else {
-          diag = 'Condición Admisible y Satisfactoria según ISO 20816-3 (Zona A/B) en ' + nom + ' (' + punto + ') con ' + rms.toFixed(1) + ' mm/s RMS. Operación continua sin restricciones.';
-          recom = 'Mantener monitoreo mensual de rutina estándar (30 días).';
-        }
-        if (txtSugDiag) txtSugDiag.value = limpiarPrefijosIA(diag);
-        if (txtSugRecom) txtSugRecom.value = limpiarPrefijosIA(recom);
-      };
-
-      if (!GEMINI_API_KEY) {
-        var inputKey = prompt("🔑 Ingresa tu API Key de Gemini de Google AI Studio:");
-        if (inputKey && inputKey.trim().length > 10) {
-          GEMINI_API_KEY = inputKey.trim();
-          localStorage.setItem("GEMINI_API_KEY", GEMINI_API_KEY);
-        } else {
-          generarLocal();
-          return;
-        }
-      }
-
-      if (txtSugDiag) txtSugDiag.value = "⏳ Evaluando evidencias multimodales y parámetros mecánicos bajo norma ISO 20816-3...";
-      if (txtSugRecom) txtSugRecom.value = "⏳ Generando plan de acción pericial...";
-
-      try {
-        var promptText = "Actúa como Ingeniero Especialista en Mantenimiento Predictivo, Vibraciones Mecánicas (ISO 18436-2) y Termografía Infrarroja (ISO 18436-7).\n" +
-          "Equipo/Componente: " + nom + " | Punto: " + punto + "\n" +
-          "Velocidad Global RMS: " + rms + " mm/s (Norma ISO 20816-3).\n" +
-          "Comentarios Previos: " + (textoAnalista || "Sin comentarios previos") + "\n\n" +
-          "INSTRUCCIONES MULTIMODALES:\n" +
-          "- Se te proporcionan imágenes adjuntas que pueden incluir: Espectros FFT (frecuencias/amplitudes), Termogramas Infrarrojos (puntos calientes, deltas de temperatura) o Fotografías de Terreno.\n" +
-          "- Correlaciona la severidad RMS con el espectro de vibración, el gradiente térmico observado y la condición visual.\n" +
-          "- NO uses corchetes, prefijos de IA ni introducciones robóticas. Redacta como informe pericial humano.\n\n" +
-          "Responde EXCLUSIVAMENTE con un JSON en este formato:\n" +
-          "{\"diagnostico\": \"diagnóstico pericial correlacionado\", \"recomendacion\": \"recomendaciones mecánicas priorizadas 1), 2), 3)\"}";
-
-        var contentsParts = [{ text: promptText }];
-
-        if (state.tempEvidenciasEdicion && state.tempEvidenciasEdicion.length > 0) {
-          state.tempEvidenciasEdicion.forEach(function(item) {
-            var rawData = typeof item === 'string' ? item : item.src;
-            var base64Img = rawData.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
-            contentsParts.push({
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: base64Img
-              }
-            });
-          });
-        }
-
-        var response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_API_KEY, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: contentsParts }],
-            generationConfig: {
-              temperature: 0.2,
-              responseMimeType: "application/json"
-            }
-          })
-        });
-
-        if (!response.ok) throw new Error("Error HTTP Gemini: " + response.statusText);
-
-        var data = await response.json();
-        var resultado = JSON.parse(data.candidates[0].content.parts[0].text);
-
-        if (txtSugDiag) txtSugDiag.value = limpiarPrefijosIA(resultado.diagnostico);
-        if (txtSugRecom) txtSugRecom.value = limpiarPrefijosIA(resultado.recomendacion);
-
-        var selSev = document.getElementById('indCompSev');
-        if (selSev) {
-          if (rms >= 4.5) selSev.value = 'Rojo';
-          else if (rms >= 2.8) selSev.value = 'Amarillo';
-          else selSev.value = 'Verde';
-        }
-
-      } catch (err) {
-        generarLocal();
-      }
-    },
-
-    adoptarDiagnosticoSugerido: function() {
-      var sug = document.getElementById('indSugAnalisis')?.value;
-      if (!sug) return;
-      var el = document.getElementById('indCompAnalisis');
-      if (el) el.value = limpiarPrefijosIA(sug);
-    },
-
-    adoptarRecomendacionSugerida: function() {
-      var sug = document.getElementById('indSugRecom')?.value;
-      if (!sug) return;
-      var el = document.getElementById('indCompRecom');
-      if (el) el.value = limpiarPrefijosIA(sug);
-    },
-
-    adoptarTodoDiagnosticoRecomendacion: function() {
-      window.CIO.adoptarDiagnosticoSugerido();
-      window.CIO.adoptarRecomendacionSugerida();
-    },
-
-    evaluarIsoRmsEnVivo: function() {
-      var val = parseFloat(document.getElementById('indCompRms')?.value);
-      if (isNaN(val)) return;
-      var selSev = document.getElementById('indCompSev');
-      if (!selSev) return;
-
-      if (val >= 4.5) selSev.value = 'Rojo';
-      else if (val >= 2.8) selSev.value = 'Amarillo';
-      else selSev.value = 'Verde';
-    },
-
-    guardarComponenteIndividual: function() {
-      if (!state.usuarioActivo) {
-        alert("🔒 Inicia sesión para guardar cambios.");
-        return;
-      }
-
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
-      if (!eq) return;
-
-      var idx = parseInt(document.getElementById('edCompIndex')?.value, 10);
-      if (isNaN(idx) || idx < 0) return;
-
-      var pares = [];
-      document.querySelectorAll('#indParesSapContainer .fila-par-sap').forEach(function(row) {
-        var av = row.querySelector('.p-aviso')?.value.trim() || '';
-        var om = row.querySelector('.p-om')?.value.trim() || '';
-        if (av || om) pares.push({ aviso: av, om: om });
-      });
-
-      var compNom = document.getElementById('indCompNombre')?.value.trim() || 'Componente';
-      var compPunto = document.getElementById('indCompPunto')?.value.trim() || 'Punto';
-      var compRms = document.getElementById('indCompRms')?.value.trim() || '2.0';
-      var compSev = document.getElementById('indCompSev')?.value || 'Verde';
-      var compDiag = limpiarPrefijosIA(document.getElementById('indCompAnalisis')?.value);
-      var compRecom = limpiarPrefijosIA(document.getElementById('indCompRecom')?.value);
-
-      eq.componentes[idx] = {
-        nombre: compNom,
-        punto: compPunto,
-        rms: compRms,
-        severidad: compSev,
-        paresSap: pares,
-        analisis: compDiag,
-        recomendacion: compRecom,
-        espectros: state.tempEvidenciasEdicion.slice()
-      };
-
-      if (db) {
-        db.child(eq.id).child('componentes').set(eq.componentes);
-      }
-
-      var avisosArr = pares.map(function(p) { return p.aviso; }).filter(Boolean).join(", ");
-      var omsArr = pares.map(function(p) { return p.om; }).filter(Boolean).join(", ");
-
-      window.CIO.sincronizarConGoogleSheets({
-        idEquipo: eq.id,
-        faena: eq.siteId,
-        area: eq.area,
-        tag: eq.tag || eq.id,
-        tipo: eq.tipo || "Activo Crítico",
-        componente: compNom,
-        punto: compPunto,
-        rms: compRms,
-        severidad: compSev,
-        avisosSap: avisosArr,
-        omSap: omsArr,
-        diagnostico: compDiag,
-        recomendacion: compRecom
-      });
-
-      alert('✅ Componente guardado exitosamente.');
-      window.CIO.goScreen(3);
-    },
-
-    eliminarComponenteActual: function() {
-      if (!state.usuarioActivo) {
-        alert("🔒 Acción restringida: Inicia sesión para eliminar componentes.");
-        return;
-      }
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
-      if (!eq) return;
-
-      var idx = parseInt(document.getElementById('edCompIndex')?.value, 10);
-      if (confirm('¿Eliminar este componente y su punto asociado?')) {
-        eq.componentes.splice(idx, 1);
-        if (db) {
-          db.child(eq.id).child('componentes').set(eq.componentes);
-        }
-        window.CIO.goScreen(3);
-      }
-    },
-
-    abrirModalHistoricoTerreno: function() {
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
-      if (!eq) return;
-      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
-      window.CIO.abrirModalHistoricoTerrenoDirectoPorTag(tagValue);
-    },
-
     editarDatosGeneralesActivo: function() {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Debes iniciar sesión.");
@@ -2371,7 +1918,7 @@
       if (mInf) mInf.showModal();
     },
 
-    // IMPRESIÓN ROBUSTA MEDIANTE IFRAME DIRECTO (SIN BLOQUEOS DE CHROMIUM)[cite: 14]
+    // IMPRESIÓN LIMPIA DE INFORME TREN MOTRIZ
     emitirInformeFinalImpresion: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
@@ -2409,31 +1956,45 @@
         '</div>';
       }).join('');
 
-      var htmlContent = 
+      var win = window.open('', '_blank');
+      if (!win) {
+        alert("⚠️ Habilita las ventanas emergentes para ver el informe.");
+        return;
+      }
+
+      var htmlDoc = 
         '<!DOCTYPE html>' +
         '<html lang="es">' +
         '<head>' +
           '<meta charset="UTF-8">' +
-          '<title>Informe Técnico - ' + tagValue + ' - CPF Ingeniería</title>' +
+          '<title>Informe Técnico - ' + tagValue + '</title>' +
           '<style>' +
             '@page { size: A4 portrait; margin: 12mm; }' +
-            'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
+            'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
+            '.btn-bar { display: flex; gap: 10px; margin-bottom: 20px; position: sticky; top: 0; background: #ffffff; padding: 10px 0; border-bottom: 2px solid #e2e8f0; z-index: 100; }' +
+            '.btn-action { background: #0284c7; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 800; cursor: pointer; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); }' +
+            '.btn-action:hover { background: #0369a1; }' +
+            '.btn-close { background: #64748b; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; }' +
             '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }' +
             '.header-left { display: flex; align-items: center; gap: 14px; }' +
-            '.logo-cpf { height: 44px; width: auto; object-fit: contain; }' +
-            '.header-report h1 { margin: 0; font-size: 1.15rem; color: #0f172a; text-transform: uppercase; }' +
-            '.header-report p { margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b; font-weight: bold; }' +
+            '.header-report h1 { margin: 0; font-size: 1.2rem; color: #0f172a; text-transform: uppercase; }' +
+            '.header-report p { margin: 2px 0 0 0; font-size: 0.75rem; color: #64748b; font-weight: bold; }' +
             '.badge-sev { padding: 5px 12px; border-radius: 6px; font-weight: 800; color: #fff; background: ' + (SEV_COLOR[sevGlobal] || '#4b5563') + '; text-transform: uppercase; font-size: 0.85rem; }' +
             '.data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.8rem; }' +
             '.data-item strong { display: block; font-size: 0.65rem; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }' +
             '.section-title { font-size: 0.9rem; color: #0284c7; border-left: 4px solid #0284c7; padding-left: 8px; margin: 16px 0 8px 0; text-transform: uppercase; font-weight: 800; }' +
             '.box-conclusion { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 12px; }' +
+            '@media print { .btn-bar { display: none !important; } body { padding: 0; } }' +
           '</style>' +
         '</head>' +
         '<body>' +
+          '<div class="btn-bar">' +
+            '<button class="btn-action" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>' +
+            '<button class="btn-close" onclick="window.close()">Cerrar Pestaña</button>' +
+          '</div>' +
           '<div class="header-report">' +
             '<div class="header-left">' +
-              '<img src="logo-cpf.png" class="logo-cpf" alt="CPF Ingeniería" onerror="this.style.display=\'none\'" />' +
+              '<img src="logo-cpf.png" style="height:44px; width:auto; object-fit:contain;" alt="CPF" onerror="this.style.display=\'none\'" />' +
               '<div>' +
                 '<h1>INFORME OFICIAL DE MONITOREO TREN MOTRIZ</h1>' +
                 '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO | CIO</p>' +
@@ -2459,33 +2020,9 @@
         '</body>' +
         '</html>';
 
-      imprimirDocumentoSinBloqueo(htmlContent);
-    },
-
-    abrirEdicionEquipoNuevoAuth: function() {
-      var targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
-      var newId = 'EQ_' + Date.now();
-      var coordsDefault = FAENA_COORDS[targetSite] || [-28.3294, -70.9392];
-
-      var nuevoEquipo = {
-        id: newId,
-        siteId: targetSite,
-        domain: 'planta',
-        area: state.areaSeleccionada || 'Área General',
-        tag: 'MH' + Math.floor(1000 + Math.random() * 9000),
-        tipo: 'Activo Crítico',
-        lat: coordsDefault[0],
-        lng: coordsDefault[1],
-        componentes: [
-          { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal bajo norma ISO 20816-3.', recomendacion: 'Ruta mensual.', espectros: [] }
-        ],
-        fechaMedicion: new Date().toISOString().split('T')[0],
-        fechaHallazgo: new Date().toISOString().split('T')[0],
-        estatusHallazgo: 'Abierto'
-      };
-
-      if (db) db.child(newId).set(nuevoEquipo);
-      window.CIO.irANivel3Equipo(newId);
+      win.document.open();
+      win.document.write(htmlDoc);
+      win.document.close();
     },
 
     procesarCargaExcelFaena: function(e) {
