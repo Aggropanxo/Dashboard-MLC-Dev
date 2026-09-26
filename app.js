@@ -765,7 +765,7 @@
   var reportePendienteImpresion = null;
 
   // =============================================================
-  // OBJETO GLOBAL CIO
+  // OBJETO GLOBAL CIO (CON TODAS LAS FUNCIONES VINCULADAS)
   // =============================================================
   window.CIO = {
     goScreen: function(num) {
@@ -1601,7 +1601,7 @@
             '</div>';
         } else {
           return '<div class="item-espectro-preview">' +
-              '<img src="' + src + '" style="width:100px; height:70px; object-fit:cover; border-radius:6px; cursor:pointer;" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" />' +
+              '<img src="' + src + '" style="width:100px; height:70px; object-fit:cover; border-radius:6px; cursor:pointer;" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + \')" />' +
               '<button type="button" onclick="window.CIO.eliminarEvidenciaReporte(' + idx + ')">&times;</button>' +
             '</div>';
         }
