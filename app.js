@@ -765,7 +765,7 @@
   var reportePendienteImpresion = null;
 
   // =============================================================
-  // OBJETO GLOBAL CIO
+  // OBJETO GLOBAL CIO (CON TODAS LAS FUNCIONES INCLUIDAS)
   // =============================================================
   window.CIO = {
     goScreen: function(num) {
@@ -1217,8 +1217,10 @@
           '</div>';
       }).join('');
 
-      document.getElementById('prevTituloReporte').value = tituloInforme;
-      document.getElementById('prevContenidoReporte').value = "Listado consolidado de hallazgos detectados en terreno durante el turno operativo activo.";
+      var elTitulo = document.getElementById('prevTituloReporte');
+      if (elTitulo) elTitulo.value = tituloInforme;
+      var elCont = document.getElementById('prevContenidoReporte');
+      if (elCont) elCont.value = "Listado consolidado de hallazgos detectados en terreno durante el turno operativo activo.";
 
       reportePendienteImpresion = {
         tipo: 'ronda_terreno',
@@ -1229,6 +1231,41 @@
 
       var modalPrev = document.getElementById('modalVistaPreviaImpresion');
       if (modalPrev) modalPrev.showModal();
+    },
+
+    abrirEditorInformeModal: function() {
+      if (!state.usuarioActivo) {
+        alert("🔒 Acceso Restringido: Inicia sesión para emitir informes.");
+        return;
+      }
+
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
+      if (!eq) return;
+
+      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
+      var mTitle = document.getElementById('infModalTitle');
+      if (mTitle) mTitle.innerText = 'Emisión de Informe: ' + tagValue;
+
+      var saps = consolidarSAPs(eq.componentes);
+      var inAv = document.getElementById('infAvisosSap');
+      if (inAv) inAv.value = saps.avisosStr !== 'Sin Avisos' ? saps.avisosStr : '';
+      var inOm = document.getElementById('infOmSap');
+      if (inOm) inOm.value = saps.omsStr !== 'Sin OM' ? saps.omsStr : '';
+      var inRes = document.getElementById('infResumenGeneral');
+      if (inRes) inRes.value = 'Se efectúa evaluación de condición dinámica al tren motriz del activo ' + tagValue + ' bajo norma ISO 20816-3. Condición global: ' + calcMaxSev(eq.componentes).toUpperCase() + '.';
+
+      var cont = document.getElementById('infComponentesContainer');
+      if (cont) {
+        cont.innerHTML = (eq.componentes || []).map(function(c) {
+          return '<div style="margin-bottom:12px; padding:12px; border:1px solid var(--glass-border); border-radius:8px; background:var(--card-inner-bg);">' +
+              '<strong>' + sanitize(c.nombre) + ' - ' + sanitize(c.punto) + ' (' + c.severidad + ')</strong>' +
+              '<p style="font-size:0.85rem; margin-top:4px;">' + sanitize(limpiarPrefijosIA(c.analisis)) + '</p>' +
+            '</div>';
+        }).join('');
+      }
+
+      var mInf = document.getElementById('modalEditorInforme');
+      if (mInf) mInf.showModal();
     },
 
     emitirInformeFinalImpresion: function() {
@@ -1268,8 +1305,10 @@
         '</div>';
       }).join('');
 
-      document.getElementById('prevTituloReporte').value = "INFORME OFICIAL DE MONITOREO TREN MOTRIZ - TAG: " + tagValue;
-      document.getElementById('prevContenidoReporte').value = conclusionGeneral;
+      var elTitulo = document.getElementById('prevTituloReporte');
+      if (elTitulo) elTitulo.value = "INFORME OFICIAL DE MONITOREO TREN MOTRIZ - TAG: " + tagValue;
+      var elCont = document.getElementById('prevContenidoReporte');
+      if (elCont) elCont.value = conclusionGeneral;
 
       reportePendienteImpresion = {
         tipo: 'tren_motriz',
@@ -1392,6 +1431,58 @@
       }
 
       imprimirMedianteBlob(htmlDoc);
+    },
+
+    agregarNuevoComponenteDirecto: function() {
+      if (!state.usuarioActivo) {
+        alert("🔒 Acción restringida: Debes iniciar sesión.");
+        return;
+      }
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
+      if (!eq) return;
+
+      eq.componentes = eq.componentes || [];
+      var nuevoIdx = eq.componentes.length;
+      eq.componentes.push({
+        nombre: 'Nuevo Componente',
+        punto: 'Lado Libre',
+        rms: '2.0',
+        severidad: 'Verde',
+        paresSap: [],
+        analisis: '',
+        recomendacion: '',
+        espectros: []
+      });
+
+      window.CIO.abrirEditorComponenteIndividual(nuevoIdx);
+    },
+
+    editarDatosGeneralesActivo: function() {
+      if (!state.usuarioActivo) {
+        alert("🔒 Acción restringida: Debes iniciar sesión.");
+        return;
+      }
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
+      if (!eq) return;
+
+      state.equipoSeleccionado = eq;
+      var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+
+      setVal('edSiteId', eq.siteId);
+      setVal('edDomain', eq.domain || 'planta');
+      setVal('edArea', eq.area || '');
+      setVal('edTag', eq.tag || eq.Tag || eq.id || '');
+      setVal('edTipo', eq.tipo || '');
+      setVal('edEstatusHallazgo', eq.estatusHallazgo || 'Abierto');
+      setVal('edFechaMedicion', eq.fechaMedicion || '');
+      setVal('edFechaHallazgo', eq.fechaHallazgo || '');
+      setVal('edLat', eq.lat || '');
+      setVal('edLng', eq.lng || '');
+
+      window.CIO.actualizarBadgeGeoEstado(eq.lat, eq.lng);
+
+      var mEd = document.getElementById('modalEdicion');
+      if (mEd) mEd.showModal();
     },
 
     abrirModalEditarReporteTerreno: function(reporteId) {
