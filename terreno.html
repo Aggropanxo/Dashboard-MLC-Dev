@@ -2,105 +2,436 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CIO Terreno | Captura de Ronda</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>CIO Terreno | Ronda OEM Predictiva</title>
+  
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
     :root {
       --bg: #090d16;
-      --card-bg: rgba(22, 32, 54, 0.75);
-      --border: rgba(255, 255, 255, 0.12);
-      --accent: #38bdf8;
+      --card-bg: rgba(22, 30, 49, 0.85);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --glass-glow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.18);
       --text: #f8fafc;
       --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --input-bg: rgba(10, 16, 30, 0.85);
+      --red: #ef4444;
+      --orange: #f97316;
+      --yellow: #eab308;
+      --green: #22c55e;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-    body { background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; display: flex; flex-direction: column; align-items: center; }
-    .card-terreno {
-      width: 100%; max-width: 520px; background: var(--card-bg); border: 1px solid var(--border);
-      border-radius: 16px; padding: 22px; backdrop-filter: blur(20px); box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #151d30 0%, #090d16 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 14px; text-transform: uppercase; color: var(--accent); }
-    .form-group { margin-bottom: 14px; }
-    label { display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; margin-bottom: 6px; text-transform: uppercase; }
-    input, select, textarea {
-      width: 100%; background: rgba(10, 15, 29, 0.85); border: 1px solid var(--border); color: #fff;
-      padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; outline: none;
+
+    .code-font { font-family: 'JetBrains Mono', monospace; }
+
+    .app-container {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
-    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-    .grid-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
-    .btn-action {
-      background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border); color: #fff; padding: 10px;
-      border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; text-align: center; display: block;
+
+    /* TARJETA HEADER ESTILO VERSIÓN 1 */
+    .header-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4), var(--glass-glow);
+      backdrop-filter: blur(16px);
     }
-    .btn-action:hover { border-color: var(--accent); background: rgba(56, 189, 248, 0.15); }
-    .preview-box { display: flex; flex-wrap: wrap; gap: 8px; min-height: 50px; padding: 8px; border: 1px dashed var(--border); border-radius: 8px; margin-top: 10px; }
-    .preview-item { position: relative; display: inline-block; }
-    .preview-item img, .preview-item video { width: 90px; height: 65px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
-    .preview-item button { position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; font-size: 11px; }
-    .btn-submit { width: 100%; background: #0284c7; border: none; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 0.95rem; color: #fff; cursor: pointer; margin-top: 10px; }
-    .btn-submit:hover { background: #0369a1; }
+
+    .header-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #f87171;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #22c55e;
+    }
+
+    /* FORMULARIO MAESTRO */
+    .form-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.5), var(--glass-glow);
+      backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+    label {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    select, input[type="text"], textarea {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    select:focus, input[type="text"]:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    /* BOTONES DE HALLAZGO RÁPIDO (VERSIÓN 1) */
+    .chips-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .chip-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      color: #cbd5e1;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .chip-btn:hover, .chip-btn:active {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* SEVERIDAD PRELIMINAR (VERSIÓN 1 TÁCTIL) */
+    .sev-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .sev-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 10px 6px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .sev-btn.active-rojo {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--red);
+      color: #fca5a5;
+      box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+    }
+
+    .sev-btn.active-naranja {
+      background: rgba(249, 115, 22, 0.2);
+      border-color: var(--orange);
+      color: #fdba74;
+      box-shadow: 0 0 14px rgba(249, 115, 22, 0.35);
+    }
+
+    .sev-btn.active-amarillo {
+      background: rgba(234, 179, 8, 0.2);
+      border-color: var(--yellow);
+      color: #fde047;
+      box-shadow: 0 0 14px rgba(234, 179, 8, 0.35);
+    }
+
+    /* MULTIMEDIA MODERNO (GALERÍA + CÁMARA + VIDEO 10S) */
+    .media-actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .btn-media {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 9px 8px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-align: center;
+    }
+
+    .btn-media:hover { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+
+    .btn-video-record {
+      width: 100%;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+      padding: 9px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-align: center;
+    }
+
+    .btn-video-record:hover { background: rgba(239, 68, 68, 0.2); }
+
+    .preview-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 52px;
+      padding: 8px;
+      border: 1px dashed var(--card-border);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.25);
+      margin-top: 6px;
+    }
+
+    .preview-card { position: relative; display: inline-block; }
+    .preview-card img, .preview-card video {
+      width: 90px;
+      height: 65px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+      display: block;
+    }
+
+    .preview-card button {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 11px;
+      cursor: pointer;
+      line-height: 1;
+      z-index: 2;
+    }
+
+    /* BOTÓN TRANSMISIÓN PRINCIPAL (VERSIÓN 1) */
+    .btn-transmitir {
+      width: 100%;
+      background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+      border: 1px solid #f87171;
+      color: #ffffff;
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4), var(--glass-glow);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    .btn-transmitir:active {
+      transform: scale(0.98);
+      filter: brightness(0.9);
+    }
   </style>
 </head>
 <body>
 
-  <div class="card-terreno">
-    <h2>📸 Registro Ronda en Terreno</h2>
+  <div class="app-container">
 
-    <div class="form-group">
-      <label>TAG del Equipo</label>
-      <input type="text" id="terrTag" placeholder="Ej: MH2709" class="code-font" />
-    </div>
+    <!-- HEADER STATUS ONLINE -->
+    <header class="header-card">
+      <div class="header-title">
+        <span>📱</span> TERRENO / RONDA OEM
+      </div>
+      <div class="status-badge" id="netStatusBadge">
+        <span class="status-dot"></span> ONLINE / SYNC OK
+      </div>
+    </header>
 
-    <div class="form-group">
-      <label>Severidad Visual / Hallazgo</label>
-      <select id="terrSev">
-        <option value="Verde">Verde (Normal / Seguimiento)</option>
-        <option value="Amarillo">Amarillo (Alerta)</option>
-        <option value="Naranja">Naranja (Atención Urgente)</option>
-        <option value="Rojo">Rojo (Crítico)</option>
-      </select>
-    </div>
+    <!-- FORMULARIO INTEGRADO -->
+    <main class="form-card">
 
-    <div class="form-group">
-      <label>Detalle de la Observación</label>
-      <textarea id="terrDetalle" rows="3" placeholder="Fuga de lubricante, soltura basal, vibración anómala..."></textarea>
-    </div>
-
-    <div class="form-group">
-      <label>Evidencias (Galería, Cámara o Video Corto)</label>
-      <div class="grid-btns">
-        <label class="btn-action">
-          📁 Desde Memoria
-          <input type="file" id="terrInputGaleria" accept="image/*,video/*" multiple style="display:none;" onchange="procesarArchivos(event)" />
-        </label>
-        <label class="btn-action" style="border-color:#38bdf8;">
-          📷 Tomar Foto
-          <input type="file" id="terrInputCam" accept="image/*" capture="environment" style="display:none;" onchange="procesarArchivos(event)" />
-        </label>
+      <!-- 1. FAENA OPERATIVA -->
+      <div class="form-group">
+        <label>1. Faena Operativa</label>
+        <select id="selFaena" onchange="actualizarAreasPorFaena()">
+          <option value="Planta, Mina los Colorados">Planta, Mina los Colorados</option>
+          <option value="Mina, Mina los Colorados">Mina, Mina los Colorados</option>
+          <option value="Planta de Pellets">Planta de Pellets</option>
+          <option value="Planta, Mina el Romeral">Planta, Mina el Romeral</option>
+          <option value="Mina, Mina el Romeral">Mina, Mina el Romeral</option>
+        </select>
       </div>
 
-      <label class="btn-action" style="background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.4); color:#fca5a5;">
-        🎥 Grabar Video Corto (Máx. 10s)
-        <input type="file" id="terrInputVid" accept="video/*" capture="environment" style="display:none;" onchange="procesarVideo(event)" />
-      </label>
-
-      <div class="preview-box" id="terrPreviewBox">
-        <span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">Sin archivos seleccionados</span>
+      <!-- 2. ÁREA OPERACIONAL -->
+      <div class="form-group">
+        <label>2. Área Operacional</label>
+        <select id="selArea" onchange="actualizarEquiposPorArea()">
+          <option value="">-- Selecciona el Área --</option>
+        </select>
       </div>
-    </div>
 
-    <button type="button" class="btn-submit" onclick="enviarReporteTerreno()">💾 Guardar Reporte en Base de Datos</button>
+      <!-- 3. EQUIPO / TAG DEL CATASTRO O LIBRE -->
+      <div class="form-group">
+        <label>3. Equipo / TAG del Catastro</label>
+        <select id="selEquipo" onchange="sincronizarTagLibre(this.value)">
+          <option value="">-- SELECCIONA EL EQUIPO --</option>
+        </select>
+        <span style="font-size:0.68rem; color:var(--text-muted); margin-top:2px;">O escribe si es un hallazgo libre:</span>
+        <input type="text" id="inputTagLibre" placeholder="EJ: MH2709 (OPCIONAL)" class="code-font" style="text-transform: uppercase;" />
+      </div>
+
+      <!-- 4. HALLAZGOS RÁPIDOS -->
+      <div class="form-group">
+        <label>4. Hallazgo Rápido</label>
+        <div class="chips-grid">
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🛢️ Fuga de aceite detectada')">🛢️ Fuga aceite</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('📢 Alto ruido / chirrido en reductor')">📢 Alto ruido reductor</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('⚠️ Vibración anómala visible en descanso')">⚠️ Vibración alta</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🔥 Temperatura elevada al tacto / IR')">🔥 Alta temperatura</button>
+        </div>
+      </div>
+
+      <!-- 5. NOTAS / DETALLE DEL HALLAZGO -->
+      <div class="form-group">
+        <label>5. Notas / Detalle del Hallazgo</label>
+        <textarea id="txtDetalle" rows="3" placeholder="Ej: Fuga detectada en sello laberíntico lado libre..."></textarea>
+      </div>
+
+      <!-- 6. EVIDENCIA MULTIMODAL COMBINADA -->
+      <div class="form-group">
+        <label>6. Evidencias Multimedia (Fotos / Galería / Video Corto)</label>
+        
+        <div class="media-actions-grid">
+          <label class="btn-media">
+            📁 Desde Memoria
+            <input type="file" id="inputGaleria" accept="image/*,video/*" multiple style="display:none;" onchange="procesarArchivosMultimedia(event)" />
+          </label>
+
+          <label class="btn-media" style="border-color: var(--accent);">
+            📷 Tomar Foto
+            <input type="file" id="inputCamara" accept="image/*" capture="environment" style="display:none;" onchange="procesarArchivosMultimedia(event)" />
+          </label>
+        </div>
+
+        <label class="btn-video-record">
+          🎥 Grabar Video Corto (Máx. 10s)
+          <input type="file" id="inputVideo" accept="video/*" capture="environment" style="display:none;" onchange="procesarVideoDirecto(event)" />
+        </label>
+
+        <div class="preview-container" id="previewBox">
+          <span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">Sin archivos adjuntos aún.</span>
+        </div>
+      </div>
+
+      <!-- 7. SEVERIDAD PRELIMINAR (BOTONES V1) -->
+      <div class="form-group">
+        <label>7. Severidad Preliminar</label>
+        <div class="sev-grid">
+          <button type="button" class="sev-btn active-rojo" id="btnSevRojo" onclick="seleccionarSeveridad('Rojo')">🔴 Crítico</button>
+          <button type="button" class="sev-btn" id="btnSevNaranja" onclick="seleccionarSeveridad('Naranja')">🟠 Alerta</button>
+          <button type="button" class="sev-btn" id="btnSevAmarillo" onclick="seleccionarSeveridad('Amarillo')">🟡 Seguimiento</button>
+        </div>
+      </div>
+
+      <!-- TRANSMISIÓN A SALA CIO -->
+      <button type="button" class="btn-transmitir" id="btnTransmitir" onclick="transmitirReporteSalaCIO()">
+        📡 Transmitir a Sala CIO en Tiempo Real
+      </button>
+
+    </main>
   </div>
 
   <canvas id="resizeCanvas" style="display:none;"></canvas>
 
   <script>
+    'use strict';
+
+    // Configuración Firebase Realtime Database
     var firebaseConfig = {
       apiKey: "AIzaSyBd5MEZdMmgzBs1xCyeGYeKtQx5gJIeY3w",
       authDomain: "dashboard-vulnerabilidades-mlc.firebaseapp.com",
@@ -109,14 +440,119 @@
     };
 
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    var dbTerreno = firebase.database().ref('alertas_terreno_dev');
-    var evidenciasLocales = [];
+    var dbEquipos = firebase.database().ref('activos_criticos_dev');
+    var dbAlertas = firebase.database().ref('alertas_terreno_dev');
 
-    function procesarArchivos(event) {
+    var catalogoEquipos = [];
+    var evidenciasTemporales = [];
+    var severidadSeleccionada = 'Rojo';
+
+    // 1. Monitor de conectividad de red
+    function actualizarEstadoRed() {
+      var badge = document.getElementById('netStatusBadge');
+      if (!badge) return;
+      if (navigator.onLine) {
+        badge.innerHTML = '<span class="status-dot"></span> ONLINE / SYNC OK';
+        badge.style.color = '#4ade80';
+        badge.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+      } else {
+        badge.innerHTML = '<span class="status-dot" style="background:#f97316;box-shadow:0 0 8px #f97316;"></span> OFFLINE / COLA LOCAL';
+        badge.style.color = '#fdba74';
+        badge.style.borderColor = 'rgba(249, 115, 22, 0.4)';
+      }
+    }
+    window.addEventListener('online', actualizarEstadoRed);
+    window.addEventListener('offline', actualizarEstadoRed);
+    actualizarEstadoRed();
+
+    // 2. Carga en tiempo real del catastro de activos para selectores en cascada
+    dbEquipos.on('value', function(snap) {
+      var raw = snap.val();
+      if (!raw) return;
+      catalogoEquipos = Object.keys(raw).map(function(k) {
+        var item = raw[k] || {};
+        return {
+          id: k,
+          siteId: item.siteId || 'Planta, Mina los Colorados',
+          area: item.area || 'Sin Área',
+          tag: item.tag || item.Tag || k
+        };
+      });
+      actualizarAreasPorFaena();
+    });
+
+    function actualizarAreasPorFaena() {
+      var faena = document.getElementById('selFaena').value;
+      var selArea = document.getElementById('selArea');
+      selArea.innerHTML = '<option value="">-- Selecciona el Área --</option>';
+
+      var areasUnicas = [];
+      catalogoEquipos.forEach(function(e) {
+        if (e.siteId === faena && e.area && areasUnicas.indexOf(e.area) === -1) {
+          areasUnicas.push(e.area);
+        }
+      });
+
+      areasUnicas.sort().forEach(function(a) {
+        var opt = document.createElement('option');
+        opt.value = a;
+        opt.innerText = a;
+        selArea.appendChild(opt);
+      });
+
+      actualizarEquiposPorArea();
+    }
+
+    function actualizarEquiposPorArea() {
+      var faena = document.getElementById('selFaena').value;
+      var area = document.getElementById('selArea').value;
+      var selEq = document.getElementById('selEquipo');
+      selEq.innerHTML = '<option value="">-- SELECCIONA EL EQUIPO --</option>';
+
+      var eqs = catalogoEquipos.filter(function(e) {
+        return e.siteId === faena && (!area || e.area === area);
+      });
+
+      eqs.sort(function(a, b) { return a.tag.localeCompare(b.tag); }).forEach(function(e) {
+        var opt = document.createElement('option');
+        opt.value = e.tag;
+        opt.innerText = e.tag;
+        selEq.appendChild(opt);
+      });
+    }
+
+    function sincronizarTagLibre(val) {
+      var input = document.getElementById('inputTagLibre');
+      if (val) input.value = val;
+    }
+
+    // 3. Hallazgos rápidos con autocompletado
+    function agregarHallazgoRapido(texto) {
+      var txt = document.getElementById('txtDetalle');
+      if (txt.value.trim().length > 0) {
+        txt.value = txt.value.trim() + " | " + texto;
+      } else {
+        txt.value = texto;
+      }
+      txt.focus();
+    }
+
+    // 4. Selector de severidad táctil
+    function seleccionarSeveridad(sev) {
+      severidadSeleccionada = sev;
+      document.getElementById('btnSevRojo').className = 'sev-btn' + (sev === 'Rojo' ? ' active-rojo' : '');
+      document.getElementById('btnSevNaranja').className = 'sev-btn' + (sev === 'Naranja' ? ' active-naranja' : '');
+      document.getElementById('btnSevAmarillo').className = 'sev-btn' + (sev === 'Amarillo' ? ' active-amarillo' : '');
+    }
+
+    // 5. Procesamiento de archivos (Memoria, Cámara y Compresión Canvas)
+    function procesarArchivosMultimedia(event) {
       var files = Array.from(event.target.files);
       if (!files.length) return;
+
       var canvas = document.getElementById('resizeCanvas');
       var ctx = canvas.getContext('2d');
+      var procesados = 0;
 
       files.forEach(function(file) {
         if (file.type.startsWith('image/')) {
@@ -129,94 +565,132 @@
               if (w > MAX) { h = Math.round((h * MAX) / w); w = MAX; }
               canvas.width = w; canvas.height = h;
               ctx.drawImage(img, 0, 0, w, h);
-              evidenciasLocales.push({ tipo: 'imagen', data: canvas.toDataURL('image/jpeg', 0.65) });
-              renderPreview();
+
+              evidenciasTemporales.push({
+                tipo: 'imagen',
+                data: canvas.toDataURL('image/jpeg', 0.65)
+              });
+
+              procesados++;
+              if (procesados === files.length) renderizarPreview();
             };
             img.src = e.target.result;
           };
           reader.readAsDataURL(file);
         } else if (file.type.startsWith('video/')) {
-          procesarVideoArchivo(file);
+          validarYProcesarVideo(file);
         }
       });
+
       event.target.value = '';
     }
 
-    function procesarVideo(event) {
+    // 6. Grabación y límite estricto de video corto (10 segundos)
+    function procesarVideoDirecto(event) {
       var file = event.target.files[0];
-      if (file) procesarVideoArchivo(file);
+      if (file) validarYProcesarVideo(file);
       event.target.value = '';
     }
 
-    function procesarVideoArchivo(file) {
+    function validarYProcesarVideo(file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert("⚠️ El video supera los 10 MB permitidos. Debe durar menos de 10 segundos.");
+        alert("⚠️ El video pesa más de 10 MB. Graba un clip más breve.");
         return;
       }
+
       var vid = document.createElement('video');
       vid.preload = 'metadata';
       vid.onloadedmetadata = function() {
         window.URL.revokeObjectURL(vid.src);
         if (vid.duration > 12) {
-          alert("⚠️ El video supera los 10 segundos máximos.");
+          alert("⚠️ El video dura " + Math.round(vid.duration) + "s. El límite máximo son 10 segundos.");
           return;
         }
+
         var reader = new FileReader();
         reader.onload = function(e) {
-          evidenciasLocales.push({ tipo: 'video', data: e.target.result });
-          renderPreview();
+          evidenciasTemporales.push({
+            tipo: 'video',
+            data: e.target.result
+          });
+          renderizarPreview();
         };
         reader.readAsDataURL(file);
       };
       vid.src = URL.createObjectURL(file);
     }
 
-    function renderPreview() {
-      var box = document.getElementById('terrPreviewBox');
-      if (!evidenciasLocales.length) {
-        box.innerHTML = '<span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">Sin archivos seleccionados</span>';
+    function renderizarPreview() {
+      var box = document.getElementById('previewBox');
+      if (!evidenciasTemporales.length) {
+        box.innerHTML = '<span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">Sin archivos adjuntos aún.</span>';
         return;
       }
-      box.innerHTML = evidenciasLocales.map(function(item, idx) {
-        var el = item.tipo === 'video'
+
+      box.innerHTML = evidenciasTemporales.map(function(item, idx) {
+        var content = item.tipo === 'video'
           ? '<video src="' + item.data + '" controls></video>'
           : '<img src="' + item.data + '" />';
-        return '<div class="preview-item">' + el + '<button onclick="eliminarEvidencia(' + idx + ')">&times;</button></div>';
+        return '<div class="preview-card">' +
+            content +
+            '<button type="button" onclick="eliminarEvidenciaTemporal(' + idx + ')">&times;</button>' +
+          '</div>';
       }).join('');
     }
 
-    function eliminarEvidencia(idx) {
-      evidenciasLocales.splice(idx, 1);
-      renderPreview();
+    function eliminarEvidenciaTemporal(idx) {
+      evidenciasTemporales.splice(idx, 1);
+      renderizarPreview();
     }
 
-    function enviarReporteTerreno() {
-      var tag = document.getElementById('terrTag').value.trim();
-      var sev = document.getElementById('terrSev').value;
-      var detalle = document.getElementById('terrDetalle').value.trim();
+    // 7. Transmisión a Sala CIO (Firebase Realtime Database)
+    function transmitirReporteSalaCIO() {
+      var tagFinal = document.getElementById('inputTagLibre').value.trim() || document.getElementById('selEquipo').value;
+      var faena = document.getElementById('selFaena').value;
+      var area = document.getElementById('selArea').value || 'Área General';
+      var detalle = document.getElementById('txtDetalle').value.trim();
+      var btn = document.getElementById('btnTransmitir');
 
-      if (!tag) { alert("⚠️ Ingresa el TAG del equipo."); return; }
-      if (!detalle) { alert("⚠️ Describe la observación encontrada."); return; }
+      if (!tagFinal) {
+        alert("⚠️ Por favor selecciona o ingresa el TAG del equipo.");
+        return;
+      }
 
-      var primeraFoto = evidenciasLocales.find(function(e) { return e.tipo === 'imagen'; });
+      if (!detalle && evidenciasTemporales.length === 0) {
+        alert("⚠️ Ingresa notas del hallazgo o adjunta una fotografía/video.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = "⏳ Transmitiendo a Sala CIO...";
+
+      var primerFoto = evidenciasTemporales.find(function(e) { return e.tipo === 'imagen'; });
 
       var payload = {
-        tag: tag.toUpperCase(),
-        severidad: sev,
-        detalle: detalle,
-        evidencias: evidenciasLocales,
-        fotoBase64: primeraFoto ? primeraFoto.data : '',
+        faena: faena,
+        area: area,
+        tag: tagFinal.toUpperCase(),
+        severidad: severidadSeleccionada,
+        detalle: detalle || 'Inspección visual de rutina efectuada en terreno.',
+        evidencias: evidenciasTemporales,
+        fotoBase64: primerFoto ? primerFoto.data : '',
         timestamp: new Date().toISOString()
       };
 
-      dbTerreno.push(payload).then(function() {
-        alert("✅ Reporte registrado con éxito.");
-        document.getElementById('terrTag').value = '';
-        document.getElementById('terrDetalle').value = '';
-        evidenciasLocales = [];
-        renderPreview();
+      dbAlertas.push(payload).then(function() {
+        alert("✅ TRANSMISIÓN EXITOSA: El hallazgo ya está visible en la consola central del CIO.");
+        document.getElementById('txtDetalle').value = '';
+        document.getElementById('inputTagLibre').value = '';
+        document.getElementById('selEquipo').value = '';
+        evidenciasTemporales = [];
+        renderizarPreview();
+        seleccionarSeveridad('Rojo');
+        btn.disabled = false;
+        btn.innerText = "📡 Transmitir a Sala CIO en Tiempo Real";
       }).catch(function(err) {
-        alert("❌ Error: " + err.message);
+        alert("❌ Error de transmisión: " + err.message);
+        btn.disabled = false;
+        btn.innerText = "📡 Transmitir a Sala CIO en Tiempo Real";
       });
     }
   </script>
