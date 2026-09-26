@@ -327,7 +327,7 @@
     </div>
   </dialog>
 
-  <!-- MODAL CONFIGURACIÓN REPORTE DE RONDA TERRENO (FILTRADO PRECISO) -->
+  <!-- MODAL CONFIGURACIÓN REPORTE DE RONDA TERRENO -->
   <dialog id="modalFiltrosReporteTerreno" style="max-width:520px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
       <h3 style="border:none; margin:0; font-size:1.15rem;">📋 Emitir Reporte de Ronda Terreno</h3>
@@ -344,7 +344,6 @@
       </select>
     </div>
 
-    <!-- SELECT DINÁMICO QUE DESPLIEGA EXCLUSIVAMENTE EQUIPOS CON HALLAZGOS EN TERRENO -->
     <div class="form-group" id="boxFiltroTagRep" style="display:none;">
       <label>Equipo con Reportes de Ronda Registrados</label>
       <select id="repTerrenoTagSelect">
@@ -668,6 +667,40 @@
     <div id="histTerrenoListContainer" style="max-height:500px; overflow-y:auto; padding-right:6px;"></div>
     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
       <button class="btn-base" type="button" onclick="document.getElementById('modalHistoricoTerreno').close()">Cerrar</button>
+    </div>
+  </dialog>
+
+  <!-- MODAL DE VISTA PREVIA Y EDICIÓN RÁPIDA ANTES DE IMPRIMIR -->
+  <dialog id="modalVistaPreviaImpresion" style="max-width:900px; width:95%;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--glass-border); padding-bottom:10px;">
+      <div>
+        <span class="label-muted">Sala de Control CIO</span>
+        <h3 style="border:none; margin:0; font-size:1.2rem;">📝 Vista Previa & Edición Previa del Reporte</h3>
+      </div>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalVistaPreviaImpresion').close()">&times;</button>
+    </div>
+
+    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">
+      Puedes revisar o ajustar la información a continuación antes de enviarla al formato de impresión oficial:
+    </p>
+
+    <div class="form-group">
+      <label>Título / Encabezado del Reporte</label>
+      <input type="text" id="prevTituloReporte" class="code-font" style="font-weight:bold;" />
+    </div>
+
+    <div class="form-group">
+      <label>Resumen / Conclusiones / Observaciones Generales</label>
+      <textarea id="prevContenidoReporte" rows="6" style="font-family:inherit; font-size:0.88rem; line-height:1.45;"></textarea>
+    </div>
+
+    <div style="background:var(--card-inner-bg); border:1px solid var(--glass-border); border-radius:8px; padding:12px; margin-bottom:16px; font-size:0.82rem; color:var(--text-muted);">
+      📌 Nota: Este ajuste es exclusivo para la impresión actual y no sobrescribe los registros originales de la base de datos.
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--glass-border); padding-top:14px;">
+      <button class="btn-base" type="button" onclick="document.getElementById('modalVistaPreviaImpresion').close()">Cancelar</button>
+      <button class="btn-base btn-primary" type="button" onclick="window.CIO.confirmarEImprimirReporteEditado()">🖨️ Confirmar e Imprimir / PDF</button>
     </div>
   </dialog>
 
