@@ -63,7 +63,6 @@
 
     .code-font { font-family: 'JetBrains Mono', monospace; }
 
-    /* NAVBAR */
     header.cio-navbar {
       display: flex;
       align-items: center;
@@ -95,7 +94,6 @@
     .nav-brand-sub { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
     .nav-actions { display: flex; align-items: center; gap: 10px; position: relative; }
 
-    /* TICKER */
     .market-ticker-bar {
       display: flex;
       align-items: center;
@@ -111,11 +109,9 @@
 
     .ticker-item strong { color: var(--text-main); font-weight: 700; }
 
-    /* SEGURIDAD DE ROLES */
     .auth-only { display: none !important; }
     body.user-authenticated .auth-only { display: inline-flex !important; }
 
-    /* BOTONES */
     .btn-base {
       background: rgba(255, 255, 255, 0.06);
       color: var(--text-main);
@@ -145,7 +141,6 @@
     .btn-danger { background: #dc2626; color: #fff; border-color: #f87171; }
     .btn-danger:hover { background: #b91c1c; }
 
-    /* MENÚ USUARIO */
     .user-dropdown {
       position: absolute;
       top: 115%;
@@ -163,7 +158,6 @@
     }
     .user-dropdown.is-active { display: flex; }
 
-    /* VIEWPORT */
     main.cio-viewport {
       flex: 1;
       padding: 24px 28px;
@@ -194,7 +188,6 @@
 
     .value-strong { font-weight: 800; font-size: 1.15rem; }
 
-    /* LIQUID GLASS CARDS */
     .grid-container {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
@@ -283,7 +276,6 @@
     .banner-contador-alerta.vencido { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; }
     .banner-contador-alerta.al-dia { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; }
 
-    /* LAYOUT PANTALLA COMPLETA NIVEL 4 (EDICIÓN ERGONÓMICA) */
     .n4-container {
       display: grid;
       grid-template-columns: 1.1fr 1fr;
@@ -340,11 +332,10 @@
       border-color: var(--accent-color);
     }
 
-    /* ZONA ESPECTROS */
     .drop-espectros-zone {
       border: 2px dashed rgba(56, 189, 248, 0.4);
       border-radius: 12px;
-      padding: 24px 16px;
+      padding: 20px 16px;
       text-align: center;
       background: rgba(56, 189, 248, 0.04);
       cursor: pointer;
@@ -395,7 +386,6 @@
       margin-top: 16px;
     }
 
-    /* MODAL LIQUID GLASS AUTH (REDiseñado) */
     dialog#modalAuth {
       background: var(--modal-bg);
       backdrop-filter: blur(28px) saturate(190%);
@@ -443,7 +433,6 @@
       box-shadow: 0 2px 10px rgba(2, 132, 199, 0.4);
     }
 
-    /* OTROS MODALES */
     dialog {
       background: var(--modal-bg);
       backdrop-filter: blur(24px);
@@ -469,7 +458,6 @@
 </head>
 <body>
 
-  <!-- NAVBAR -->
   <header class="cio-navbar">
     <div class="nav-brand">
       <div class="brand-logo-container">
@@ -497,7 +485,6 @@
     </div>
   </header>
 
-  <!-- TICKER -->
   <div class="market-ticker-bar">
     <div class="ticker-item">💵 USD/CLP: <strong>945.72</strong></div>
     <span>•</span>
@@ -546,7 +533,7 @@
       <div id="viewScreen2Container" class="grid-container"></div>
     </section>
 
-    <!-- PANTALLA 3: NIVEL 3 (DETALLE ACTIVO Y TREN MOTRIZ DIRECTO - SIN CAJA REDUNDANTE) -->
+    <!-- PANTALLA 3: NIVEL 3 (DIRECTO A TARJETAS) -->
     <section id="screen-3" class="screen-view">
       <div class="view-header">
         <div>
@@ -562,10 +549,7 @@
         </div>
       </div>
 
-      <!-- Banner auditoría de ruta -->
       <div id="n3BannerMedicion" style="margin-bottom:16px;"></div>
-
-      <!-- GRILLA DIRECTA DE COMPONENTES (Sin el cuadro consolidado que ocupaba espacio) -->
       <div class="grid-equipos" id="n3GridCards"></div>
     </section>
 
@@ -588,13 +572,13 @@
           </select>
           <button class="btn-base btn-success" type="button" onclick="window.CIO.abrirEdicionGlobalNuevo()">➕ Crear Activo</button>
           <button class="btn-base btn-primary" type="button" onclick="window.CIO.exportarReporteGerenciaAlta()">📊 Reporte Alta Gerencia</button>
-          <button class="btn-base" type="button" onclick="window.CIO.exportarReporteGerenciaPorFaena()">📑 Reporte Faena</button>
+          <button class="btn-base btn-primary" type="button" onclick="window.CIO.exportarReporteGerenciaPorFaena()">📑 Reporte Faena</button>
         </div>
       </div>
       <div class="grid-equipos" id="viewScreen4Global"></div>
     </section>
 
-    <!-- PANTALLA 5 / NIVEL 4: PÁGINA COMPLETA DE EDICIÓN & DIAGNÓSTICO ESPECTRAL -->
+    <!-- PANTALLA 5 / NIVEL 4: PÁGINA COMPLETA DE EDICIÓN & DIAGNÓSTICO MULTIMODAL -->
     <section id="screen-5" class="screen-view">
       <div class="view-header">
         <div>
@@ -612,7 +596,7 @@
       <input type="hidden" id="edCompIndex" />
 
       <div class="n4-container">
-        <!-- PANEL IZQUIERDO: PARÁMETROS MECÁNICOS Y DICTAMEN -->
+        <!-- PANEL IZQUIERDO -->
         <div class="n4-panel">
           <div class="card-panel-inner">
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
@@ -653,7 +637,7 @@
 
           <div class="form-group">
             <label>Diagnóstico Técnico Pericial</label>
-            <textarea id="indCompAnalisis" rows="4" placeholder="Dictamen pericial sobre desbalanceo, holguras, rodamientos..."></textarea>
+            <textarea id="indCompAnalisis" rows="4" placeholder="Dictamen pericial definitivo..."></textarea>
           </div>
 
           <div class="form-group">
@@ -662,33 +646,40 @@
           </div>
         </div>
 
-        <!-- PANEL DERECHO: ESPECTROS Y GEMINI AI MULTIMODAL -->
+        <!-- PANEL DERECHO: MULTIMODAL CON TABS -->
         <div class="n4-panel">
           <div class="card-panel-inner">
-            <label>📈 Cargar Espectro FFT / Cascada (Imágenes)</label>
-            <div class="drop-espectros-zone" onclick="document.getElementById('subirFotoEspectro').click()">
-              <span style="font-size:0.88rem; color:var(--text-muted); font-weight:600;">📷 Clic para examinar capturas o arrastrar archivos</span>
-              <input type="file" id="subirFotoEspectro" accept="image/*" multiple style="display:none;" onchange="window.CIO.procesarSubidaEspectros(event)" />
+            <label style="margin-bottom:8px;">📷 Evidencias de Condición (Multimodal)</label>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:12px;">
+              <button class="btn-base" type="button" style="justify-content:center; font-size:0.75rem;" onclick="window.CIO.seleccionarTipoSubida('espectro')">📈 Espectro / FFT</button>
+              <button class="btn-base" type="button" style="justify-content:center; font-size:0.75rem;" onclick="window.CIO.seleccionarTipoSubida('termografia')">🌡️ Termografía</button>
+              <button class="btn-base" type="button" style="justify-content:center; font-size:0.75rem;" onclick="window.CIO.seleccionarTipoSubida('terreno')">🔍 Foto Terreno</button>
+            </div>
+
+            <div class="drop-espectros-zone" onclick="document.getElementById('subirEvidenciasMulti').click()">
+              <span id="labelZonaSubida" style="font-size:0.86rem; color:var(--text-muted); font-weight:600;">
+                📷 Clic para adjuntar archivo (Tipo: Espectro / FFT)
+              </span>
+              <input type="file" id="subirEvidenciasMulti" accept="image/*" multiple style="display:none;" onchange="window.CIO.procesarSubidaEvidencias(event)" />
             </div>
             <div class="preview-espectros-grid" id="previewEspectrosContainer"></div>
           </div>
 
-          <!-- GEMINI AI -->
           <div class="box-ai-assistant">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-              <span style="font-size:0.88rem; font-weight:800; color:#38bdf8;">🧠 Asistente Pericial Gemini AI</span>
+              <span style="font-size:0.88rem; font-weight:800; color:#38bdf8;">🧠 Diagnóstico Predictivo Integral (IA)</span>
               <button class="btn-base btn-primary" type="button" style="font-size:0.76rem; padding:6px 14px;" onclick="window.CIO.generarDictamenTecnicoIso()">
-                ✨ Evaluar Espectro & RMS
+                ✨ Evaluar Evidencias & RMS
               </button>
             </div>
 
             <div class="form-group">
-              <label style="font-size:0.72rem; color:var(--text-muted);">Sugerencia de Diagnóstico:</label>
+              <label style="font-size:0.72rem; color:var(--text-muted);">Diagnóstico Correlacionado:</label>
               <textarea id="indSugAnalisis" rows="3" readonly style="font-size:0.84rem;"></textarea>
             </div>
 
             <div class="form-group">
-              <label style="font-size:0.72rem; color:var(--text-muted);">Sugerencia de Recomendación:</label>
+              <label style="font-size:0.72rem; color:var(--text-muted);">Recomendación Mecánica / Operativa:</label>
               <textarea id="indSugRecom" rows="2" readonly style="font-size:0.84rem;"></textarea>
             </div>
 
@@ -702,9 +693,7 @@
 
   </main>
 
-  <!-- ==================== MODALES ==================== -->
-
-  <!-- MODAL INGRESO / LOGIN (REDiseñado con Liquid Glass auténtico) -->
+  <!-- MODAL AUTH -->
   <dialog id="modalAuth">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
       <h3 id="authModalHeaderTitle" style="border:none; margin:0; font-size:1.35rem; font-weight:800;">Acceso Operador CIO</h3>
@@ -751,7 +740,7 @@
     </div>
   </dialog>
 
-  <!-- MODAL CONSULTA DE COMPONENTE -->
+  <!-- MODAL DETALLE -->
   <dialog id="modalDetalleComponente">
     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
       <div>
@@ -790,7 +779,7 @@
     </div>
   </dialog>
 
-  <!-- MODAL EDITAR ACTIVO GENERAL -->
+  <!-- MODAL EDITAR ACTIVO -->
   <dialog id="modalEdicion">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
       <h3 style="border:none; margin:0;">Editar Parámetros del Activo</h3>
@@ -863,7 +852,7 @@
     </div>
   </dialog>
 
-  <!-- MODAL INFORME TÉCNICO -->
+  <!-- MODAL INFORME -->
   <dialog id="modalEditorInforme">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
       <h3 id="infModalTitle" style="border:none; margin:0;">Emisión de Informe Técnico Oficial</h3>
@@ -894,6 +883,18 @@
     <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
       <button class="btn-base" type="button" onclick="document.getElementById('modalEditorInforme').close()">Cancelar</button>
       <button class="btn-base btn-primary" type="button" onclick="window.CIO.emitirInformeFinalImpresion()">🖨️ Generar PDF Oficial</button>
+    </div>
+  </dialog>
+
+  <!-- MODAL HISTORIAL TERRENO -->
+  <dialog id="modalHistoricoTerreno">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 id="histTerrenoTitle" style="border:none; margin:0;">Historial de Terreno</h3>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalHistoricoTerreno').close()">&times;</button>
+    </div>
+    <div id="histTerrenoListContainer" style="max-height:450px; overflow-y:auto;"></div>
+    <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+      <button class="btn-base" type="button" onclick="document.getElementById('modalHistoricoTerreno').close()">Cerrar</button>
     </div>
   </dialog>
 
