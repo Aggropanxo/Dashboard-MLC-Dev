@@ -337,7 +337,6 @@
       var card = document.createElement('article');
       card.className = 'card-equipo sev-' + s.toLowerCase() + ' ' + (s === 'Rojo' || s === 'Naranja' ? 'anim-' + s.toLowerCase() : '');
       
-      // Si está autenticado entra directo a Nivel 4 (Consola de Edición), si es invitado abre el detalle
       card.onclick = function() {
         if (state.usuarioActivo) {
           window.CIO.abrirEditorComponenteIndividual(item.originalIndex);
@@ -375,11 +374,12 @@
     cardTerreno.style.borderColor = 'rgba(2, 132, 199, 0.4)';
     cardTerreno.onclick = function() { window.CIO.abrirModalHistoricoTerreno(); };
 
+    // Corrección sintáctica aquí en la concatenación de la tarjeta
     cardTerreno.innerHTML = 
       '<div class="card-top-bar">' +
         '<span class="eq-type" style="color:#0284c7; font-weight:bold;">RONDA EN PLANTA</span>' +
         '<span class="badge-indicator badge-reportes">' + myReports.length + ' Reportes</span>' +
-      } +
+      '</div>' +
       '<div class="eq-tag code-font" style="font-size:0.88rem; color:#0284c7;">📸 Terreno</div>' +
       '<div style="margin-top:6px; font-size:0.75rem; color:var(--text-muted);">Ver Historial Completo</div>';
 
@@ -633,16 +633,24 @@
       window.CIO.abrirEdicionEquipoNuevoAuth();
     },
 
+    toggleMapModal: function() {
+      window.CIO.toggleSiteMapTab();
+    },
+
     toggleSiteMapTab: function() {
       state.siteMapVisible = !state.siteMapVisible;
       var mapBox = document.getElementById('view-site-map');
       var container = document.getElementById('viewScreen2Container');
       var lbl = document.getElementById('labelToggleSiteMap');
+      var target = state.faenaSeleccionada || FAENAS[0];
 
       if (state.siteMapVisible) {
         if (mapBox) mapBox.style.display = 'block';
         if (container) container.style.display = 'none';
         if (lbl) lbl.innerText = 'Ver Tarjetas';
+        setTimeout(function() {
+          actualizarMapaSite(state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }));
+        }, 150);
       } else {
         if (mapBox) mapBox.style.display = 'none';
         if (container) container.style.display = '';
@@ -849,7 +857,6 @@
       window.CIO.abrirEditorComponenteIndividual(idx);
     },
 
-    // AHORA NAVEGA A NIVEL 4 (PANTALLA COMPLETA)
     abrirEditorComponenteIndividual: function(idx) {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Solo usuarios registrados pueden editar componentes.");
@@ -1150,7 +1157,7 @@
       });
 
       alert('✅ Componente guardado exitosamente.');
-      window.CIO.goScreen(3); // Regresa limpio al tren motriz
+      window.CIO.goScreen(3);
     },
 
     eliminarComponenteActual: function() {
