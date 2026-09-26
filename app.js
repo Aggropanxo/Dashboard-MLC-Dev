@@ -66,6 +66,7 @@
     componenteIndexEdit: -1,
     componenteIndexDetalle: -1,
     siteMapVisible: false,
+    filtroBusqueda: '',
     authMode: 'login',
     mapaSite: null,
     capaMarcadores: null,
@@ -272,13 +273,33 @@
       container.innerHTML = '';
 
       var eqsArea = eqsFaena.filter(function(e) { return (e.area || 'Sin Área') === state.areaSeleccionada; });
+
+      // Aplicar filtro de búsqueda predictiva en tiempo real si el operador ingresa caracteres
+      if (state.filtroBusqueda && state.filtroBusqueda.trim() !== '') {
+        var query = state.filtroBusqueda.trim().toUpperCase();
+        eqsArea = eqsArea.filter(function(e) {
+          var tagStr = (e.tag || e.Tag || e.TAG || e.id || '').toUpperCase();
+          var tipoStr = (e.tipo || '').toUpperCase();
+          return tagStr.includes(query) || tipoStr.includes(query);
+        });
+      }
+
       eqsArea.sort(function(a, b) { return SEV_PESO[calcMaxSev(b.componentes)] - SEV_PESO[calcMaxSev(a.componentes)]; });
 
       var navHeader = document.createElement('div');
       navHeader.style.cssText = "grid-column: 1/-1; display:flex; align-items:center; gap:10px; margin-bottom:4px; padding:8px 12px; border-radius:8px; background:var(--glass-card); border:1px solid var(--glass-border);";
       navHeader.innerHTML = '<button class="btn-base" type="button" onclick="window.CIO.volverAreas()">⬅️ Volver a Áreas</button>' +
-        '<span style="font-weight:700; color:var(--accent-color); font-size:0.85rem;">Área: ' + sanitize(state.areaSeleccionada) + '</span>';
+        '<span style="font-weight:700; color:var(--accent-color); font-size:0.85rem;">Área: ' + sanitize(state.areaSeleccionada) + '</span>' +
+        (state.filtroBusqueda ? ('<span style="font-size:0.75rem; color:var(--text-muted); margin-left:auto;">Filtro: "' + sanitize(state.filtroBusqueda) + '" (' + eqsArea.length + ')</span>') : '');
       container.appendChild(navHeader);
+
+      if (eqsArea.length === 0) {
+        var noResults = document.createElement('div');
+        noResults.style.cssText = "grid-column: 1/-1; padding:20px; text-align:center; color:var(--text-muted); font-style:italic;";
+        noResults.innerText = "No se encontraron equipos que coincidan con la búsqueda.";
+        container.appendChild(noResults);
+        return;
+      }
 
       eqsArea.forEach(function(eq) {
         var s = calcMaxSev(eq.componentes);
@@ -297,7 +318,7 @@
           : ('<span class="badge-indicator badge-al-dia">✅ Al día</span>');
         
         var badgeSap = saps.countAvisos > 0 
-          ? ('<div style="font-size:0.68rem; color:#2563eb; font-weight:700;">AV: ' + saps.countAvisos + ' | OM: ' + saps.countOms + '</div>') 
+          ? ('<div style="font-size:0.62rem; color:#2563eb; font-weight:700;">AV:' + saps.countAvisos + ' | OM:' + saps.countOms + '</div>') 
           : '';
 
         var hasGeo = (eq.lat !== '' && eq.lat !== undefined && eq.lng !== '' && eq.lng !== undefined);
@@ -306,11 +327,11 @@
         card.innerHTML = 
           '<div class="card-top-bar">' +
             '<span class="eq-type">' + sanitize(eq.tipo || eq.area) + '</span>' +
-            '<div style="display:flex; gap:4px; align-items:center;">' + geoDot + badgeTerreno + badgeRuta + '</div>' +
+            '<div style="display:flex; gap:3px; align-items:center;">' + geoDot + badgeTerreno + badgeRuta + '</div>' +
           '</div>' +
           '<div class="eq-tag code-font">' + sanitize(tagValue) + '</div>' +
-          '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">' +
-            '<span style="color:' + SEV_COLOR[s] + '; font-weight:800; font-size:0.8rem;">' + s.toUpperCase() + '</span>' +
+          '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">' +
+            '<span style="color:' + SEV_COLOR[s] + '; font-weight:800; font-size:0.75rem;">' + s.toUpperCase() + '</span>' +
             badgeSap +
           '</div>';
 
@@ -528,7 +549,7 @@
 
         var clasePulso = (maxSev === 'Rojo' || maxSev === 'Naranja') ? 'anim-pulso' : '';
 
-        // Marcador compacto (14px) sin texto interno
+        // Marcador circular compacto (14px) sin texto interno
         var iconoCustom = L.divIcon({
           className: 'custom-leaflet-marker-wrapper',
           html: '<div class="pin-marcador-gis ' + clasePulso + '" style="background:' + colorPin + ';"></div>',
@@ -539,6 +560,7 @@
 
         var marcador = L.marker([lat, lng], { icon: iconoCustom });
 
+        // Popup con el resumen completo del activo[cite: 6]
         var popupHtml = 
           '<div style="color:#0f172a; font-family:Inter,sans-serif; min-width:180px;">' +
             '<div style="font-weight:800; font-size:0.95rem; margin-bottom:2px;">' + sanitize(tagVal) + '</div>' +
@@ -664,11 +686,48 @@
       state.equipoIdNivel3 = null;
       state.equipoSeleccionado = null;
       state.siteMapVisible = false;
+      state.filtroBusqueda = '';
+
+      var searchInp = document.getElementById('inputBuscarEquipo');
+      if (searchInp) searchInp.value = '';
 
       var mapBox = document.getElementById('view-site-map');
       if (mapBox) mapBox.style.display = 'none';
 
       window.CIO.goScreen(1);
+    },
+
+    filtrarEquiposYMapa: function(texto) {
+      state.filtroBusqueda = texto || '';
+      renderScreen2();
+
+      // Si el mapa satelital está abierto, localizar y enfocar el equipo buscado[cite: 6]
+      if (state.siteMapVisible && state.mapaSite && state.capaMarcadores) {
+        var query = (texto || '').trim().toUpperCase();
+        var targetFaena = state.faenaSeleccionada || FAENAS[0];
+        var eqs = state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === targetFaena; });
+
+        if (query.length >= 2) {
+          var coincidencia = eqs.find(function(e) {
+            return (e.tag || e.Tag || e.TAG || e.id || '').toUpperCase().includes(query);
+          });
+
+          if (coincidencia && coincidencia.lat && coincidencia.lng) {
+            var lat = parseFloat(coincidencia.lat);
+            var lng = parseFloat(coincidencia.lng);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              state.mapaSite.setView([lat, lng], 18, { animate: true });
+
+              state.capaMarcadores.eachLayer(function(layer) {
+                var pos = layer.getLatLng();
+                if (Math.abs(pos.lat - lat) < 0.0001 && Math.abs(pos.lng - lng) < 0.0001) {
+                  layer.openPopup();
+                }
+              });
+            }
+          }
+        }
+      }
     },
 
     dispararAlarmaFlotante: function(reporte) {
@@ -872,16 +931,23 @@
     seleccionarFaena: function(f) {
       state.faenaSeleccionada = f;
       state.areaSeleccionada = null;
+      state.filtroBusqueda = '';
       window.CIO.goScreen(2);
     },
 
     seleccionarArea: function(a) {
       state.areaSeleccionada = a;
+      state.filtroBusqueda = '';
+      var searchInp = document.getElementById('inputBuscarEquipo');
+      if (searchInp) searchInp.value = '';
       renderScreen2();
     },
 
     volverAreas: function() {
       state.areaSeleccionada = null;
+      state.filtroBusqueda = '';
+      var searchInp = document.getElementById('inputBuscarEquipo');
+      if (searchInp) searchInp.value = '';
       renderScreen2();
     },
 
@@ -1786,7 +1852,7 @@
       if (!state.pickerCoordsTemp) return;
       document.getElementById('edLat').value = state.pickerCoordsTemp.lat;
       document.getElementById('edLng').value = state.pickerCoordsTemp.lng;
-      window.CIO.actualizarBadgeGeoEstado(state.pickerCoordsTemp.lat, state.pickerCoordsTemp.lng);
+      window.CIO.actualBadgeGeoEstado(state.pickerCoordsTemp.lat, state.pickerCoordsTemp.lng);
 
       var mPicker = document.getElementById('modalGeoPicker');
       if (mPicker) mPicker.close();
