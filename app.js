@@ -55,7 +55,8 @@
     equipos: [],
     alertasTerreno: [],
     tempEvidenciasEdicion: [],
-    tipoSubidaActual: 'espectro'
+    tipoSubidaActual: 'espectro',
+    tempFotoReporteEdicion: null
   };
 
   function sanitize(str) {
@@ -223,6 +224,11 @@
 
       container.className = 'grid-container';
       container.innerHTML = '';
+
+      if (sortedAreas.length === 0) {
+        container.innerHTML = '<div class="label-muted" style="padding:20px;">Sin áreas registradas. Realiza una carga masiva.</div>';
+        return;
+      }
 
       sortedAreas.forEach(function(a) {
         var card = document.createElement('article');
@@ -441,7 +447,6 @@
     document.getElementById('indSugAnalisis').value = '';
     document.getElementById('indSugRecom').value = '';
 
-    // Normalizar evidencias cargadas previas
     state.tempEvidenciasEdicion = (c.espectros || []).map(function(item) {
       if (typeof item === 'string') {
         return { src: item, tipo: 'espectro' };
@@ -1204,6 +1209,7 @@
       }
     },
 
+    // HISTORIAL Y EDICIÓN DE REPORTES DE TERRENO
     abrirModalHistoricoTerreno: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
@@ -1219,12 +1225,26 @@
 
       if (cont) {
         if (myReports.length === 0) {
-          cont.innerHTML = '<div style="padding:20px; font-style:italic;">No hay reportes de ronda para este activo.</div>';
+          cont.innerHTML = '<div style="padding:20px; font-style:italic; color:var(--text-muted);">No hay reportes de ronda registrados para este activo.</div>';
         } else {
           cont.innerHTML = myReports.map(function(r) {
-            return '<div style="padding:10px; border-bottom:1px solid #ccc;">' +
-                '<strong>' + (r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D') + '</strong> - ' + (r.severidad || 'Seguimiento') + '<br>' +
-                sanitize(r.detalle) +
+            var fotoHtml = r.fotoBase64 ? ('<div style="margin-top:8px;"><img src="' + r.fotoBase64 + '" style="max-height:120px; max-width:200px; border-radius:6px; cursor:pointer; border:1px solid var(--glass-border);" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + r.fotoBase64 + '\')" /></div>') : '';
+            var botonesAdmin = state.usuarioActivo ? (
+              '<div style="display:flex; gap:8px;">' +
+                '<button class="btn-base btn-primary" type="button" style="padding:4px 10px; font-size:0.7rem;" onclick="window.CIO.abrirModalEditarReporteTerreno(\'' + r.id + '\')">✏️ Editar</button>' +
+              '</div>'
+            ) : '';
+
+            return '<div class="card-terreno-item">' +
+                '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+                  '<div>' +
+                    '<span class="badge-indicator" style="background:' + (SEV_COLOR[r.severidad] || '#0284c7') + '; color:#fff;">' + (r.severidad || 'Seguimiento') + '</span>' +
+                    '<span style="font-size:0.75rem; color:var(--text-muted); margin-left:8px;">' + (r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/D') + '</span>' +
+                  '</div>' +
+                  botonesAdmin +
+                '</div>' +
+                '<p style="font-size:0.88rem; line-height:1.4; margin:4px 0;">' + sanitize(r.detalle) + '</p>' +
+                fotoHtml +
               '</div>';
           }).join('');
         }
@@ -1232,6 +1252,119 @@
 
       var mHist = document.getElementById('modalHistoricoTerreno');
       if (mHist) mHist.showModal();
+    },
+
+    abrirModalEditarReporteTerreno: function(reporteId) {
+      if (!state.usuarioActivo) {
+        alert("🔒 Debes iniciar sesión para editar reportes de terreno.");
+        return;
+      }
+
+      var rep = state.alertasTerreno.find(function(a) { return a.id === reporteId; });
+      if (!rep) return;
+
+      document.getElementById('editReporteId').value = rep.id;
+      document.getElementById('editReporteSev').value = rep.severidad || 'Verde';
+      document.getElementById('editReporteDetalle').value = rep.detalle || '';
+      state.tempFotoReporteEdicion = rep.fotoBase64 || null;
+
+      var previewBox = document.getElementById('editReporteFotoPreview');
+      if (previewBox) {
+        if (state.tempFotoReporteEdicion) {
+          previewBox.innerHTML = '<img src="' + state.tempFotoReporteEdicion + '" style="max-height:100px; border-radius:6px; border:1px solid var(--glass-border);" />';
+        } else {
+          previewBox.innerHTML = '<span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">Sin foto adjunta</span>';
+        }
+      }
+
+      document.getElementById('editReporteFotoInput').value = '';
+      var mEdit = document.getElementById('modalEditarReporteTerreno');
+      if (mEdit) mEdit.showModal();
+    },
+
+    procesarCambioFotoReporte: function(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+
+      var canvas = document.getElementById('resizeCanvas') || document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      var reader = new FileReader();
+
+      reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+          var MAX_WIDTH = 900;
+          var width = img.width;
+          var height = img.height;
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          state.tempFotoReporteEdicion = canvas.toDataURL('image/jpeg', 0.70);
+          var previewBox = document.getElementById('editReporteFotoPreview');
+          if (previewBox) {
+            previewBox.innerHTML = '<img src="' + state.tempFotoReporteEdicion + '" style="max-height:100px; border-radius:6px; border:1px solid var(--glass-border);" />';
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    },
+
+    guardarEdicionReporteTerreno: function() {
+      if (!state.usuarioActivo) {
+        alert("🔒 Inicia sesión para guardar cambios.");
+        return;
+      }
+
+      var repId = document.getElementById('editReporteId').value;
+      if (!repId || !dbAlertasTerreno) return;
+
+      var nuevaSev = document.getElementById('editReporteSev').value;
+      var nuevoDetalle = document.getElementById('editReporteDetalle').value.trim();
+
+      var payload = {
+        severidad: nuevaSev,
+        detalle: nuevoDetalle,
+        modificadoPor: state.usuarioActivo,
+        modificadoEn: new Date().toISOString()
+      };
+
+      if (state.tempFotoReporteEdicion) {
+        payload.fotoBase64 = state.tempFotoReporteEdicion;
+      }
+
+      dbAlertasTerreno.child(repId).update(payload).then(function() {
+        alert("✅ Reporte de terreno actualizado.");
+        document.getElementById('modalEditarReporteTerreno').close();
+        window.CIO.abrirModalHistoricoTerreno(); // Refresca la lista de inmediato
+      }).catch(function(err) {
+        alert("❌ Error al guardar en Firebase: " + err.message);
+      });
+    },
+
+    eliminarReporteTerrenoConfirm: function() {
+      if (!state.usuarioActivo) {
+        alert("🔒 Inicia sesión para eliminar reportes.");
+        return;
+      }
+
+      var repId = document.getElementById('editReporteId').value;
+      if (!repId || !dbAlertasTerreno) return;
+
+      if (confirm("¿Estás seguro de eliminar este reporte de terreno?")) {
+        dbAlertasTerreno.child(repId).remove().then(function() {
+          alert("✅ Reporte eliminado.");
+          document.getElementById('modalEditarReporteTerreno').close();
+          window.CIO.abrirModalHistoricoTerreno();
+        }).catch(function(err) {
+          alert("❌ Error al eliminar: " + err.message);
+        });
+      }
     },
 
     abrirFotoEnNuevaPestana: function(base64Data) {
