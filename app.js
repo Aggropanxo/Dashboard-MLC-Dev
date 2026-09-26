@@ -263,7 +263,7 @@
           '<h3 class="value-strong" style="margin:4px 0 10px 0;">' + sanitize(a.name) + '</h3>' +
           '<div style="display:flex; justify-content:space-between; border-top:1px solid var(--glass-border); padding-top:8px;">' +
             '<div><span class="label-muted">Activos</span><div class="value-strong">' + a.count + '</div></div>' +
-            '<div><span class="label-muted">Condición</span><div class="value-strong" style="color:' + SEV_COLOR[a.maxSev] + '">' + (a.critical > 0 ? (a.critical + ' Alertas') : 'Normal') + '</div></div>' +
+            '<div><span class="label-muted">Condición</span><div class="value-strong" style="color:' + SEV_COLOR[a.maxSev] + '">' + (d.critical > 0 ? (d.critical + ' Alertas') : 'Normal') + '</div></div>' +
           '</div>';
         container.appendChild(card);
       });
@@ -526,19 +526,20 @@
         var colorPin = SEV_COLOR[maxSev] || '#6b7280';
         var tagVal = eq.tag || eq.id;
 
-        // Si es Crítico (Rojo) o Alerta (Naranja), activamos la baliza pulsante
         var clasePulso = (maxSev === 'Rojo' || maxSev === 'Naranja') ? 'anim-pulso' : '';
 
+        // Marcador circular compacto (14px) sin texto interno
         var iconoCustom = L.divIcon({
           className: 'custom-leaflet-marker-wrapper',
-          html: '<div class="pin-marcador-gis ' + clasePulso + '" style="background:' + colorPin + ';">' + tagVal.substring(0, 3) + '</div>',
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
-          popupAnchor: [0, -18]
+          html: '<div class="pin-marcador-gis ' + clasePulso + '" style="background:' + colorPin + ';"></div>',
+          iconSize: [14, 14],
+          iconAnchor: [7, 7],
+          popupAnchor: [0, -10]
         });
 
         var marcador = L.marker([lat, lng], { icon: iconoCustom });
 
+        // Popup con el resumen completo del activo
         var popupHtml = 
           '<div style="color:#0f172a; font-family:Inter,sans-serif; min-width:180px;">' +
             '<div style="font-weight:800; font-size:0.95rem; margin-bottom:2px;">' + sanitize(tagVal) + '</div>' +
