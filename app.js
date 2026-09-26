@@ -9,10 +9,7 @@
     projectId: "dashboard-vulnerabilidades-mlc"
   };
 
-  // Webhook de Google Apps Script conectado a Google Sheets (Looker Studio)
   var GOOGLE_SHEETS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxxSrWh52i2QlHP5KG9mI9BOdlBFgwbtD7Sx0zgE0VOyK6bRWokkFJy3raUvC8_x0IOnQ/exec";
-
-  // Clave API de Google AI Studio (almacenada localmente en el navegador por seguridad)
   var GEMINI_API_KEY = localStorage.getItem("GEMINI_API_KEY") || "";
 
   var db = null;
@@ -298,7 +295,7 @@
     }
   }
 
-  // PANTALLA 3: NIVEL 3 (DETALLE DE ACTIVO Y TREN MOTRIZ)
+  // PANTALLA 3: NIVEL 3 (DIRECTO A LAS TARJETAS - SIN CAJA REDUNDANTE)
   function renderScreen3() {
     if (!state.equipoIdNivel3) {
       window.CIO.goScreen(2);
@@ -327,25 +324,6 @@
         : ('<span class="banner-contador-alerta al-dia">✅ RUTA AL DÍA: ' + aud.texto + '</span>');
     }
 
-    var sevGlobal = calcMaxSev(eq.componentes);
-    var saps = consolidarSAPs(eq.componentes);
-
-    var diagBox = document.getElementById('n3DiagnosticoBox');
-    if (diagBox) {
-      var paresHtml = saps.pares.length > 0 ? saps.pares.map(function(p) {
-        return '<span style="background:var(--box-sap-bg); border:1px solid var(--box-sap-border); padding:3px 8px; border-radius:5px; margin-right:6px; margin-bottom:4px; display:inline-block; font-size:0.75rem;">' +
-          '<strong>' + sanitize(p.componente) + ':</strong> AV ' + sanitize(p.aviso) + ' ➔ OM ' + sanitize(p.om) + '</span>';
-      }).join('') : '<span style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">Sin Avisos / OM SAP asociadas</span>';
-
-      diagBox.innerHTML = 
-        '<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; align-items:center; border-bottom:1px solid var(--glass-border); padding-bottom:10px; margin-bottom:10px;">' +
-          '<div><span class="label-muted">Condición Crítica</span><div style="font-weight:900; font-size:1.15rem; color:' + SEV_COLOR[sevGlobal] + ';">' + sevGlobal.toUpperCase() + '</div></div>' +
-          '<div><span class="label-muted">Estatus</span><div style="font-weight:700;">' + sanitize(eq.estatusHallazgo || 'Abierto') + '</div></div>' +
-          '<div><span class="label-muted">Última Medición</span><div style="font-weight:700;">' + (eq.fechaMedicion || 'S/F') + '</div></div>' +
-        '</div>' +
-        '<div><span class="label-muted">Órdenes SAP:</span><div style="margin-top:6px;">' + paresHtml + '</div></div>';
-    }
-
     var grid = document.getElementById('n3GridCards');
     if (!grid) return;
     grid.innerHTML = '';
@@ -358,10 +336,21 @@
       var s = c.severidad || 'Verde';
       var card = document.createElement('article');
       card.className = 'card-equipo sev-' + s.toLowerCase() + ' ' + (s === 'Rojo' || s === 'Naranja' ? 'anim-' + s.toLowerCase() : '');
-      card.onclick = function() { window.CIO.abrirDetalleComponenteModal(item.originalIndex); };
+      
+      // Si está autenticado entra directo a Nivel 4 (Consola de Edición), si es invitado abre el detalle
+      card.onclick = function() {
+        if (state.usuarioActivo) {
+          window.CIO.abrirEditorComponenteIndividual(item.originalIndex);
+        } else {
+          window.CIO.abrirDetalleComponenteModal(item.originalIndex);
+        }
+      };
 
       var cantEspectros = (c.espectros && c.espectros.length > 0) ? c.espectros.length : 0;
       var badgeFotos = cantEspectros > 0 ? ('<span class="badge-indicator badge-reportes">📈 ' + cantEspectros + ' FFT</span>') : '';
+
+      var sapsCount = (c.paresSap && c.paresSap.length > 0) ? c.paresSap.length : 0;
+      var badgeSap = sapsCount > 0 ? ('<div style="font-size:0.65rem; color:#2563eb; font-weight:700;">SAP: ' + sapsCount + ' Par(es)</div>') : '';
 
       card.innerHTML = 
         '<div class="card-top-bar">' +
@@ -369,8 +358,9 @@
           badgeFotos +
         '</div>' +
         '<div class="eq-tag code-font" style="font-size:0.88rem;">' + sanitize(c.punto || 'Punto General') + '</div>' +
-        '<div style="margin-top:6px; font-weight:800; font-size:0.8rem; color:' + SEV_COLOR[s] + ';">' +
-          s.toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)' +
+        '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">' +
+          '<span style="font-weight:800; font-size:0.8rem; color:' + SEV_COLOR[s] + ';">' + s.toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)</span>' +
+          badgeSap +
         '</div>';
 
       grid.appendChild(card);
@@ -389,7 +379,7 @@
       '<div class="card-top-bar">' +
         '<span class="eq-type" style="color:#0284c7; font-weight:bold;">RONDA EN PLANTA</span>' +
         '<span class="badge-indicator badge-reportes">' + myReports.length + ' Reportes</span>' +
-      '</div>' +
+      } +
       '<div class="eq-tag code-font" style="font-size:0.88rem; color:#0284c7;">📸 Terreno</div>' +
       '<div style="margin-top:6px; font-size:0.75rem; color:var(--text-muted);">Ver Historial Completo</div>';
 
@@ -426,45 +416,48 @@
     });
   }
 
-  function actualizarMapaSite(eqs) {
-    if (typeof L === 'undefined') return;
-    var mapBox = document.getElementById('view-site-map');
-    if (!mapBox) return;
+  // PANTALLA 5 / NIVEL 4: CONSOLA DE EDICIÓN & DIAGNÓSTICO
+  function renderScreen5() {
+    var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
+    if (!eq) {
+      window.CIO.goScreen(3);
+      return;
+    }
 
-    try {
-      if (!state.mapaSite) {
-        state.mapaSite = L.map('view-site-map').setView([-28.2876, -70.8130], 13);
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(state.mapaSite);
-        state.capaSite = L.layerGroup().addTo(state.mapaSite);
+    var idx = state.componenteIndexEdit;
+    var c = (eq.componentes && eq.componentes[idx]) ? eq.componentes[idx] : {
+      nombre: 'Nuevo Componente', punto: 'Punto de Medición', rms: '2.0', severidad: 'Verde', paresSap: [], analisis: '', recomendacion: '', espectros: []
+    };
+
+    var bCrumb = document.getElementById('n4Breadcrumb');
+    if (bCrumb) bCrumb.innerText = eq.siteId + ' | ' + eq.area + ' | TAG: ' + (eq.tag || eq.id);
+
+    var titleN4 = document.getElementById('n4Title');
+    if (titleN4) titleN4.innerText = 'Edición: ' + (c.nombre || 'Componente') + ' (' + (c.punto || 'Punto') + ')';
+
+    document.getElementById('edCompIndex').value = idx;
+    document.getElementById('indCompNombre').value = c.nombre || '';
+    document.getElementById('indCompPunto').value = c.punto || '';
+    document.getElementById('indCompRms').value = c.rms || '2.0';
+    document.getElementById('indCompSev').value = c.severidad || 'Verde';
+
+    document.getElementById('indCompAnalisis').value = limpiarPrefijosIA(c.analisis);
+    document.getElementById('indCompRecom').value = limpiarPrefijosIA(c.recomendacion);
+
+    document.getElementById('indSugAnalisis').value = '';
+    document.getElementById('indSugRecom').value = '';
+
+    state.tempEspectrosEdicion = (c.espectros || []).slice();
+    window.CIO.renderMiniaturasEspectrosEdicion();
+
+    var paresBox = document.getElementById('indParesSapContainer');
+    if (paresBox) {
+      paresBox.innerHTML = '';
+      if (c.paresSap && c.paresSap.length > 0) {
+        c.paresSap.forEach(function(p) { window.CIO.insertarFilaParSapEnContenedor(paresBox, p.aviso, p.om); });
       } else {
-        state.mapaSite.invalidateSize();
+        window.CIO.insertarFilaParSapEnContenedor(paresBox, '', '');
       }
-
-      state.capaSite.clearLayers();
-      var bounds = [];
-
-      eqs.forEach(function(eq) {
-        var lat = parseFloat(eq.lat);
-        var lng = parseFloat(eq.lng);
-        if (!isNaN(lat) && !isNaN(lng) && lat !== 0) {
-          var s = calcMaxSev(eq.componentes);
-          var col = SEV_COLOR[s] || '#6b7280';
-          var pulse = s === 'Rojo' ? 'map-pin-pulse' : '';
-          var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
-          var icon = L.divIcon({
-            className: 'custom-pin',
-            html: '<div class="' + pulse + '" style="background:' + col + '; width:20px; height:20px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 10px ' + col + ';"></div>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
-          });
-          L.marker([lat, lng], { icon: icon }).bindPopup('<strong>' + sanitize(tagValue) + '</strong><br>' + sanitize(eq.area) + '<br><span style="color:' + col + ';font-weight:bold;">' + s + '</span>').addTo(state.capaSite);
-          bounds.push([lat, lng]);
-        }
-      });
-
-      if (bounds.length) state.mapaSite.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
-    } catch (e) {
-      console.warn("Error mapa:", e);
     }
   }
 
@@ -513,6 +506,7 @@
       else if (state.currentScreen === 2) renderScreen2();
       else if (state.currentScreen === 3) renderScreen3();
       else if (state.currentScreen === 4) renderScreen4();
+      else if (state.currentScreen === 5) renderScreen5();
     } catch (e) {
       console.error("Error al refrescar interfaz:", e);
     }
@@ -537,7 +531,8 @@
         1: 'Vista Pública (Global - DEV)', 
         2: 'Faena: ' + (state.faenaSeleccionada || 'Operativa'), 
         3: 'Nivel 3: Tren Motriz & Puntos de Inspección', 
-        4: 'Consola SuperAdmin (DEV)' 
+        4: 'Consola SuperAdmin (DEV)',
+        5: 'Nivel 4: Consola de Diagnóstico & Espectros'
       };
       if (headerTitle) headerTitle.innerText = titles[num] || 'CIO';
       refresh();
@@ -578,6 +573,10 @@
 
     volverDeNivel3: function() {
       window.CIO.goScreen(2);
+    },
+
+    volverDeNivel4: function() {
+      window.CIO.goScreen(3);
     },
 
     toggleTheme: function() {
@@ -634,24 +633,16 @@
       window.CIO.abrirEdicionEquipoNuevoAuth();
     },
 
-    toggleMapModal: function() {
-      window.CIO.toggleSiteMapTab();
-    },
-
     toggleSiteMapTab: function() {
       state.siteMapVisible = !state.siteMapVisible;
       var mapBox = document.getElementById('view-site-map');
       var container = document.getElementById('viewScreen2Container');
       var lbl = document.getElementById('labelToggleSiteMap');
-      var target = state.faenaSeleccionada || FAENAS[0];
 
       if (state.siteMapVisible) {
         if (mapBox) mapBox.style.display = 'block';
         if (container) container.style.display = 'none';
         if (lbl) lbl.innerText = 'Ver Tarjetas';
-        setTimeout(function() {
-          actualizarMapaSite(state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }));
-        }, 150);
       } else {
         if (mapBox) mapBox.style.display = 'none';
         if (container) container.style.display = '';
@@ -677,6 +668,14 @@
       var boxSite = document.getElementById('boxFaenaSite');
       if (boxName) boxName.style.setProperty('display', isReg ? 'flex' : 'none', 'important');
       if (boxSite) boxSite.style.setProperty('display', isReg ? 'flex' : 'none', 'important');
+
+      var tabLogin = document.getElementById('tabBtnLogin');
+      var tabReg = document.getElementById('tabBtnRegister');
+      var btnSubmit = document.getElementById('authSubmitActionBtn');
+
+      if (tabLogin) tabLogin.classList.toggle('is-active', !isReg);
+      if (tabReg) tabReg.classList.toggle('is-active', isReg);
+      if (btnSubmit) btnSubmit.innerText = isReg ? 'Registrarse y Entrar' : 'Ingresar al Sistema';
     },
 
     handleAuthSubmission: function() {
@@ -734,7 +733,6 @@
         state.usuarioActivo = nombre;
         state.faenaAsignada = faena;
         
-        // Habilitar visualización de controles protegidos
         document.body.classList.add('user-authenticated');
 
         var lbl = document.getElementById('labelUsuarioBtn');
@@ -753,7 +751,6 @@
       state.faenaAsignada = null;
       state.isSuperAdmin = false;
 
-      // Ocultar de inmediato todos los controles restringidos
       document.body.classList.remove('user-authenticated');
 
       var lbl = document.getElementById('labelUsuarioBtn');
@@ -765,7 +762,6 @@
       window.CIO.goScreen(1);
     },
 
-    // Sincronización continua con Webhook de Google Sheets
     sincronizarConGoogleSheets: function(payload) {
       if (!GOOGLE_SHEETS_WEBHOOK_URL || GOOGLE_SHEETS_WEBHOOK_URL.indexOf("http") !== 0) return;
 
@@ -853,56 +849,15 @@
       window.CIO.abrirEditorComponenteIndividual(idx);
     },
 
+    // AHORA NAVEGA A NIVEL 4 (PANTALLA COMPLETA)
     abrirEditorComponenteIndividual: function(idx) {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Solo usuarios registrados pueden editar componentes.");
         return;
       }
 
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
-      if (!eq) return;
-
       state.componenteIndexEdit = idx;
-      var c = (eq.componentes && eq.componentes[idx]) ? eq.componentes[idx] : {
-        nombre: 'Motor M1', punto: 'Lado Libre (NDE)', rms: '2.0', severidad: 'Verde', paresSap: [], analisis: '', recomendacion: '', espectros: []
-      };
-
-      state.tempEspectrosEdicion = (c.espectros || []).slice();
-
-      var edIdx = document.getElementById('edCompIndex');
-      if (edIdx) edIdx.value = idx;
-      var edNom = document.getElementById('indCompNombre');
-      if (edNom) edNom.value = c.nombre || '';
-      var edPto = document.getElementById('indCompPunto');
-      if (edPto) edPto.value = c.punto || '';
-      var edRms = document.getElementById('indCompRms');
-      if (edRms) edRms.value = c.rms || '2.0';
-      var edSev = document.getElementById('indCompSev');
-      if (edSev) edSev.value = c.severidad || 'Verde';
-
-      var edAn = document.getElementById('indCompAnalisis');
-      if (edAn) edAn.value = limpiarPrefijosIA(c.analisis);
-      var edRec = document.getElementById('indCompRecom');
-      if (edRec) edRec.value = limpiarPrefijosIA(c.recomendacion);
-
-      var sugAn = document.getElementById('indSugAnalisis');
-      if (sugAn) sugAn.value = '';
-      var sugRec = document.getElementById('indSugRecom');
-      if (sugRec) sugRec.value = '';
-
-      var paresBox = document.getElementById('indParesSapContainer');
-      if (paresBox) {
-        paresBox.innerHTML = '';
-        if (c.paresSap && c.paresSap.length > 0) {
-          c.paresSap.forEach(function(p) { window.CIO.insertarFilaParSapEnContenedor(paresBox, p.aviso, p.om); });
-        } else {
-          window.CIO.insertarFilaParSapEnContenedor(paresBox, '', '');
-        }
-      }
-
-      window.CIO.renderMiniaturasEspectrosEdicion();
-      var mEdit = document.getElementById('modalEditarComponenteIndividual');
-      if (mEdit) mEdit.showModal();
+      window.CIO.goScreen(5);
     },
 
     agregarNuevoComponenteDirecto: function() {
@@ -936,11 +891,11 @@
 
     insertarFilaParSapEnContenedor: function(container, avisoVal, omVal) {
       var row = document.createElement('div');
-      row.style.cssText = "display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:center; margin-bottom:6px;";
+      row.style.cssText = "display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:center; margin-bottom:8px;";
       row.className = 'fila-par-sap';
-      row.innerHTML = '<input type="text" class="p-aviso code-font" placeholder="Aviso SAP" value="' + sanitize(avisoVal || '') + '" style="font-size:0.82rem; padding:6px 10px;">' +
-        '<input type="text" class="p-om code-font" placeholder="OM SAP" value="' + sanitize(omVal || '') + '" style="font-size:0.82rem; padding:6px 10px;">' +
-        '<button type="button" class="btn-base btn-danger" style="padding:4px 8px; font-size:0.65rem;" onclick="this.parentElement.remove()">&times;</button>';
+      row.innerHTML = '<input type="text" class="p-aviso code-font" placeholder="Aviso SAP" value="' + sanitize(avisoVal || '') + '" style="font-size:0.84rem; padding:8px 12px;">' +
+        '<input type="text" class="p-om code-font" placeholder="OM SAP" value="' + sanitize(omVal || '') + '" style="font-size:0.84rem; padding:8px 12px;">' +
+        '<button type="button" class="btn-base btn-danger" style="padding:6px 10px; font-size:0.75rem;" onclick="this.parentElement.remove()">&times;</button>';
       container.appendChild(row);
     },
 
@@ -957,7 +912,7 @@
         reader.onload = function(e) {
           var img = new Image();
           img.onload = function() {
-            var MAX_WIDTH = 850;
+            var MAX_WIDTH = 950;
             var width = img.width;
             var height = img.height;
             if (width > MAX_WIDTH) {
@@ -968,7 +923,7 @@
             canvas.height = height;
             ctx.drawImage(img, 0, 0, width, height);
 
-            var base64 = canvas.toDataURL('image/jpeg', 0.65);
+            var base64 = canvas.toDataURL('image/jpeg', 0.70);
             state.tempEspectrosEdicion.push(base64);
             procesados++;
 
@@ -989,14 +944,14 @@
       if (!cont) return;
 
       if (state.tempEspectrosEdicion.length === 0) {
-        cont.innerHTML = '<div style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">No hay espectros cargados para este punto.</div>';
+        cont.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No hay espectros cargados para este punto.</div>';
         return;
       }
 
       cont.innerHTML = state.tempEspectrosEdicion.map(function(src, i) {
-        return '<div class="item-espectro-preview" style="position:relative; display:inline-block; margin-right:8px; margin-bottom:8px;">' +
-            '<img src="' + src + '" alt="Espectro" style="width:95px; height:65px; object-fit:cover; border-radius:6px; border:1px solid var(--glass-border); cursor:pointer;" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" />' +
-            '<button type="button" class="btn-borrar-espectro" style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:18px; height:18px; cursor:pointer; font-size:11px;" onclick="window.CIO.eliminarFotoEspectroEdicion(' + i + ')">&times;</button>' +
+        return '<div class="item-espectro-preview">' +
+            '<img src="' + src + '" alt="Espectro" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" />' +
+            '<button type="button" onclick="window.CIO.eliminarFotoEspectroEdicion(' + i + ')">&times;</button>' +
           '</div>';
       }).join('');
     },
@@ -1006,7 +961,6 @@
       window.CIO.renderMiniaturasEspectrosEdicion();
     },
 
-    // ASISTENTE TÉCNICO MULTIMODAL GEMINI AI (PERICIAL DIRECTO)
     generarDictamenTecnicoIso: async function() {
       var nom = document.getElementById('indCompNombre')?.value.trim() || 'Componente';
       var punto = document.getElementById('indCompPunto')?.value.trim() || 'Punto de medición';
@@ -1045,7 +999,7 @@
         }
       }
 
-      if (txtSugDiag) txtSugDiag.value = "⏳ Evaluando espectro y parámetros bajo ISO 20816-3...";
+      if (txtSugDiag) txtSugDiag.value = "⏳ Evaluando espectro y parámetros mecánicos bajo norma ISO 20816-3...";
       if (txtSugRecom) txtSugRecom.value = "⏳ Generando plan de acción pericial...";
 
       try {
@@ -1195,9 +1149,8 @@
         recomendacion: compRecom
       });
 
-      var mEdit = document.getElementById('modalEditarComponenteIndividual');
-      if (mEdit) mEdit.close();
-      renderScreen3();
+      alert('✅ Componente guardado exitosamente.');
+      window.CIO.goScreen(3); // Regresa limpio al tren motriz
     },
 
     eliminarComponenteActual: function() {
@@ -1214,9 +1167,7 @@
         if (db) {
           db.child(eq.id).child('componentes').set(eq.componentes);
         }
-        var mEdit = document.getElementById('modalEditarComponenteIndividual');
-        if (mEdit) mEdit.close();
-        renderScreen3();
+        window.CIO.goScreen(3);
       }
     },
 
@@ -1365,7 +1316,6 @@
       if (mInf) mInf.showModal();
     },
 
-    // FUNCIÓN DE IMPRESIÓN SIN BLOQUEOS NI CONGELAMIENTO EN CHROMIUM/BRAVE
     emitirInformeFinalImpresion: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
@@ -1378,7 +1328,6 @@
       var aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
       var sevGlobal = calcMaxSev(eq.componentes);
 
-      // Cierre del modal para liberar el rasterizador de Chromium
       var modalInf = document.getElementById('modalEditorInforme');
       if (modalInf) modalInf.close();
 
@@ -1404,7 +1353,7 @@
 
       var win = window.open('', '_blank');
       if (!win) {
-        alert("⚠️ Por favor permite las ventanas emergentes (pop-ups) en tu navegador para ver el informe.");
+        alert("⚠️ Por favor permite las ventanas emergentes en tu navegador para ver el informe.");
         return;
       }
 
