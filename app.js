@@ -80,6 +80,71 @@
     tempEvidenciasReporte: []
   };
 
+  // =============================================================
+  // ACTUALIZACIÓN DE INDICADORES DE MERCADO & CLIMA (CADA 10 MIN)
+  // =============================================================
+  var MARKET_STATE = {
+    usdClp: 945.0,
+    feUsd: 98.02
+  };
+
+  async function actualizarTickerMercadoYClima() {
+    // 1. Obtener USD/CLP en tiempo real
+    try {
+      var resDolar = await fetch('https://mindicador.cl/api/dolar');
+      if (resDolar.ok) {
+        var dataDolar = await resDolar.json();
+        var valorDolar = dataDolar?.serie?.[0]?.valor;
+        if (valorDolar) {
+          MARKET_STATE.usdClp = valorDolar;
+          var elUsd = document.getElementById('tickerUsdClp');
+          if (elUsd) elUsd.innerText = valorDolar.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+      }
+    } catch (err) {
+      console.warn("Aviso al obtener USD/CLP online:", err);
+    }
+
+    // 2. Paridad del Concentrado de Hierro (Fe 62% USD y CLP)
+    try {
+      var elFeUsd = document.getElementById('tickerFeUsd');
+      var elFeClp = document.getElementById('tickerFeClp');
+      var feClpTotal = Math.round(MARKET_STATE.feUsd * MARKET_STATE.usdClp);
+
+      if (elFeUsd) elFeUsd.innerText = MARKET_STATE.feUsd.toFixed(2) + " USD/t";
+      if (elFeClp) elFeClp.innerText = feClpTotal.toLocaleString('es-CL') + " CLP/t";
+    } catch (err) {}
+
+    // 3. Clima en tiempo real para Vallenar (Open-Meteo)
+    try {
+      var latVallenar = -28.5708;
+      var lonVallenar = -70.7581;
+      var resClima = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + latVallenar + '&longitude=' + lonVallenar + '&current_weather=true');
+      
+      if (resClima.ok) {
+        var dataClima = await resClima.json();
+        var temp = dataClima?.current_weather?.temperature;
+        var weatherCode = dataClima?.current_weather?.weathercode;
+
+        if (temp !== undefined) {
+          var elClima = document.getElementById('tickerClimaVal');
+          var elIcono = document.getElementById('tickerClimaIcon');
+
+          var icono = "☀️";
+          if (weatherCode >= 1 && weatherCode <= 3) icono = "⛅";
+          else if (weatherCode >= 45 && weatherCode <= 48) icono = "🌫️";
+          else if (weatherCode >= 51 && weatherCode <= 67) icono = "🌧️";
+          else if (weatherCode >= 80) icono = "🌦️";
+
+          if (elIcono) elIcono.innerText = icono;
+          if (elClima) elClima.innerText = Math.round(temp) + "°C (Vallenar)";
+        }
+      }
+    } catch (err) {
+      console.warn("Aviso al obtener clima en tiempo real:", err);
+    }
+  }
+
   function sanitize(str) {
     return (str || '').replace(/[<>&"']/g, function(m) {
       return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[m];
@@ -274,7 +339,7 @@
 
       var eqsArea = eqsFaena.filter(function(e) { return (e.area || 'Sin Área') === state.areaSeleccionada; });
 
-      // Aplicar filtro de búsqueda predictiva en tiempo real si el operador ingresa caracteres
+      // Filtro de búsqueda en tiempo real
       if (state.filtroBusqueda && state.filtroBusqueda.trim() !== '') {
         var query = state.filtroBusqueda.trim().toUpperCase();
         eqsArea = eqsArea.filter(function(e) {
@@ -549,7 +614,7 @@
 
         var clasePulso = (maxSev === 'Rojo' || maxSev === 'Naranja') ? 'anim-pulso' : '';
 
-        // Marcador circular compacto (14px) sin texto interno
+        // Marcador circular de 14px limpio sin texto
         var iconoCustom = L.divIcon({
           className: 'custom-leaflet-marker-wrapper',
           html: '<div class="pin-marcador-gis ' + clasePulso + '" style="background:' + colorPin + ';"></div>',
@@ -560,7 +625,6 @@
 
         var marcador = L.marker([lat, lng], { icon: iconoCustom });
 
-        // Popup con el resumen completo del activo[cite: 6]
         var popupHtml = 
           '<div style="color:#0f172a; font-family:Inter,sans-serif; min-width:180px;">' +
             '<div style="font-weight:800; font-size:0.95rem; margin-bottom:2px;">' + sanitize(tagVal) + '</div>' +
@@ -701,7 +765,6 @@
       state.filtroBusqueda = texto || '';
       renderScreen2();
 
-      // Si el mapa satelital está abierto, localizar y enfocar el equipo buscado[cite: 6]
       if (state.siteMapVisible && state.mapaSite && state.capaMarcadores) {
         var query = (texto || '').trim().toUpperCase();
         var targetFaena = state.faenaSeleccionada || FAENAS[0];
@@ -1852,7 +1915,7 @@
       if (!state.pickerCoordsTemp) return;
       document.getElementById('edLat').value = state.pickerCoordsTemp.lat;
       document.getElementById('edLng').value = state.pickerCoordsTemp.lng;
-      window.CIO.actualBadgeGeoEstado(state.pickerCoordsTemp.lat, state.pickerCoordsTemp.lng);
+      window.CIO.actualizarBadgeGeoEstado(state.pickerCoordsTemp.lat, state.pickerCoordsTemp.lng);
 
       var mPicker = document.getElementById('modalGeoPicker');
       if (mPicker) mPicker.close();
@@ -2154,5 +2217,11 @@
       document.body.classList.add('light-mode');
     }
     window.CIO.goScreen(1);
+
+    // Consulta inicial de indicadores al abrir el Dashboard
+    actualizarTickerMercadoYClima();
+
+    // Actualización cíclica automática cada 10 minutos (600.000 ms)
+    setInterval(actualizarTickerMercadoYClima, 10 * 60 * 1000);
   });
 })();
