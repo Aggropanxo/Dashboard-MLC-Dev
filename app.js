@@ -4,8 +4,28 @@
  */
 
 // ==========================================
-// 1. CONFIGURACIÓN Y CONSTANTES GLOBALES
+// 1. CONFIGURACIÓN Y CREDENCIALES DE FIREBASE
 // ==========================================
+// Reemplaza con tus credenciales de proyecto Firebase si son distintas:
+const firebaseConfig = {
+    apiKey: "AIzaSy...",
+    authDomain: "tu-proyecto.firebaseapp.com",
+    databaseURL: "https://tu-proyecto-default-rtdb.firebaseio.com",
+    projectId: "tu-proyecto",
+    storageBucket: "tu-proyecto.appspot.com",
+    messagingSenderId: "...",
+    appId: "..."
+};
+
+// Inicialización controlada de Firebase para compatibilidad
+if (typeof firebase !== "undefined" && !firebase.apps.length) {
+    try {
+        firebase.initializeApp(firebaseConfig);
+    } catch (e) {
+        console.error("Error al inicializar Firebase App:", e);
+    }
+}
+
 const CONFIG = {
     GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbx_TU_WEBHOOK_DEV/exec",
     GEMINI_API_KEY: "TU_API_KEY_GEMINI",
@@ -16,7 +36,7 @@ const CONFIG = {
     }
 };
 
-// Estado Global en Memoria
+// Estado Global
 window.activosCache = {};
 window.alertasCache = {};
 let currentTag = null;
@@ -24,7 +44,24 @@ let currentNivel = 1;
 let historialNavegacion = [];
 
 // ==========================================
-// 2. INICIALIZACIÓN DE LA APLICACIÓN
+// 2. CONTROLADORES GLOBALES DE INTERFAZ
+// ==========================================
+// Soporte para botón de perfil/usuario (evita crash en onclick inline)
+function handleUserBtnClick(event) {
+    if (event && event.preventDefault) event.preventDefault();
+    console.log("Acción de usuario/perfil CIO ejecutada");
+    
+    const menuUsuario = document.getElementById("menu-usuario") || 
+                        document.getElementById("modal-usuario") || 
+                        document.getElementById("user-dropdown");
+    if (menuUsuario) {
+        menuUsuario.classList.toggle("hidden");
+    }
+}
+window.handleUserBtnClick = handleUserBtnClick;
+
+// ==========================================
+// 3. INICIALIZACIÓN DE LA APLICACIÓN
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
     initFirebaseListeners();
@@ -32,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function initUIEventListeners() {
-    // Botón abrir/cerrar modal bitácora
+    // Botón abrir y cerrar modal bitácora
     const btnAbrirBitacora = document.getElementById("btn-abrir-bitacora");
     const btnCerrarBitacora = document.getElementById("btn-cerrar-bitacora");
     const modalBitacora = document.getElementById("modal-bitacora-alertas");
@@ -59,24 +96,28 @@ function initUIEventListeners() {
 }
 
 // ==========================================
-// 3. LISTENERS REACTIVOS DE FIREBASE
+// 4. LISTENERS REACTIVOS DE FIREBASE
 // ==========================================
 function initFirebaseListeners() {
     if (typeof firebase === "undefined" || !firebase.database) {
-        console.error("Firebase SDK no cargado en index.html");
+        console.error("Firebase SDK o Realtime Database no están disponibles.");
         return;
+    }
+
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
     }
 
     const db = firebase.database();
 
-    // Listener de Activos Críticos
+    // 1. Activos Críticos
     db.ref(CONFIG.COLECCIONES.ACTIVOS).on("value", (snapshot) => {
         const data = snapshot.val() || {};
         window.activosCache = data;
         actualizarVistasDashboard(data);
     });
 
-    // Listener de Alertas en Terreno (En vivo)
+    // 2. Alertas de Terreno en tiempo real
     db.ref(CONFIG.COLECCIONES.ALERTAS).on("child_added", (snapshot) => {
         const alertaId = snapshot.key;
         const alerta = snapshot.val();
@@ -87,7 +128,7 @@ function initFirebaseListeners() {
         // Inyectar en modal de bitácora
         renderTarjetaBitacora(alertaId, alerta);
 
-        // Notificar en toast flotante solo si la alerta es reciente (< 5 minutos)
+        // Notificar en toast flotante si tiene menos de 5 minutos
         const ahora = Date.now();
         if (alerta.timestamp && (ahora - alerta.timestamp) < 300000) {
             mostrarToastAlerta(alertaId, alerta);
@@ -96,21 +137,20 @@ function initFirebaseListeners() {
 }
 
 // ==========================================
-// 4. NAVEGACIÓN Y TRANSICIÓN DE NIVELES (DEEP LINKING)
+// 5. NAVEGACIÓN Y DEEP LINKING (BITÁCORA -> N4)
 // ==========================================
 function navegarAEvidencia(tag, idAlerta) {
-    // 1. Ocultar modal de bitácora
+    // Cerrar modal de bitácora
     const modalBitacora = document.getElementById("modal-bitacora-alertas");
     if (modalBitacora) {
         modalBitacora.classList.add("hidden");
         modalBitacora.style.display = "none";
     }
 
-    // 2. Establecer TAG activo
     currentTag = tag;
     const activoData = window.activosCache ? window.activosCache[tag] : null;
 
-    // 3. Guardar historial previo y ocultar niveles inferiores
+    // Registrar nivel previo y ocultar vistas
     historialNavegacion.push(currentNivel);
     currentNivel = 4;
 
@@ -123,16 +163,17 @@ function navegarAEvidencia(tag, idAlerta) {
         }
     });
 
-    // 4. Mostrar Nivel 4 (Consola Multimodal)
+    // Mostrar Nivel 4 (Consola Multimodal)
     const consolaN4 = document.getElementById("vista-nivel-4");
     if (consolaN4) {
         consolaN4.classList.remove("hidden");
         consolaN4.style.display = "flex";
     }
 
-    // 5. Cargar UI del Nivel 4 con foco en la alerta seleccionada
+    // Cargar datos del activo y posicionar evidencias
     cargarConsolaNivel4(tag, activoData, idAlerta);
 }
+window.navegarAEvidencia = navegarAEvidencia;
 
 function volverDesdeNivel4() {
     const consolaN4 = document.getElementById("vista-nivel-4");
@@ -141,7 +182,6 @@ function volverDesdeNivel4() {
         consolaN4.style.display = "none";
     }
 
-    // Restaurar a Nivel 3 o Nivel 2 según historial
     const nivelDestino = historialNavegacion.pop() || 3;
     currentNivel = nivelDestino;
 
@@ -151,24 +191,24 @@ function volverDesdeNivel4() {
         vistaDestino.style.display = "block";
     }
 }
+window.volverDesdeNivel4 = volverDesdeNivel4;
 
 // ==========================================
-// 5. CARGA Y RENDERIZADO EN NIVEL 4 (CONSOLA)
+// 6. RENDERIZADO EN NIVEL 4 (CONSOLA MULTIMODAL)
 // ==========================================
 function cargarConsolaNivel4(tag, activoData, idAlertaFoco = null) {
     const headerTag = document.getElementById("n4-tag-title");
     const headerArea = document.getElementById("n4-tag-area");
-    const headerEstado = document.getElementById("n4-tag-estado");
 
     if (headerTag) headerTag.innerText = tag;
     if (headerArea && activoData) {
         headerArea.innerText = `${activoData.faena || CONFIG.DEFAULT_FAENA} > ${activoData.area || "Área General"} > ${activoData.componente || "Tren Motriz"}`;
     }
 
-    // Contenedor de Evidencias de Terreno
+    // Galería multimedia de terreno
     const contenedorEvidencias = document.getElementById("n4-evidencias-galeria");
     if (contenedorEvidencias) {
-        contenedorEvidencias.innerHTML = '<p class="text-xs text-slate-400 p-2">Cargando evidencias multimedia de terreno...</p>';
+        contenedorEvidencias.innerHTML = '<p class="text-xs text-slate-400 p-2">Cargando registros multimedia...</p>';
 
         firebase.database().ref(CONFIG.COLECCIONES.ALERTAS)
             .orderByChild("tag")
@@ -178,7 +218,7 @@ function cargarConsolaNivel4(tag, activoData, idAlertaFoco = null) {
                 const registros = snapshot.val();
 
                 if (!registros) {
-                    contenedorEvidencias.innerHTML = '<p class="text-xs text-slate-500 italic p-2">Sin hallazgos multimedia registrados para este TAG.</p>';
+                    contenedorEvidencias.innerHTML = '<p class="text-xs text-slate-500 italic p-2">Sin registros multimedia para este TAG.</p>';
                     return;
                 }
 
@@ -198,16 +238,16 @@ function cargarConsolaNivel4(tag, activoData, idAlertaFoco = null) {
                                 cardMedia.innerHTML = `
                                     <video src="${url}" controls class="w-full h-36 object-cover bg-black"></video>
                                     <div class="absolute bottom-0 inset-x-0 bg-black/75 p-1 flex justify-between items-center text-[10px] text-slate-200">
-                                        <span>🎬 Clip 10s</span>
-                                        <span>${item.severidad}</span>
+                                        <span>🎬 Video 10s</span>
+                                        <span>${item.severidad || "Alerta"}</span>
                                     </div>
                                 `;
                             } else {
                                 cardMedia.innerHTML = `
-                                    <img src="${url}" alt="Evidencia ${tag}" class="w-full h-36 object-cover cursor-pointer hover:opacity-85 transition" onclick="abrirLightbox('${url}')" />
+                                    <img src="${url}" alt="Evidencia ${tag}" class="w-full h-36 object-cover cursor-pointer hover:opacity-80 transition" onclick="abrirLightbox('${url}')" />
                                     <div class="absolute bottom-0 inset-x-0 bg-black/75 p-1 flex justify-between items-center text-[10px] text-slate-200">
                                         <span>📷 Foto</span>
-                                        <span>${new Date(item.timestamp).toLocaleDateString()}</span>
+                                        <span>${item.timestamp ? new Date(item.timestamp).toLocaleDateString() : ""}</span>
                                     </div>
                                 `;
                             }
@@ -218,20 +258,18 @@ function cargarConsolaNivel4(tag, activoData, idAlertaFoco = null) {
             });
     }
 
-    // Análisis diagnóstico con Gemini 2.5 Flash
     if (activoData) {
         solicitarEvaluacionGemini(tag, activoData);
     }
 }
 
 // ==========================================
-// 6. RENDERIZADO DE BITÁCORA Y TOAST FLOTANTE
+// 7. COMPONENTES: BITÁCORA, TOAST Y LIGHTBOX
 // ==========================================
 function renderTarjetaBitacora(alertaId, alerta) {
     const contenedor = document.getElementById("lista-bitacora-alertas");
     if (!contenedor) return;
 
-    // Evitar duplicados
     const existente = document.getElementById(`item-alerta-${alertaId}`);
     if (existente) existente.remove();
 
@@ -244,20 +282,22 @@ function renderTarjetaBitacora(alertaId, alerta) {
     }`;
     card.id = `item-alerta-${alertaId}`;
 
-    const fechaFormateada = alerta.timestamp ? new Date(alerta.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+    const hora = alerta.timestamp ? new Date(alerta.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
 
     card.innerHTML = `
         <div class="flex justify-between items-start gap-2">
             <div class="flex-1">
                 <div class="flex items-center gap-2">
                     <span class="font-bold text-sm tracking-wide text-cyan-400">${alerta.tag || "S/TAG"}</span>
-                    <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${esCritica ? "bg-red-500/20 text-red-400 border border-red-500/40" : "bg-amber-500/20 text-amber-400 border border-amber-500/40"}">${alerta.severidad || "Alerta"}</span>
+                    <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                        esCritica ? "bg-red-500/20 text-red-400 border border-red-500/40" : "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                    }">${alerta.severidad || "Alerta"}</span>
                 </div>
                 <p class="text-xs text-slate-300 mt-1">${alerta.area || ""} - ${alerta.componente || ""}</p>
                 <p class="text-xs text-slate-400 italic mt-0.5">${alerta.hallazgo || alerta.comentario || "Sin observación adjunta"}</p>
             </div>
             <div class="text-right flex flex-col items-end gap-2">
-                <span class="text-[10px] text-slate-500">${fechaFormateada}</span>
+                <span class="text-[10px] text-slate-500">${hora}</span>
                 <button 
                     onclick="navegarAEvidencia('${alerta.tag}', '${alertaId}')"
                     class="px-2.5 py-1 text-xs font-semibold rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-all flex items-center gap-1 shadow">
@@ -298,21 +338,13 @@ function mostrarToastAlerta(alertaId, alerta) {
 
     contenedorToasts.appendChild(toast);
 
-    // Animación entrada
-    setTimeout(() => {
-        toast.classList.remove("translate-y-2", "opacity-0");
-    }, 10);
-
-    // Auto-remover a los 8 segundos
+    setTimeout(() => toast.classList.remove("translate-y-2", "opacity-0"), 10);
     setTimeout(() => {
         toast.classList.add("opacity-0", "translate-x-full");
         setTimeout(() => toast.remove(), 300);
     }, 8000);
 }
 
-// ==========================================
-// 7. LIGHTBOX PARA FOTOGRAFÍAS
-// ==========================================
 function abrirLightbox(url) {
     let modal = document.getElementById("modal-lightbox");
     if (!modal) {
@@ -325,15 +357,16 @@ function abrirLightbox(url) {
     modal.innerHTML = `<img src="${url}" class="max-w-full max-h-full rounded shadow-2xl object-contain" />`;
     modal.classList.remove("hidden");
 }
+window.abrirLightbox = abrirLightbox;
 
 // ==========================================
-// 8. EVALUACIÓN DIAGNÓSTICA (GEMINI 2.5 FLASH)
+// 8. MOTOR DIAGNÓSTICO (GEMINI 2.5 FLASH)
 // ==========================================
 async function solicitarEvaluacionGemini(tag, data) {
     const contenedorIA = document.getElementById("n4-diagnostico-ia");
     if (!contenedorIA) return;
 
-    contenedorIA.innerHTML = '<p class="text-xs text-cyan-400 animate-pulse">Analizando parámetros mecánicos bajo norma ISO 20816-3...</p>';
+    contenedorIA.innerHTML = '<p class="text-xs text-cyan-400 animate-pulse">Analizando parámetros cinemáticos bajo norma ISO 20816-3...</p>';
 
     const prompt = `
         Actúa como especialista de diagnóstico y monitoreo de condiciones mecánicas en minería (ISO 20816-3).
@@ -365,7 +398,6 @@ async function solicitarEvaluacionGemini(tag, data) {
                     ${textoDiagnostico.replace(/\n/g, "<br>")}
                 </div>
             `;
-            // Sincronizar diagnóstico a Google Sheets
             sincronizarGoogleSheets(tag, data, textoDiagnostico);
         } else {
             contenedorIA.innerHTML = '<p class="text-xs text-slate-500 italic">No se obtuvo respuesta diagnóstica.</p>';
@@ -377,7 +409,7 @@ async function solicitarEvaluacionGemini(tag, data) {
 }
 
 // ==========================================
-// 9. SINCRONIZACIÓN CON GOOGLE SHEETS
+// 9. SINCRONIZACIÓN GOOGLE SHEETS
 // ==========================================
 function sincronizarGoogleSheets(tag, data, diagnostico) {
     if (!CONFIG.GOOGLE_SHEETS_WEBHOOK_URL || CONFIG.GOOGLE_SHEETS_WEBHOOK_URL.includes("TU_WEBHOOK")) return;
@@ -401,7 +433,7 @@ function sincronizarGoogleSheets(tag, data, diagnostico) {
 }
 
 // ==========================================
-// 10. ACTUALIZACIÓN DE INTERFAZ GENERAL (NIVELES 1 Y 2)
+// 10. RESUMEN KPI DASHBOARD (NIVELES 1 Y 2)
 // ==========================================
 function actualizarVistasDashboard(activos) {
     const contadorCriticos = document.getElementById("kpi-criticos");
