@@ -1093,9 +1093,6 @@
       }).join('');
     },
 
-    // -------------------------------------------------------------
-    // GENERADOR DE REPORTES DE RONDA TERRENO (CON VISTA PREVIA EDITABLE)
-    // -------------------------------------------------------------
     abrirFiltrosReporteTerreno: function() {
       if (!state.usuarioActivo) {
         alert("🔒 Acceso Restringido: Inicia sesión para emitir reportes de ronda.");
@@ -1187,7 +1184,7 @@
             listaArchivos.map(function(ev) {
               var src = ev.data || ev.src || ev;
               if (ev.tipo === 'video') {
-                return '<div style="text-align:center;"><video src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc;"></video><div style="font-size:0.65rem; color:#647280; font-weight:bold;">VIDEO</div></div>';
+                return '<div style="text-align:center;"><video src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc;"></video><div style="font-size:0.65rem; color:#64748b; font-weight:bold;">VIDEO</div></div>';
               } else {
                 return '<div style="text-align:center;"><img src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#64748b; font-weight:bold;">FOTO</div></div>';
               }
@@ -1227,9 +1224,6 @@
       if (modalPrev) modalPrev.showModal();
     },
 
-    // =============================================================
-    // EMISIÓN DE INFORME TREN MOTRIZ
-    // =============================================================
     emitirInformeFinalImpresion: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
@@ -1252,7 +1246,7 @@
             c.espectros.map(function(item) {
               var src = typeof item === 'string' ? item : item.src;
               var tipo = typeof item === 'string' ? 'FFT' : (item.tipo || 'FFT').toUpperCase();
-              return '<div style="text-align:center;"><img src="' + src + '" style="max-height:140px; max-width:220px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#64748b; font-weight:bold; margin-top:2px;">' + tipo + '</div></div>';
+              return '<div style="text-align:center;"><img src="' + src + '" style="max-height:140px; max-width:220px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#647280; font-weight:bold; margin-top:2px;">' + tipo + '</div></div>';
             }).join('') + '</div></div>'
           : '';
 
@@ -1284,9 +1278,6 @@
       if (modalPrev) modalPrev.showModal();
     },
 
-    // =============================================================
-    // CONFIRMACIÓN Y DISPARO DESDE MODAL EDITABLE
-    // =============================================================
     confirmarEImprimirReporteEditado: function() {
       if (!reportePendienteImpresion) return;
 
