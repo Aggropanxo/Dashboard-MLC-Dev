@@ -740,6 +740,33 @@
   }
 
   // =============================================================
+  // FUNCIÓN MAESTRA DE IMPRESIÓN ROBUSTA MEDIANTE IFRAME
+  // (Elimina definitivamente el bug 'Cargando vista previa' en Brave/Chrome)
+  // =============================================================
+  function imprimirDocumentoSinBloqueo(htmlDocumento) {
+    var frame = document.getElementById('printReportFrame');
+    if (!frame) {
+      frame = document.createElement('iframe');
+      frame.id = 'printReportFrame';
+      frame.style.cssText = 'position:fixed; right:0; bottom:0; width:0; height:0; border:0; visibility:hidden;';
+      document.body.appendChild(frame);
+    }
+
+    // Inyección controlada mediante srcdoc
+    frame.srcdoc = htmlDocumento;
+    frame.onload = function() {
+      setTimeout(function() {
+        try {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+        } catch (err) {
+          console.error("Error al imprimir frame:", err);
+        }
+      }, 400);
+    };
+  }
+
+  // =============================================================
   // OBJETO GLOBAL CIO
   // =============================================================
   window.CIO = {
@@ -1069,13 +1096,35 @@
     },
 
     // -------------------------------------------------------------
-    // GENERADOR DE REPORTES DE RONDA TERRENO (FILTRADO & PDF)
+    // GENERADOR DE REPORTES DE RONDA TERRENO (FILTRADO & IFRAME PRINT)
     // -------------------------------------------------------------
     abrirFiltrosReporteTerreno: function() {
       if (!state.usuarioActivo) {
         alert("🔒 Acceso Restringido: Inicia sesión para emitir reportes de ronda.");
         return;
       }
+
+      // POBLAR EXCLUSIVAMENTE EQUIPOS QUE TIENEN REGISTROS DE TERRENO[cite: 13]
+      var selEq = document.getElementById('repTerrenoTagSelect');
+      if (selEq) {
+        selEq.innerHTML = '<option value="">-- Selecciona el Equipo --</option>';
+        var tagsConReportes = [];
+        state.alertasTerreno.forEach(function(r) {
+          var t = (r.tag || '').trim().toUpperCase();
+          if (t && tagsConReportes.indexOf(t) === -1) {
+            tagsConReportes.push(t);
+          }
+        });
+
+        tagsConReportes.sort().forEach(function(tagItem) {
+          var opt = document.createElement('option');
+          opt.value = tagItem;
+          opt.innerText = tagItem;
+          selEq.appendChild(opt);
+        });
+      }
+
+      window.CIO.cambiarOpcionesFiltroReporte();
       var modal = document.getElementById('modalFiltrosReporteTerreno');
       if (modal) modal.showModal();
     },
@@ -1091,7 +1140,7 @@
 
     ejecutarGeneracionReporteTerreno: function() {
       var tipo = document.getElementById('repTerrenoFiltroTipo').value;
-      var tagQuery = (document.getElementById('repTerrenoTagInput')?.value || '').trim().toUpperCase();
+      var tagQuery = (document.getElementById('repTerrenoTagSelect')?.value || '').trim().toUpperCase();
       var compQuery = (document.getElementById('repTerrenoCompInput')?.value || '').trim().toUpperCase();
 
       var lista = state.alertasTerreno.slice();
@@ -1108,7 +1157,7 @@
         tituloFiltro = "Reporte de Hallazgos Críticos (Condición Roja)";
         lista = lista.filter(function(r) { return r.severidad === 'Rojo'; });
       } else if (tipo === 'equipo') {
-        if (!tagQuery) { alert("⚠️ Ingresa un TAG para filtrar."); return; }
+        if (!tagQuery) { alert("⚠️ Por favor selecciona un equipo de la lista."); return; }
         tituloFiltro = "Reporte de Hallazgos de Terreno para el Activo: " + tagQuery;
         lista = lista.filter(function(r) { return matchTags(r.tag, tagQuery); });
       } else if (tipo === 'componente') {
@@ -1128,13 +1177,8 @@
       window.CIO.emitirReporteTerrenoImpresion(lista, tituloFiltro);
     },
 
+    // IMPRESIÓN ROBUSTA MEDIANTE IFRAME DIRECTO (SIN BLOQUEOS DE CHROMIUM)[cite: 14]
     emitirReporteTerrenoImpresion: function(reportes, tituloInforme) {
-      var win = window.open('', '_blank');
-      if (!win) {
-        alert("⚠️ Permite las ventanas emergentes en tu navegador para ver el informe.");
-        return;
-      }
-
       var itemsHtml = reportes.map(function(r) {
         var col = SEV_COLOR[r.severidad] || '#0284c7';
         var listaArchivos = (r.evidencias && Array.isArray(r.evidencias) && r.evidencias.length > 0)
@@ -1187,16 +1231,9 @@
             '.logo-cpf { height: 44px; width: auto; object-fit: contain; }' +
             '.header-report h1 { margin: 0; font-size: 1.15rem; color: #0f172a; text-transform: uppercase; }' +
             '.header-report p { margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b; font-weight: bold; }' +
-            '.btn-bar { margin-bottom: 16px; display: flex; gap: 10px; }' +
-            '.btn-action { background: #0284c7; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85rem; }' +
-            '@media print { .btn-bar { display: none !important; } body { padding: 0; } }' +
           '</style>' +
         '</head>' +
         '<body>' +
-          '<div class="btn-bar">' +
-            '<button class="btn-action" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>' +
-            '<button class="btn-action" style="background:#64748b;" onclick="window.close()">Cerrar</button>' +
-          '</div>' +
           '<div class="header-report">' +
             '<div class="header-left">' +
               '<img src="logo-cpf.png" class="logo-cpf" alt="CPF Ingeniería" onerror="this.style.display=\'none\'" />' +
@@ -1217,9 +1254,7 @@
         '</body>' +
         '</html>';
 
-      win.document.open();
-      win.document.write(htmlContent);
-      win.document.close();
+      imprimirDocumentoSinBloqueo(htmlContent);
     },
 
     // -------------------------------------------------------------
@@ -2336,7 +2371,7 @@
       if (mInf) mInf.showModal();
     },
 
-    // IMPRESIÓN DIRECTA SIN AUTO-PRINT BLOQUEANTE (PREVIENE LOOP EN CHROMIUM)
+    // IMPRESIÓN ROBUSTA MEDIANTE IFRAME DIRECTO (SIN BLOQUEOS DE CHROMIUM)[cite: 14]
     emitirInformeFinalImpresion: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
@@ -2374,12 +2409,6 @@
         '</div>';
       }).join('');
 
-      var win = window.open('', '_blank');
-      if (!win) {
-        alert("⚠️ Permite las ventanas emergentes en tu navegador para ver el informe.");
-        return;
-      }
-
       var htmlContent = 
         '<!DOCTYPE html>' +
         '<html lang="es">' +
@@ -2399,16 +2428,9 @@
             '.data-item strong { display: block; font-size: 0.65rem; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }' +
             '.section-title { font-size: 0.9rem; color: #0284c7; border-left: 4px solid #0284c7; padding-left: 8px; margin: 16px 0 8px 0; text-transform: uppercase; font-weight: 800; }' +
             '.box-conclusion { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 12px; }' +
-            '.btn-bar { margin-bottom: 16px; display: flex; gap: 10px; }' +
-            '.btn-action { background: #0284c7; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85rem; }' +
-            '@media print { .btn-bar { display: none !important; } body { padding: 0; } }' +
           '</style>' +
         '</head>' +
         '<body>' +
-          '<div class="btn-bar">' +
-            '<button class="btn-action" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>' +
-            '<button class="btn-action" style="background:#64748b;" onclick="window.close()">Cerrar</button>' +
-          '</div>' +
           '<div class="header-report">' +
             '<div class="header-left">' +
               '<img src="logo-cpf.png" class="logo-cpf" alt="CPF Ingeniería" onerror="this.style.display=\'none\'" />' +
@@ -2437,9 +2459,33 @@
         '</body>' +
         '</html>';
 
-      win.document.open();
-      win.document.write(htmlContent);
-      win.document.close();
+      imprimirDocumentoSinBloqueo(htmlContent);
+    },
+
+    abrirEdicionEquipoNuevoAuth: function() {
+      var targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
+      var newId = 'EQ_' + Date.now();
+      var coordsDefault = FAENA_COORDS[targetSite] || [-28.3294, -70.9392];
+
+      var nuevoEquipo = {
+        id: newId,
+        siteId: targetSite,
+        domain: 'planta',
+        area: state.areaSeleccionada || 'Área General',
+        tag: 'MH' + Math.floor(1000 + Math.random() * 9000),
+        tipo: 'Activo Crítico',
+        lat: coordsDefault[0],
+        lng: coordsDefault[1],
+        componentes: [
+          { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal bajo norma ISO 20816-3.', recomendacion: 'Ruta mensual.', espectros: [] }
+        ],
+        fechaMedicion: new Date().toISOString().split('T')[0],
+        fechaHallazgo: new Date().toISOString().split('T')[0],
+        estatusHallazgo: 'Abierto'
+      };
+
+      if (db) db.child(newId).set(nuevoEquipo);
+      window.CIO.irANivel3Equipo(newId);
     },
 
     procesarCargaExcelFaena: function(e) {
