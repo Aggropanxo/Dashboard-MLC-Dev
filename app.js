@@ -740,6 +740,32 @@
   }
 
   // =============================================================
+  // FUNCIÓN MAESTRA DE IMPRESIÓN ROBUSTA MEDIANTE IFRAME
+  // (Elimina definitivamente el bug 'Cargando vista previa' en Brave/Chrome)
+  // =============================================================
+  function imprimirDocumentoSinBloqueo(htmlDocumento) {
+    var frame = document.getElementById('printReportFrame');
+    if (!frame) {
+      frame = document.createElement('iframe');
+      frame.id = 'printReportFrame';
+      frame.style.cssText = 'position:fixed; right:0; bottom:0; width:0; height:0; border:0; visibility:hidden;';
+      document.body.appendChild(frame);
+    }
+
+    frame.srcdoc = htmlDocumento;
+    frame.onload = function() {
+      setTimeout(function() {
+        try {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+        } catch (err) {
+          console.error("Error al imprimir frame:", err);
+        }
+      }, 400);
+    };
+  }
+
+  // =============================================================
   // OBJETO GLOBAL CIO
   // =============================================================
   window.CIO = {
@@ -1069,7 +1095,7 @@
     },
 
     // -------------------------------------------------------------
-    // GENERADOR DE REPORTES DE RONDA TERRENO (FILTRADO & VISTA PREVIA)
+    // GENERADOR DE REPORTES DE RONDA TERRENO (CON SELECT EXCLUSIVO)
     // -------------------------------------------------------------
     abrirFiltrosReporteTerreno: function() {
       if (!state.usuarioActivo) {
@@ -1149,7 +1175,6 @@
       window.CIO.emitirReporteTerrenoImpresion(lista, tituloFiltro);
     },
 
-    // VISTA PREVIA LIMPIA SIN AUTO-PRINT BLOQUEANTE
     emitirReporteTerrenoImpresion: function(reportes, tituloInforme) {
       var itemsHtml = reportes.map(function(r) {
         var col = SEV_COLOR[r.severidad] || '#0284c7';
@@ -1189,13 +1214,7 @@
           '</div>';
       }).join('');
 
-      var win = window.open('', '_blank');
-      if (!win) {
-        alert("⚠️ Habilita las ventanas emergentes en tu navegador para ver el informe.");
-        return;
-      }
-
-      var htmlDoc = 
+      var htmlContent = 
         '<!DOCTYPE html>' +
         '<html lang="es">' +
         '<head>' +
@@ -1204,25 +1223,18 @@
           '<style>' +
             '@page { size: A4 portrait; margin: 12mm; }' +
             'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
-            '.btn-bar { display: flex; gap: 10px; margin-bottom: 20px; position: sticky; top: 0; background: #ffffff; padding: 10px 0; border-bottom: 2px solid #e2e8f0; z-index: 100; }' +
-            '.btn-action { background: #0284c7; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 800; cursor: pointer; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); }' +
-            '.btn-action:hover { background: #0369a1; }' +
-            '.btn-close { background: #64748b; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; }' +
             '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }' +
             '.header-left { display: flex; align-items: center; gap: 14px; }' +
-            '.header-report h1 { margin: 0; font-size: 1.2rem; color: #0f172a; text-transform: uppercase; }' +
+            '.logo-cpf { height: 44px; width: auto; object-fit: contain; }' +
+            '.header-report h1 { margin: 0; font-size: 1.15rem; color: #0f172a; text-transform: uppercase; }' +
             '.header-report p { margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b; font-weight: bold; }' +
-            '@media print { .btn-bar { display: none !important; } body { padding: 0; } }' +
+            '@media print { body { padding: 0; } }' +
           '</style>' +
         '</head>' +
         '<body>' +
-          '<div class="btn-bar">' +
-            '<button class="btn-action" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>' +
-            '<button class="btn-close" onclick="window.close()">Cerrar Pestaña</button>' +
-          '</div>' +
           '<div class="header-report">' +
             '<div class="header-left">' +
-              '<img src="logo-cpf.png" style="height:44px; width:auto; object-fit:contain;" alt="CPF" onerror="this.style.display=\'none\'" />' +
+              '<img src="logo-cpf.png" class="logo-cpf" alt="CPF Ingeniería" onerror="this.style.display=\'none\'" />' +
               '<div>' +
                 '<h1>' + sanitize(tituloInforme) + '</h1>' +
                 '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO | CIO</p>' +
@@ -1240,9 +1252,7 @@
         '</body>' +
         '</html>';
 
-      win.document.open();
-      win.document.write(htmlDoc);
-      win.document.close();
+      imprimirDocumentoSinBloqueo(htmlContent);
     },
 
     // -------------------------------------------------------------
@@ -1694,410 +1704,18 @@
       window.CIO.irANivel3Equipo(newId);
     },
 
-    editarDatosGeneralesActivo: function() {
-      if (!state.usuarioActivo) {
-        alert("🔒 Acción restringida: Debes iniciar sesión.");
-        return;
-      }
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
-      if (!eq) return;
+    sincronizarConGoogleSheets: function(payload) {
+      if (!GOOGLE_SHEETS_WEBHOOK_URL || GOOGLE_SHEETS_WEBHOOK_URL.indexOf("http") !== 0) return;
 
-      state.equipoSeleccionado = eq;
-      var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
-
-      setVal('edSiteId', eq.siteId);
-      setVal('edDomain', eq.domain || 'planta');
-      setVal('edArea', eq.area || '');
-      setVal('edTag', eq.tag || eq.Tag || eq.id || '');
-      setVal('edTipo', eq.tipo || '');
-      setVal('edEstatusHallazgo', eq.estatusHallazgo || 'Abierto');
-      setVal('edFechaMedicion', eq.fechaMedicion || '');
-      setVal('edFechaHallazgo', eq.fechaHallazgo || '');
-      setVal('edLat', eq.lat || '');
-      setVal('edLng', eq.lng || '');
-
-      window.CIO.actualizarBadgeGeoEstado(eq.lat, eq.lng);
-
-      var mEd = document.getElementById('modalEdicion');
-      if (mEd) mEd.showModal();
-    },
-
-    actualizarBadgeGeoEstado: function(lat, lng) {
-      var badge = document.getElementById('edGeoBadgeStatus');
-      if (!badge) return;
-
-      var nLat = parseFloat(lat);
-      var nLng = parseFloat(lng);
-
-      if (!isNaN(nLat) && !isNaN(nLng) && nLat !== 0 && nLng !== 0) {
-        badge.innerHTML = '<span style="color:#22c55e;">✅ Georreferenciado</span> <span class="code-font" style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">[' + nLat.toFixed(5) + ', ' + nLng.toFixed(5) + ']</span>';
-      } else {
-        badge.innerHTML = '<span style="color:#ef4444;">❌ Sin Georreferencia</span>';
-      }
-    },
-
-    obtenerGpsActual: function() {
-      if (!navigator.geolocation) {
-        alert("⚠️ Tu navegador no soporta geolocalización.");
-        return;
-      }
-
-      var badge = document.getElementById('edGeoBadgeStatus');
-      if (badge) badge.innerText = "⏳ Obteniendo GPS con alta precisión...";
-
-      navigator.geolocation.getCurrentPosition(function(pos) {
-        var lat = pos.coords.latitude;
-        var lng = pos.coords.longitude;
-        document.getElementById('edLat').value = lat;
-        document.getElementById('edLng').value = lng;
-        window.CIO.actualizarBadgeGeoEstado(lat, lng);
-        alert("✅ Coordenadas capturadas con éxito:\nLat: " + lat + "\nLng: " + lng);
-      }, function(err) {
-        alert("❌ Error al capturar GPS: " + err.message);
-        window.CIO.actualizarBadgeGeoEstado(document.getElementById('edLat').value, document.getElementById('edLng').value);
-      }, {
-        enableHighAccuracy: true,
-        timeout: 10000
-      });
-    },
-
-    abrirPickerCoordenadas: function() {
-      var mPicker = document.getElementById('modalGeoPicker');
-      if (!mPicker) return;
-      mPicker.showModal();
-
-      var currentLat = parseFloat(document.getElementById('edLat').value);
-      var currentLng = parseFloat(document.getElementById('edLng').value);
-      var siteFaena = document.getElementById('edSiteId').value || FAENAS[0];
-      var defaultCenter = FAENA_COORDS[siteFaena] || [-28.3294, -70.9392];
-
-      var centerCoords = (!isNaN(currentLat) && !isNaN(currentLng) && currentLat !== 0)
-        ? [currentLat, currentLng]
-        : defaultCenter;
-
-      state.pickerCoordsTemp = { lat: centerCoords[0], lng: centerCoords[1] };
-
-      setTimeout(function() {
-        if (!state.mapaPicker) {
-          state.mapaPicker = L.map('geo-picker-map', { attributionControl: false }).setView(centerCoords, 16);
-          L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19
-          }).addTo(state.mapaPicker);
-
-          state.mapaPicker.on('click', function(e) {
-            window.CIO.moverMarcadorPicker(e.latlng.lat, e.latlng.lng);
-          });
-        } else {
-          state.mapaPicker.setView(centerCoords, 16);
-          state.mapaPicker.invalidateSize();
-        }
-
-        window.CIO.moverMarcadorPicker(centerCoords[0], centerCoords[1]);
-      }, 200);
-    },
-
-    moverMarcadorPicker: function(lat, lng) {
-      state.pickerCoordsTemp = { lat: lat, lng: lng };
-
-      if (!state.marcadorPicker) {
-        state.marcadorPicker = L.marker([lat, lng], { draggable: true }).addTo(state.mapaPicker);
-        state.marcadorPicker.on('dragend', function(e) {
-          var p = e.target.getLatLng();
-          state.pickerCoordsTemp = { lat: p.lat, lng: p.lng };
-          window.CIO.actualizarCoordsPickerTxt(p.lat, p.lng);
-        });
-      } else {
-        state.marcadorPicker.setLatLng([lat, lng]);
-      }
-
-      window.CIO.actualizarCoordsPickerTxt(lat, lng);
-    },
-
-    actualizarCoordsPickerTxt: function(lat, lng) {
-      var txt = document.getElementById('geoPickerCoordsTxt');
-      if (txt) {
-        txt.innerText = 'Lat: ' + parseFloat(lat).toFixed(6) + ' | Lng: ' + parseFloat(lng).toFixed(6);
-      }
-    },
-
-    confirmarCoordenadasPicker: function() {
-      if (!state.pickerCoordsTemp) return;
-      document.getElementById('edLat').value = state.pickerCoordsTemp.lat;
-      document.getElementById('edLng').value = state.pickerCoordsTemp.lng;
-      window.CIO.actualizarBadgeGeoEstado(state.pickerCoordsTemp.lat, state.pickerCoordsTemp.lng);
-
-      var mPicker = document.getElementById('modalGeoPicker');
-      if (mPicker) mPicker.close();
-    },
-
-    guardarDatosGeneralesActivo: function() {
-      if (!state.usuarioActivo || !state.equipoSeleccionado) return;
-      var getVal = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
-
-      var payload = {
-        siteId: getVal('edSiteId'),
-        domain: getVal('edDomain'),
-        area: getVal('edArea'),
-        tag: getVal('edTag'),
-        tipo: getVal('edTipo'),
-        fechaMedicion: getVal('edFechaMedicion'),
-        fechaHallazgo: getVal('edFechaHallazgo'),
-        estatusHallazgo: getVal('edEstatusHallazgo'),
-        lat: getVal('edLat'),
-        lng: getVal('edLng')
-      };
-
-      if (db) db.child(state.equipoSeleccionado.id).update(payload);
-      var mEd = document.getElementById('modalEdicion');
-      if (mEd) mEd.close();
-      renderScreen3();
-    },
-
-    eliminarEquipo: function() {
-      if (!state.usuarioActivo) {
-        alert("🔒 Inicia sesión para eliminar activos.");
-        return;
-      }
-      if (confirm('¿Eliminar activo?') && db && state.equipoSeleccionado) {
-        db.child(state.equipoSeleccionado.id).remove();
-        var mEd = document.getElementById('modalEdicion');
-        if (mEd) mEd.close();
-        window.CIO.goScreen(2);
-      }
-    },
-
-    auditarDiasMedicionForm: function() {
-      var medEl = document.getElementById('edFechaMedicion');
-      var val = medEl ? medEl.value : '';
-      var box = document.getElementById('edFeedbackContadorDias');
-      if (!box) return;
-
-      var aud = calcularDiasDesdeMedicion(val);
-      if (!val) {
-        box.innerHTML = '';
-        return;
-      }
-
-      box.innerHTML = aud.vencido
-        ? ('<span class="banner-contador-alerta vencido" style="font-size:0.7rem; padding:4px 8px;">⚠️ RUTA VENCIDA: ' + aud.dias + ' días sin medir</span>')
-        : ('<span class="banner-contador-alerta al-dia" style="font-size:0.7rem; padding:4px 8px;">✅ Medición vigente: ' + aud.texto + '</span>');
-    },
-
-    abrirEditorInformeModal: function() {
-      if (!state.usuarioActivo) {
-        alert("🔒 Acceso Restringido: Inicia sesión para emitir informes.");
-        return;
-      }
-
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
-      if (!eq) return;
-
-      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
-      var mTitle = document.getElementById('infModalTitle');
-      if (mTitle) mTitle.innerText = 'Emisión de Informe: ' + tagValue;
-
-      var saps = consolidarSAPs(eq.componentes);
-      var inAv = document.getElementById('infAvisosSap');
-      if (inAv) inAv.value = saps.avisosStr !== 'Sin Avisos' ? saps.avisosStr : '';
-      var inOm = document.getElementById('infOmSap');
-      if (inOm) inOm.value = saps.omsStr !== 'Sin OM' ? saps.omsStr : '';
-      var inRes = document.getElementById('infResumenGeneral');
-      if (inRes) inRes.value = 'Se efectúa evaluación de condición dinámica al tren motriz del activo ' + tagValue + ' bajo norma ISO 20816-3. Condición global: ' + calcMaxSev(eq.componentes).toUpperCase() + '.';
-
-      var cont = document.getElementById('infComponentesContainer');
-      if (cont) {
-        cont.innerHTML = (eq.componentes || []).map(function(c) {
-          return '<div style="margin-bottom:12px; padding:12px; border:1px solid var(--glass-border); border-radius:8px; background:var(--card-inner-bg);">' +
-              '<strong>' + sanitize(c.nombre) + ' - ' + sanitize(c.punto) + ' (' + c.severidad + ')</strong>' +
-              '<p style="font-size:0.85rem; margin-top:4px;">' + sanitize(limpiarPrefijosIA(c.analisis)) + '</p>' +
-            '</div>';
-        }).join('');
-      }
-
-      var mInf = document.getElementById('modalEditorInforme');
-      if (mInf) mInf.showModal();
-    },
-
-    // IMPRESIÓN LIMPIA DE INFORME TREN MOTRIZ
-    emitirInformeFinalImpresion: function() {
-      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
-      if (!eq) return;
-
-      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
-      var avisosEditados = document.getElementById('infAvisosSap')?.value.trim() || 'Sin Avisos';
-      var omsEditadas = document.getElementById('infOmSap')?.value.trim() || 'Sin OM';
-      var conclusionGeneral = document.getElementById('infResumenGeneral')?.value.trim() || '';
-
-      var aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
-      var sevGlobal = calcMaxSev(eq.componentes);
-
-      var modalInf = document.getElementById('modalEditorInforme');
-      if (modalInf) modalInf.close();
-
-      var compsHtml = (eq.componentes || []).map(function(c) {
-        var col = SEV_COLOR[c.severidad] || '#4b5563';
-        var fotosHtml = (c.espectros && c.espectros.length > 0)
-          ? '<div style="margin-top:10px;"><strong style="font-size:0.75rem; color:#4b5563;">Evidencias de Respaldo:</strong><div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">' +
-            c.espectros.map(function(item) {
-              var src = typeof item === 'string' ? item : item.src;
-              var tipo = typeof item === 'string' ? 'FFT' : (item.tipo || 'FFT').toUpperCase();
-              return '<div style="text-align:center;"><img src="' + src + '" style="max-height:140px; max-width:220px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#6b7280; font-weight:bold; margin-top:2px;">' + tipo + '</div></div>';
-            }).join('') + '</div></div>'
-          : '';
-
-        return '<div style="border:1px solid #d1d5db; border-left:5px solid ' + col + '; border-radius:6px; padding:12px 16px; margin-bottom:12px; page-break-inside:avoid;">' +
-          '<div style="display:flex; justify-content:space-between; font-weight:bold; font-size:0.95rem; margin-bottom:6px;">' +
-            '<span>' + sanitize(c.nombre || 'Componente') + ' | ' + sanitize(c.punto || 'Punto') + '</span>' +
-            '<span style="color:' + col + ';">' + (c.severidad || 'Verde').toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)</span>' +
-          '</div>' +
-          '<div style="font-size:0.86rem; color:#1f2937; margin-bottom:6px; line-height:1.4;"><strong>Diagnóstico:</strong><br>' + sanitize(limpiarPrefijosIA(c.analisis) || 'Sin análisis registrado.') + '</div>' +
-          '<div style="font-size:0.86rem; color:#065f46; line-height:1.4;"><strong>Recomendación:</strong><br>' + sanitize(limpiarPrefijosIA(c.recomendacion) || 'Mantener monitoreo.') + '</div>' +
-          fotosHtml +
-        '</div>';
-      }).join('');
-
-      var win = window.open('', '_blank');
-      if (!win) {
-        alert("⚠️ Habilita las ventanas emergentes para ver el informe.");
-        return;
-      }
-
-      var htmlDoc = 
-        '<!DOCTYPE html>' +
-        '<html lang="es">' +
-        '<head>' +
-          '<meta charset="UTF-8">' +
-          '<title>Informe Técnico - ' + tagValue + '</title>' +
-          '<style>' +
-            '@page { size: A4 portrait; margin: 12mm; }' +
-            'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
-            '.btn-bar { display: flex; gap: 10px; margin-bottom: 20px; position: sticky; top: 0; background: #ffffff; padding: 10px 0; border-bottom: 2px solid #e2e8f0; z-index: 100; }' +
-            '.btn-action { background: #0284c7; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 800; cursor: pointer; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); }' +
-            '.btn-action:hover { background: #0369a1; }' +
-            '.btn-close { background: #64748b; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; }' +
-            '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }' +
-            '.header-left { display: flex; align-items: center; gap: 14px; }' +
-            '.header-report h1 { margin: 0; font-size: 1.2rem; color: #0f172a; text-transform: uppercase; }' +
-            '.header-report p { margin: 2px 0 0 0; font-size: 0.75rem; color: #64748b; font-weight: bold; }' +
-            '.badge-sev { padding: 5px 12px; border-radius: 6px; font-weight: 800; color: #fff; background: ' + (SEV_COLOR[sevGlobal] || '#4b5563') + '; text-transform: uppercase; font-size: 0.85rem; }' +
-            '.data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.8rem; }' +
-            '.data-item strong { display: block; font-size: 0.65rem; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }' +
-            '.section-title { font-size: 0.9rem; color: #0284c7; border-left: 4px solid #0284c7; padding-left: 8px; margin: 16px 0 8px 0; text-transform: uppercase; font-weight: 800; }' +
-            '.box-conclusion { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 12px; }' +
-            '@media print { .btn-bar { display: none !important; } body { padding: 0; } }' +
-          '</style>' +
-        '</head>' +
-        '<body>' +
-          '<div class="btn-bar">' +
-            '<button class="btn-action" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>' +
-            '<button class="btn-close" onclick="window.close()">Cerrar Pestaña</button>' +
-          '</div>' +
-          '<div class="header-report">' +
-            '<div class="header-left">' +
-              '<img src="logo-cpf.png" style="height:44px; width:auto; object-fit:contain;" alt="CPF" onerror="this.style.display=\'none\'" />' +
-              '<div>' +
-                '<h1>INFORME OFICIAL DE MONITOREO TREN MOTRIZ</h1>' +
-                '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO | CIO</p>' +
-              '</div>' +
-            '</div>' +
-            '<div><span class="badge-sev">CONDICIÓN: ' + sevGlobal + '</span></div>' +
-          '</div>' +
-          '<div class="data-grid">' +
-            '<div class="data-item"><strong>Faena Operativa</strong>' + sanitize(eq.siteId) + '</div>' +
-            '<div class="data-item"><strong>Área</strong>' + sanitize(eq.area) + '</div>' +
-            '<div class="data-item"><strong>Tag Equipo</strong>' + sanitize(tagValue) + '</div>' +
-            '<div class="data-item"><strong>Avisos SAP</strong>' + sanitize(avisosEditados) + '</div>' +
-            '<div class="data-item"><strong>Órdenes OM</strong>' + sanitize(omsEditadas) + '</div>' +
-            '<div class="data-item"><strong>Última Medición</strong>' + (eq.fechaMedicion || 'S/F') + '</div>' +
-          '</div>' +
-          '<div class="section-title">1. Resumen Ejecutivo & Conclusiones</div>' +
-          '<div class="box-conclusion">' + sanitize(conclusionGeneral) + '</div>' +
-          '<div class="section-title">2. Diagnóstico Técnico por Puntos & Espectros</div>' +
-          compsHtml +
-          '<footer style="margin-top:24px; border-top:1px solid #e2e8f0; padding-top:8px; font-size:0.7rem; color:#94a3b8; text-align:center;">' +
-            'Documento Oficial CIO - Emitido por CPF Ingeniería Ltda.' +
-          '</footer>' +
-        '</body>' +
-        '</html>';
-
-      win.document.open();
-      win.document.write(htmlDoc);
-      win.document.close();
-    },
-
-    procesarCargaExcelFaena: function(e) {
-      if (!state.usuarioActivo) {
-        alert("🔒 Acción restringida: Inicia sesión para realizar cargas masivas.");
-        return;
-      }
-      var file = e.target.files[0];
-      if (!file || !db) return;
-
-      var targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
-      var reader = new FileReader();
-
-      reader.onload = function(evt) {
-        try {
-          var data = new Uint8Array(evt.target.result);
-          var wb = XLSX.read(data, { type: 'array', cellDates: true });
-          var firstSheetName = wb.SheetNames[0];
-          var worksheet = wb.Sheets[firstSheetName];
-          var rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-
-          if (!rawRows || rawRows.length === 0) {
-            alert("⚠️ La planilla seleccionada está vacía.");
-            return;
-          }
-
-          var cargados = 0;
-          var actualizaciones = {};
-
-          rawRows.forEach(function(row) {
-            var normalizedRow = {};
-            Object.keys(row).forEach(function(k) { normalizedRow[k.trim().toUpperCase()] = row[k]; });
-
-            var rawTag = normalizedRow['EQUIPO'] || normalizedRow['TAG'] || normalizedRow['ACTIVO'] || normalizedRow['NOMBRE'];
-            var rawArea = normalizedRow['AREA'] || normalizedRow['ÁREA'] || 'Área General';
-            var rawTipo = normalizedRow['TIPO EQUIPO'] || normalizedRow['TIPO'] || normalizedRow['CLASE'] || 'Activo';
-            var rawLat = normalizedRow['LAT'] || normalizedRow['LATITUD'] || '';
-            var rawLng = normalizedRow['LNG'] || normalizedRow['LONGITUD'] || '';
-
-            if (rawTag && String(rawTag).trim() !== '') {
-              var tagStr = String(rawTag).trim();
-              var areaStr = String(rawArea).trim() || 'General';
-              var tipoStr = String(rawTipo).trim() || 'Activo';
-              var recordId = 'EQ_' + tagStr.replace(/[\/\.\#\$\[\]]/g, '_');
-
-              actualizaciones[recordId] = {
-                siteId: targetSite,
-                domain: areaStr.toUpperCase().indexOf('MINA') !== -1 ? 'mina' : 'planta',
-                area: areaStr,
-                tag: tagStr,
-                tipo: tipoStr,
-                lat: rawLat,
-                lng: rawLng,
-                fechaMedicion: new Date().toISOString().split('T')[0],
-                fechaHallazgo: '',
-                estatusHallazgo: 'Abierto',
-                componentes: [
-                  { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal bajo norma ISO 20816-3.', recomendacion: 'Ruta mensual.', espectros: [] }
-                ]
-              };
-              cargados++;
-            }
-          });
-
-          db.update(actualizaciones).then(function() {
-            alert('✅ Carga masiva exitosa: ' + cargados + ' equipos importados en ' + targetSite + '.');
-          });
-
-        } catch (err) {
-          alert('❌ Error al procesar Excel: ' + err.message);
-        }
-      };
-
-      reader.readAsArrayBuffer(file);
-      e.target.value = '';
+      fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
+        method: "POST",
+        mode: "no-cors",
+        cache: "no-cache",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      }).then(function() {
+        console.log("☁️ Transmitido a Google Sheets:", payload.tag, payload.componente);
+      }).catch(function(err) {});
     }
   };
 
