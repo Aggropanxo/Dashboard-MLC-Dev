@@ -80,6 +80,28 @@
   };
 
   // =============================================================
+  // AUTO-LOGOUT POR INACTIVIDAD (15 MINUTOS = 900.000 ms)
+  // =============================================================
+  var temporizadorInactividad = null;
+  var TIEMPO_LIMITE_INACTIVIDAD = 15 * 60 * 1000;
+
+  function reiniciarVigilanteInactividad() {
+    if (temporizadorInactividad) clearTimeout(temporizadorInactividad);
+    if (!state.usuarioActivo) return;
+
+    temporizadorInactividad = setTimeout(function() {
+      if (state.usuarioActivo) {
+        alert("🔒 SESIÓN CERRADA POR INACTIVIDAD: No se detectó actividad durante 15 minutos.");
+        window.CIO.cerrarSesionUsuario();
+      }
+    }, TIEMPO_LIMITE_INACTIVIDAD);
+  }
+
+  ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'].forEach(function(evento) {
+    window.addEventListener(evento, reiniciarVigilanteInactividad, { passive: true });
+  });
+
+  // =============================================================
   // INDICADORES DE MERCADO & CLIMA (ACTUALIZACIÓN CADA 10 MIN)
   // =============================================================
   var MARKET_STATE = { usdClp: 945.0, feUsd: 98.02 };
@@ -957,6 +979,10 @@
     // GENERADOR DE REPORTES DE RONDA TERRENO (FILTRADO & PDF)
     // -------------------------------------------------------------
     abrirFiltrosReporteTerreno: function() {
+      if (!state.usuarioActivo) {
+        alert("🔒 Acceso Restringido: Inicia sesión para emitir reportes de ronda.");
+        return;
+      }
       var modal = document.getElementById('modalFiltrosReporteTerreno');
       if (modal) modal.showModal();
     },
@@ -1009,6 +1035,7 @@
       window.CIO.emitirReporteTerrenoImpresion(lista, tituloFiltro);
     },
 
+    // IMPRESIÓN DIRECTA SIN AUTO-PRINT BLOQUEANTE
     emitirReporteTerrenoImpresion: function(reportes, tituloInforme) {
       var win = window.open('', '_blank');
       if (!win) {
@@ -1030,7 +1057,7 @@
               if (ev.tipo === 'video') {
                 return '<div style="text-align:center;"><video src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc;"></video><div style="font-size:0.65rem; color:#6b7280; font-weight:bold;">VIDEO</div></div>';
               } else {
-                return '<div style="text-align:center;"><img src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" loading="eager" /><div style="font-size:0.65rem; color:#6b7280; font-weight:bold;">FOTO</div></div>';
+                return '<div style="text-align:center;"><img src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#6b7280; font-weight:bold;">FOTO</div></div>';
               }
             }).join('') + '</div></div>';
         }
@@ -1065,17 +1092,17 @@
             'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
             '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }' +
             '.header-left { display: flex; align-items: center; gap: 14px; }' +
-            '.logo-cpf { height: 42px; width: auto; object-fit: contain; }' +
+            '.logo-cpf { height: 44px; width: auto; object-fit: contain; }' +
             '.header-report h1 { margin: 0; font-size: 1.15rem; color: #0f172a; text-transform: uppercase; }' +
             '.header-report p { margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b; font-weight: bold; }' +
             '.btn-bar { margin-bottom: 16px; display: flex; gap: 10px; }' +
-            '.btn-action { background: #0284c7; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }' +
+            '.btn-action { background: #0284c7; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85rem; }' +
             '@media print { .btn-bar { display: none !important; } body { padding: 0; } }' +
           '</style>' +
         '</head>' +
         '<body>' +
           '<div class="btn-bar">' +
-            '<button class="btn-action" id="btnDispararImpresion">🖨️ Imprimir / Guardar como PDF</button>' +
+            '<button class="btn-action" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>' +
             '<button class="btn-action" style="background:#64748b;" onclick="window.close()">Cerrar</button>' +
           '</div>' +
           '<div class="header-report">' +
@@ -1095,12 +1122,6 @@
           '<footer style="margin-top:24px; border-top:1px solid #e2e8f0; padding-top:8px; font-size:0.7rem; color:#94a3b8; text-align:center;">' +
             'Documento Oficial de Ronda de Terreno CIO - Emitido por CPF Ingeniería Ltda.' +
           '</footer>' +
-          '<script>' +
-            'document.getElementById("btnDispararImpresion").onclick = function() { window.print(); };' +
-            'window.addEventListener("load", function() {' +
-              'setTimeout(function() { window.print(); }, 400);' +
-            '});' +
-          '<\/script>' +
         '</body>' +
         '</html>';
 
@@ -1276,7 +1297,6 @@
       });
 
       if (compIndex === -1) {
-        // Si no existe el componente específico, se agrega como nuevo punto del tren motriz
         compIndex = eq.componentes.length;
         eq.componentes.push({
           nombre: componenteNombre || 'Componente Terreno',
@@ -1289,7 +1309,6 @@
           espectros: nuevasEvidencias
         });
       } else {
-        // Si ya existe, se anexan las imágenes y se actualiza el estado y aviso SAP
         var compExistente = eq.componentes[compIndex];
         compExistente.severidad = severidad;
         compExistente.analisis = (compExistente.analisis ? compExistente.analisis + "\n" : "") + "[Ronda Terreno]: " + observacion;
@@ -1307,153 +1326,6 @@
           document.getElementById('modalEditarReporteTerreno').close();
           window.CIO.irANivel3Equipo(eq.id);
         });
-      }
-    },
-
-    goScreen: function(num) {
-      state.currentScreen = num;
-      document.querySelectorAll('.screen-view, [id^="screen-"]').forEach(function(el) { 
-        el.classList.remove('active');
-        el.style.display = 'none';
-      });
-      
-      var sc = document.getElementById('screen-' + num);
-      if (sc) {
-        sc.classList.add('active');
-        sc.style.display = 'block';
-      }
-
-      var headerTitle = document.getElementById('headerScreenTitle');
-      var titles = { 
-        1: 'Vista Pública (Global - DEV)', 
-        2: 'Faena: ' + (state.faenaSeleccionada || 'Operativa'), 
-        3: 'Nivel 3: Tren Motriz & Puntos de Inspección', 
-        4: 'Consola SuperAdmin (DEV)',
-        5: 'Nivel 4: Consola de Diagnóstico & Espectros'
-      };
-      if (headerTitle) headerTitle.innerText = titles[num] || 'CIO';
-      refresh();
-    },
-
-    seleccionarFaena: function(f) {
-      state.faenaSeleccionada = f;
-      state.areaSeleccionada = null;
-      state.filtroBusqueda = '';
-      window.CIO.goScreen(2);
-    },
-
-    seleccionarArea: function(a) {
-      state.areaSeleccionada = a;
-      state.filtroBusqueda = '';
-      var searchInp = document.getElementById('inputBuscarEquipo');
-      if (searchInp) searchInp.value = '';
-      renderScreen2();
-    },
-
-    volverAreas: function() {
-      state.areaSeleccionada = null;
-      state.filtroBusqueda = '';
-      var searchInp = document.getElementById('inputBuscarEquipo');
-      if (searchInp) searchInp.value = '';
-      renderScreen2();
-    },
-
-    stepBackScreen2: function() {
-      if (state.siteMapVisible) {
-        window.CIO.toggleSiteMapTab();
-        return;
-      }
-      if (state.areaSeleccionada) {
-        window.CIO.volverAreas();
-        return;
-      }
-      window.CIO.goScreen(1);
-    },
-
-    irANivel3Equipo: function(id) {
-      state.equipoIdNivel3 = id;
-      window.CIO.goScreen(3);
-    },
-
-    volverDeNivel3: function() {
-      window.CIO.goScreen(2);
-    },
-
-    volverDeNivel4: function() {
-      window.CIO.goScreen(3);
-    },
-
-    toggleTheme: function() {
-      document.body.classList.toggle('light-mode');
-      var isLight = document.body.classList.contains('light-mode');
-      localStorage.setItem('CIO_THEME', isLight ? 'light' : 'dark');
-    },
-
-    solicitarPermisoSuperAdmin: function() {
-      var p = prompt("🔑 Clave SuperAdmin (DEV):");
-      if (p === "Moncon2026") {
-        state.isSuperAdmin = true;
-        window.CIO.goScreen(4);
-      } else if (p !== null) {
-        alert("❌ Clave incorrecta.");
-      }
-    },
-
-    salirSuperAdmin: function() {
-      state.isSuperAdmin = false;
-      window.CIO.goScreen(1);
-    },
-
-    renderScreen4Global: function() {
-      renderScreen4();
-    },
-
-    exportarReporteGerenciaAlta: function() {
-      var txt = 'REPORTE GERENCIA GENERAL CIO - CMP\nTotal Activos: ' + state.equipos.length + '\nFecha: ' + new Date().toISOString();
-      var blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'Reporte_Gerencia_CIO_' + Date.now() + '.txt';
-      a.click();
-    },
-
-    exportarReporteGerenciaPorFaena: function() {
-      var filterEl = document.getElementById('superAdminFilterSite');
-      var target = filterEl ? filterEl.value : (state.faenaSeleccionada || FAENAS[0]);
-      var count = state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }).length;
-      var txt = 'REPORTE FAENA [' + target + ']\nTotal Activos: ' + count + '\nFecha: ' + new Date().toISOString();
-      var blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'Reporte_' + target.replace(/[^a-zA-Z0-9]/g, '_') + '.txt';
-      a.click();
-    },
-
-    abrirEdicionGlobalNuevo: function() {
-      if (!state.usuarioActivo) {
-        alert("🔒 Inicia sesión para registrar nuevos activos.");
-        return;
-      }
-      window.CIO.abrirEdicionEquipoNuevoAuth();
-    },
-
-    toggleSiteMapTab: function() {
-      state.siteMapVisible = !state.siteMapVisible;
-      var mapBox = document.getElementById('view-site-map');
-      var container = document.getElementById('viewScreen2Container');
-      var lbl = document.getElementById('labelToggleSiteMap');
-      var target = state.faenaSeleccionada || FAENAS[0];
-
-      if (state.siteMapVisible) {
-        if (mapBox) mapBox.style.display = 'block';
-        if (container) container.style.display = 'none';
-        if (lbl) lbl.innerText = 'Ver Tarjetas';
-
-        actualizarMapaSite(state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }));
-      } else {
-        if (mapBox) mapBox.style.display = 'none';
-        if (container) container.style.display = '';
-        if (lbl) lbl.innerText = 'Ver Mapa de Faena';
       }
     },
 
@@ -1549,6 +1421,8 @@
         if (dropInfo) dropInfo.innerText = 'Operador: ' + nombre + ' | ' + faena;
         var modal = document.getElementById('modalAuth');
         if (modal) modal.close();
+        
+        reiniciarVigilanteInactividad();
         alert('✅ Bienvenido ' + nombre);
         refresh();
       }
@@ -1558,6 +1432,8 @@
       state.usuarioActivo = null;
       state.faenaAsignada = null;
       state.isSuperAdmin = false;
+
+      if (temporizadorInactividad) clearTimeout(temporizadorInactividad);
 
       document.body.classList.remove('user-authenticated');
 
@@ -1579,9 +1455,9 @@
         cache: "no-cache",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
-      }).catch(function(err) {
-        console.warn("Aviso al sincronizar con Sheets:", err);
-      });
+      }).then(function() {
+        console.log("☁️ Transmitido a Google Sheets:", payload.tag, payload.componente);
+      }).catch(function(err) {});
     },
 
     abrirDetalleComponenteModal: function(realIndex) {
@@ -1661,7 +1537,6 @@
         alert("🔒 Acción restringida: Solo usuarios registrados pueden editar componentes.");
         return;
       }
-
       state.componenteIndexEdit = idx;
       window.CIO.goScreen(5);
     },
@@ -1888,7 +1763,6 @@
         }
 
       } catch (err) {
-        console.warn("Gemini devolvió error, aplicando regla local:", err);
         generarLocal();
       }
     },
@@ -2008,62 +1882,8 @@
     abrirModalHistoricoTerreno: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
-
       var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
       window.CIO.abrirModalHistoricoTerrenoDirectoPorTag(tagValue);
-    },
-
-    renderMiniaturasEvidenciasReporte: function() {
-      var cont = document.getElementById('editReporteEvidenciasPreview');
-      if (!cont) return;
-
-      if (!state.tempEvidenciasReporte || state.tempEvidenciasReporte.length === 0) {
-        cont.innerHTML = '<span style="font-size:0.78rem; color:var(--text-muted); font-style:italic;">Sin evidencias adjuntas en este reporte.</span>';
-        return;
-      }
-
-      cont.innerHTML = state.tempEvidenciasReporte.map(function(ev, idx) {
-        var src = ev.data || ev.src || ev;
-        if (ev.tipo === 'video') {
-          return '<div class="item-espectro-preview">' +
-              '<video src="' + src + '" controls style="width:100px; height:70px; object-fit:cover; border-radius:6px; border:1px solid #38bdf8;"></video>' +
-              '<button type="button" onclick="window.CIO.eliminarEvidenciaReporte(' + idx + ')">&times;</button>' +
-            '</div>';
-        } else {
-          return '<div class="item-espectro-preview">' +
-              '<img src="' + src + '" style="width:100px; height:70px; object-fit:cover; border-radius:6px; cursor:pointer;" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" />' +
-              '<button type="button" onclick="window.CIO.eliminarEvidenciaReporte(' + idx + ')">&times;</button>' +
-            '</div>';
-        }
-      }).join('');
-    },
-
-    eliminarEvidenciaReporte: function(idx) {
-      state.tempEvidenciasReporte.splice(idx, 1);
-      window.CIO.renderMiniaturasEvidenciasReporte();
-    },
-
-    eliminarReporteTerrenoConfirm: function() {
-      if (!state.usuarioActivo) {
-        alert("🔒 Inicia sesión para eliminar reportes.");
-        return;
-      }
-
-      var repId = document.getElementById('editReporteId').value;
-      if (!repId || !dbAlertasTerreno) return;
-
-      if (confirm("¿Estás seguro de eliminar este reporte de terreno?")) {
-        dbAlertasTerreno.child(repId).remove().then(function() {
-          alert("✅ Reporte eliminado.");
-          document.getElementById('modalEditarReporteTerreno').close();
-          window.CIO.abrirModalHistoricoTerreno();
-        });
-      }
-    },
-
-    abrirFotoEnNuevaPestana: function(base64Data) {
-      var win = window.open("");
-      win.document.write('<body style="margin:0; background:#0a0a0c; display:flex; justify-content:center; align-items:center; height:100vh;"><img src="' + base64Data + '" style="max-width:98%; max-height:98%; object-fit:contain;" /></body>');
     },
 
     // -----------------------------------------------------------
@@ -2293,6 +2113,7 @@
       if (mInf) mInf.showModal();
     },
 
+    // IMPRESIÓN DIRECTA SIN AUTO-PRINT BLOQUEANTE
     emitirInformeFinalImpresion: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
@@ -2315,7 +2136,7 @@
             c.espectros.map(function(item) {
               var src = typeof item === 'string' ? item : item.src;
               var tipo = typeof item === 'string' ? 'FFT' : (item.tipo || 'FFT').toUpperCase();
-              return '<div style="text-align:center;"><img src="' + src + '" style="max-height:140px; max-width:220px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" loading="eager" /><div style="font-size:0.65rem; color:#6b7280; font-weight:bold; margin-top:2px;">' + tipo + '</div></div>';
+              return '<div style="text-align:center;"><img src="' + src + '" style="max-height:140px; max-width:220px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#6b7280; font-weight:bold; margin-top:2px;">' + tipo + '</div></div>';
             }).join('') + '</div></div>'
           : '';
 
@@ -2347,7 +2168,7 @@
             'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
             '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }' +
             '.header-left { display: flex; align-items: center; gap: 14px; }' +
-            '.logo-cpf { height: 42px; width: auto; object-fit: contain; }' +
+            '.logo-cpf { height: 44px; width: auto; object-fit: contain; }' +
             '.header-report h1 { margin: 0; font-size: 1.15rem; color: #0f172a; text-transform: uppercase; }' +
             '.header-report p { margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b; font-weight: bold; }' +
             '.badge-sev { padding: 5px 12px; border-radius: 6px; font-weight: 800; color: #fff; background: ' + (SEV_COLOR[sevGlobal] || '#4b5563') + '; text-transform: uppercase; font-size: 0.85rem; }' +
@@ -2356,13 +2177,13 @@
             '.section-title { font-size: 0.9rem; color: #0284c7; border-left: 4px solid #0284c7; padding-left: 8px; margin: 16px 0 8px 0; text-transform: uppercase; font-weight: 800; }' +
             '.box-conclusion { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 12px; }' +
             '.btn-bar { margin-bottom: 16px; display: flex; gap: 10px; }' +
-            '.btn-action { background: #0284c7; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }' +
+            '.btn-action { background: #0284c7; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85rem; }' +
             '@media print { .btn-bar { display: none !important; } body { padding: 0; } }' +
           '</style>' +
         '</head>' +
         '<body>' +
           '<div class="btn-bar">' +
-            '<button class="btn-action" id="btnDispararImpresion">🖨️ Imprimir / Guardar como PDF</button>' +
+            '<button class="btn-action" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>' +
             '<button class="btn-action" style="background:#64748b;" onclick="window.close()">Cerrar</button>' +
           '</div>' +
           '<div class="header-report">' +
@@ -2390,12 +2211,6 @@
           '<footer style="margin-top:24px; border-top:1px solid #e2e8f0; padding-top:8px; font-size:0.7rem; color:#94a3b8; text-align:center;">' +
             'Documento Oficial CIO - Emitido por CPF Ingeniería Ltda.' +
           '</footer>' +
-          '<script>' +
-            'document.getElementById("btnDispararImpresion").onclick = function() { window.print(); };' +
-            'window.addEventListener("load", function() {' +
-              'setTimeout(function() { window.print(); }, 400);' +
-            '});' +
-          '<\/script>' +
         '</body>' +
         '</html>';
 
