@@ -45,13 +45,12 @@
 
     .app-container {
       width: 100%;
-      max-width: 520px;
+      max-width: 540px;
       display: flex;
       flex-direction: column;
       gap: 14px;
     }
 
-    /* TARJETA HEADER ESTILO VERSIÓN 1 */
     .header-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -96,7 +95,6 @@
       box-shadow: 0 0 8px #22c55e;
     }
 
-    /* FORMULARIO MAESTRO */
     .form-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -135,7 +133,6 @@
       border-color: var(--accent);
     }
 
-    /* BOTONES DE HALLAZGO RÁPIDO (VERSIÓN 1) */
     .chips-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -146,14 +143,14 @@
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--card-border);
       color: #cbd5e1;
-      padding: 8px 10px;
+      padding: 9px 10px;
       border-radius: 8px;
       font-size: 0.76rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 6px;
       transition: all 0.2s;
     }
@@ -164,7 +161,6 @@
       color: #fff;
     }
 
-    /* SEVERIDAD PRELIMINAR (VERSIÓN 1 TÁCTIL) */
     .sev-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -208,7 +204,6 @@
       box-shadow: 0 0 14px rgba(234, 179, 8, 0.35);
     }
 
-    /* MULTIMEDIA MODERNO (GALERÍA + CÁMARA + VIDEO 10S) */
     .media-actions-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -291,7 +286,6 @@
       z-index: 2;
     }
 
-    /* BOTÓN TRANSMISIÓN PRINCIPAL (VERSIÓN 1) */
     .btn-transmitir {
       width: 100%;
       background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
@@ -365,26 +359,38 @@
         <input type="text" id="inputTagLibre" placeholder="EJ: MH2709 (OPCIONAL)" class="code-font" style="text-transform: uppercase;" />
       </div>
 
-      <!-- 4. HALLAZGOS RÁPIDOS -->
+      <!-- 4. COMPONENTE / ELEMENTO (ESCRITURA LIBRE) -->
       <div class="form-group">
-        <label>4. Hallazgo Rápido</label>
+        <label>4. Componente / Elemento Afectado</label>
+        <input type="text" id="inputComponenteLibre" placeholder="Ej: Motor M1 lado acople, Reductor G1, Chumacera N°2, Tambor retorno..." />
+      </div>
+
+      <!-- 5. CATÁLOGO EXTENDIDO DE HALLAZGOS RÁPIDOS -->
+      <div class="form-group">
+        <label>5. Hallazgos Frecuentes en Terreno</label>
         <div class="chips-grid">
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🛢️ Fuga de aceite detectada')">🛢️ Fuga aceite</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('📢 Alto ruido / chirrido en reductor')">📢 Alto ruido reductor</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('⚠️ Vibración anómala visible en descanso')">⚠️ Vibración alta</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🔥 Temperatura elevada al tacto / IR')">🔥 Alta temperatura</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🛢️ Fuga de lubricante (aceite/grasa)')">🛢️ Fuga de aceite</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('📢 Ruido anómalo / golpeteo interno')">📢 Ruido reductor</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('⚠️ Vibración perceptible al tacto')">⚠️ Vibración alta</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🔥 Temperatura anormal en descanso')">🔥 Alta temperatura</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🔩 Perno basal cortado o soltura mecánica')">🔩 Perno / Soltura basal</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🧴 Grasa degradada o purga contaminada')">🧴 Grasa degradada</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('⚡ Conexión eléctrica recalentada')">⚡ Recalentamiento</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('💨 Fuga de aire o sistema de venteo tapado')">💨 Fuga aire / Venteo</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('⚙️ Desalineación poleas o acople dañado')">⚙️ Acople / Desalineación</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🛡️ Protección suelta o rozamiento con eje')">🛡️ Guarda / Rozamiento</button>
         </div>
       </div>
 
-      <!-- 5. NOTAS / DETALLE DEL HALLAZGO -->
+      <!-- 6. NOTAS / DETALLE DEL HALLAZGO -->
       <div class="form-group">
-        <label>5. Notas / Detalle del Hallazgo</label>
-        <textarea id="txtDetalle" rows="3" placeholder="Ej: Fuga detectada en sello laberíntico lado libre..."></textarea>
+        <label>6. Notas / Detalle del Hallazgo</label>
+        <textarea id="txtDetalle" rows="3" placeholder="Ej: Se observa fuga activa por retén de entrada y soltura en perno basal frontal..."></textarea>
       </div>
 
-      <!-- 6. EVIDENCIA MULTIMODAL COMBINADA -->
+      <!-- 7. EVIDENCIAS MULTIMEDIA -->
       <div class="form-group">
-        <label>6. Evidencias Multimedia (Fotos / Galería / Video Corto)</label>
+        <label>7. Evidencias Multimedia (Fotos / Galería / Video Corto)</label>
         
         <div class="media-actions-grid">
           <label class="btn-media">
@@ -408,9 +414,9 @@
         </div>
       </div>
 
-      <!-- 7. SEVERIDAD PRELIMINAR (BOTONES V1) -->
+      <!-- 8. SEVERIDAD PRELIMINAR -->
       <div class="form-group">
-        <label>7. Severidad Preliminar</label>
+        <label>8. Severidad Preliminar</label>
         <div class="sev-grid">
           <button type="button" class="sev-btn active-rojo" id="btnSevRojo" onclick="seleccionarSeveridad('Rojo')">🔴 Crítico</button>
           <button type="button" class="sev-btn" id="btnSevNaranja" onclick="seleccionarSeveridad('Naranja')">🟠 Alerta</button>
@@ -431,7 +437,6 @@
   <script>
     'use strict';
 
-    // Configuración Firebase Realtime Database
     var firebaseConfig = {
       apiKey: "AIzaSyBd5MEZdMmgzBs1xCyeGYeKtQx5gJIeY3w",
       authDomain: "dashboard-vulnerabilidades-mlc.firebaseapp.com",
@@ -447,7 +452,7 @@
     var evidenciasTemporales = [];
     var severidadSeleccionada = 'Rojo';
 
-    // 1. Monitor de conectividad de red
+    // 1. Monitor de red
     function actualizarEstadoRed() {
       var badge = document.getElementById('netStatusBadge');
       if (!badge) return;
@@ -465,7 +470,7 @@
     window.addEventListener('offline', actualizarEstadoRed);
     actualizarEstadoRed();
 
-    // 2. Carga en tiempo real del catastro de activos para selectores en cascada
+    // 2. Carga en tiempo real de equipos del catastro
     dbEquipos.on('value', function(snap) {
       var raw = snap.val();
       if (!raw) return;
@@ -526,7 +531,7 @@
       if (val) input.value = val;
     }
 
-    // 3. Hallazgos rápidos con autocompletado
+    // 3. Hallazgos rápidos con concatenación inteligente
     function agregarHallazgoRapido(texto) {
       var txt = document.getElementById('txtDetalle');
       if (txt.value.trim().length > 0) {
@@ -545,7 +550,7 @@
       document.getElementById('btnSevAmarillo').className = 'sev-btn' + (sev === 'Amarillo' ? ' active-amarillo' : '');
     }
 
-    // 5. Procesamiento de archivos (Memoria, Cámara y Compresión Canvas)
+    // 5. Procesamiento de evidencias (Fotos de cámara / memoria con compresión)
     function procesarArchivosMultimedia(event) {
       var files = Array.from(event.target.files);
       if (!files.length) return;
@@ -646,6 +651,7 @@
     // 7. Transmisión a Sala CIO (Firebase Realtime Database)
     function transmitirReporteSalaCIO() {
       var tagFinal = document.getElementById('inputTagLibre').value.trim() || document.getElementById('selEquipo').value;
+      var componenteFinal = document.getElementById('inputComponenteLibre').value.trim();
       var faena = document.getElementById('selFaena').value;
       var area = document.getElementById('selArea').value || 'Área General';
       var detalle = document.getElementById('txtDetalle').value.trim();
@@ -653,6 +659,12 @@
 
       if (!tagFinal) {
         alert("⚠️ Por favor selecciona o ingresa el TAG del equipo.");
+        return;
+      }
+
+      if (!componenteFinal) {
+        alert("⚠️ Por favor escribe el componente o punto afectado (ej: Motor M1, Reductor, Chumacera, etc.).");
+        document.getElementById('inputComponenteLibre').focus();
         return;
       }
 
@@ -666,21 +678,26 @@
 
       var primerFoto = evidenciasTemporales.find(function(e) { return e.tipo === 'imagen'; });
 
+      // Inclusión limpia del componente en el encabezado del detalle
+      var detalleCompleto = "[" + componenteFinal + "]: " + (detalle || 'Inspección visual de rutina efectuada en terreno.');
+
       var payload = {
         faena: faena,
         area: area,
         tag: tagFinal.toUpperCase(),
+        componente: componenteFinal,
         severidad: severidadSeleccionada,
-        detalle: detalle || 'Inspección visual de rutina efectuada en terreno.',
+        detalle: detalleCompleto,
         evidencias: evidenciasTemporales,
         fotoBase64: primerFoto ? primerFoto.data : '',
         timestamp: new Date().toISOString()
       };
 
       dbAlertas.push(payload).then(function() {
-        alert("✅ TRANSMISIÓN EXITOSA: El hallazgo ya está visible en la consola central del CIO.");
+        alert("✅ TRANSMISIÓN EXITOSA: El hallazgo en " + componenteFinal + " (" + tagFinal.toUpperCase() + ") ya está visible en la consola central del CIO.");
         document.getElementById('txtDetalle').value = '';
         document.getElementById('inputTagLibre').value = '';
+        document.getElementById('inputComponenteLibre').value = '';
         document.getElementById('selEquipo').value = '';
         evidenciasTemporales = [];
         renderizarPreview();
