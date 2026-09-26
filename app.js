@@ -80,7 +80,7 @@
   };
 
   // =============================================================
-  // AUTO-LOGOUT POR INACTIVIDAD (15 MINUTOS = 900.000 ms)
+  // AUTO-LOGOUT POR INACTIVIDAD (15 MINUTOS)
   // =============================================================
   var temporizadorInactividad = null;
   var TIEMPO_LIMITE_INACTIVIDAD = 15 * 60 * 1000;
@@ -102,7 +102,7 @@
   });
 
   // =============================================================
-  // INDICADORES DE MERCADO & CLIMA (ACTUALIZACIÓN CADA 10 MIN)
+  // INDICADORES DE MERCADO & CLIMA (CADA 10 MIN)
   // =============================================================
   var MARKET_STATE = { usdClp: 945.0, feUsd: 98.02 };
 
@@ -739,10 +739,35 @@
     }
   }
 
-  // -------------------------------------------------------------
+  // =============================================================
   // OBJETO GLOBAL CIO
-  // -------------------------------------------------------------
+  // =============================================================
   window.CIO = {
+    goScreen: function(num) {
+      state.currentScreen = num;
+      document.querySelectorAll('.screen-view, [id^="screen-"]').forEach(function(el) { 
+        el.classList.remove('active');
+        el.style.display = 'none';
+      });
+      
+      var sc = document.getElementById('screen-' + num);
+      if (sc) {
+        sc.classList.add('active');
+        sc.style.display = 'block';
+      }
+
+      var headerTitle = document.getElementById('headerScreenTitle');
+      var titles = { 
+        1: 'Vista Pública (Global - DEV)', 
+        2: 'Faena: ' + (state.faenaSeleccionada || 'Operativa'), 
+        3: 'Nivel 3: Tren Motriz & Puntos de Inspección', 
+        4: 'Consola SuperAdmin (DEV)',
+        5: 'Nivel 4: Consola de Diagnóstico & Espectros'
+      };
+      if (headerTitle) headerTitle.innerText = titles[num] || 'CIO';
+      refresh();
+    },
+
     irAInicio: function() {
       document.querySelectorAll('dialog').forEach(function(d) {
         if (d && typeof d.close === 'function') {
@@ -763,6 +788,54 @@
       if (mapBox) mapBox.style.display = 'none';
 
       window.CIO.goScreen(1);
+    },
+
+    seleccionarFaena: function(f) {
+      state.faenaSeleccionada = f;
+      state.areaSeleccionada = null;
+      state.filtroBusqueda = '';
+      window.CIO.goScreen(2);
+    },
+
+    seleccionarArea: function(a) {
+      state.areaSeleccionada = a;
+      state.filtroBusqueda = '';
+      var searchInp = document.getElementById('inputBuscarEquipo');
+      if (searchInp) searchInp.value = '';
+      renderScreen2();
+    },
+
+    volverAreas: function() {
+      state.areaSeleccionada = null;
+      state.filtroBusqueda = '';
+      var searchInp = document.getElementById('inputBuscarEquipo');
+      if (searchInp) searchInp.value = '';
+      renderScreen2();
+    },
+
+    stepBackScreen2: function() {
+      if (state.siteMapVisible) {
+        window.CIO.toggleSiteMapTab();
+        return;
+      }
+      if (state.areaSeleccionada) {
+        window.CIO.volverAreas();
+        return;
+      }
+      window.CIO.goScreen(1);
+    },
+
+    irANivel3Equipo: function(id) {
+      state.equipoIdNivel3 = id;
+      window.CIO.goScreen(3);
+    },
+
+    volverDeNivel3: function() {
+      window.CIO.goScreen(2);
+    },
+
+    volverDeNivel4: function() {
+      window.CIO.goScreen(3);
     },
 
     filtrarEquiposYMapa: function(texto) {
@@ -794,6 +867,26 @@
             }
           }
         }
+      }
+    },
+
+    toggleSiteMapTab: function() {
+      state.siteMapVisible = !state.siteMapVisible;
+      var mapBox = document.getElementById('view-site-map');
+      var container = document.getElementById('viewScreen2Container');
+      var lbl = document.getElementById('labelToggleSiteMap');
+      var target = state.faenaSeleccionada || FAENAS[0];
+
+      if (state.siteMapVisible) {
+        if (mapBox) mapBox.style.display = 'block';
+        if (container) container.style.display = 'none';
+        if (lbl) lbl.innerText = 'Ver Tarjetas';
+
+        actualizarMapaSite(state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }));
+      } else {
+        if (mapBox) mapBox.style.display = 'none';
+        if (container) container.style.display = '';
+        if (lbl) lbl.innerText = 'Ver Mapa de Faena';
       }
     },
 
@@ -1035,7 +1128,6 @@
       window.CIO.emitirReporteTerrenoImpresion(lista, tituloFiltro);
     },
 
-    // IMPRESIÓN DIRECTA SIN AUTO-PRINT BLOQUEANTE
     emitirReporteTerrenoImpresion: function(reportes, tituloInforme) {
       var win = window.open('', '_blank');
       if (!win) {
@@ -1322,11 +1414,64 @@
 
       if (db) {
         db.child(eq.id).child('componentes').set(eq.componentes).then(function() {
-          alert("✅ ÉXITO: El hallazgo y sus " + nuevasEvidencias.length + " imagen(es) quedaron fijados de forma permanente en el tren motriz de " + tag + ".");
+          alert("✅ ÉXITO: El hallazgo y sus " + nuevasEvidencias.length + " imagen(es) quedaron fijados en el tren motriz de " + tag + ".");
           document.getElementById('modalEditarReporteTerreno').close();
           window.CIO.irANivel3Equipo(eq.id);
         });
       }
+    },
+
+    renderMiniaturasEvidenciasReporte: function() {
+      var cont = document.getElementById('editReporteEvidenciasPreview');
+      if (!cont) return;
+
+      if (!state.tempEvidenciasReporte || state.tempEvidenciasReporte.length === 0) {
+        cont.innerHTML = '<span style="font-size:0.78rem; color:var(--text-muted); font-style:italic;">Sin evidencias adjuntas en este reporte.</span>';
+        return;
+      }
+
+      cont.innerHTML = state.tempEvidenciasReporte.map(function(ev, idx) {
+        var src = ev.data || ev.src || ev;
+        if (ev.tipo === 'video') {
+          return '<div class="item-espectro-preview">' +
+              '<video src="' + src + '" controls style="width:100px; height:70px; object-fit:cover; border-radius:6px; border:1px solid #38bdf8;"></video>' +
+              '<button type="button" onclick="window.CIO.eliminarEvidenciaReporte(' + idx + ')">&times;</button>' +
+            '</div>';
+        } else {
+          return '<div class="item-espectro-preview">' +
+              '<img src="' + src + '" style="width:100px; height:70px; object-fit:cover; border-radius:6px; cursor:pointer;" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" />' +
+              '<button type="button" onclick="window.CIO.eliminarEvidenciaReporte(' + idx + ')">&times;</button>' +
+            '</div>';
+        }
+      }).join('');
+    },
+
+    eliminarEvidenciaReporte: function(idx) {
+      state.tempEvidenciasReporte.splice(idx, 1);
+      window.CIO.renderMiniaturasEvidenciasReporte();
+    },
+
+    eliminarReporteTerrenoConfirm: function() {
+      if (!state.usuarioActivo) {
+        alert("🔒 Inicia sesión para eliminar reportes.");
+        return;
+      }
+
+      var repId = document.getElementById('editReporteId').value;
+      if (!repId || !dbAlertasTerreno) return;
+
+      if (confirm("¿Estás seguro de eliminar este reporte de terreno?")) {
+        dbAlertasTerreno.child(repId).remove().then(function() {
+          alert("✅ Reporte eliminado.");
+          document.getElementById('modalEditarReporteTerreno').close();
+          window.CIO.abrirModalHistoricoTerreno();
+        });
+      }
+    },
+
+    abrirFotoEnNuevaPestana: function(base64Data) {
+      var win = window.open("");
+      win.document.write('<body style="margin:0; background:#0a0a0c; display:flex; justify-content:center; align-items:center; height:100vh;"><img src="' + base64Data + '" style="max-width:98%; max-height:98%; object-fit:contain;" /></body>');
     },
 
     handleUserBtnClick: function(e) {
@@ -1446,6 +1591,86 @@
       window.CIO.goScreen(1);
     },
 
+    toggleTheme: function() {
+      document.body.classList.toggle('light-mode');
+      var isLight = document.body.classList.contains('light-mode');
+      localStorage.setItem('CIO_THEME', isLight ? 'light' : 'dark');
+    },
+
+    solicitarPermisoSuperAdmin: function() {
+      var p = prompt("🔑 Clave SuperAdmin (DEV):");
+      if (p === "Moncon2026") {
+        state.isSuperAdmin = true;
+        window.CIO.goScreen(4);
+      } else if (p !== null) {
+        alert("❌ Clave incorrecta.");
+      }
+    },
+
+    salirSuperAdmin: function() {
+      state.isSuperAdmin = false;
+      window.CIO.goScreen(1);
+    },
+
+    renderScreen4Global: function() {
+      renderScreen4();
+    },
+
+    exportarReporteGerenciaAlta: function() {
+      var txt = 'REPORTE GERENCIA GENERAL CIO - CMP\nTotal Activos: ' + state.equipos.length + '\nFecha: ' + new Date().toISOString();
+      var blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Reporte_Gerencia_CIO_' + Date.now() + '.txt';
+      a.click();
+    },
+
+    exportarReporteGerenciaPorFaena: function() {
+      var filterEl = document.getElementById('superAdminFilterSite');
+      var target = filterEl ? filterEl.value : (state.faenaSeleccionada || FAENAS[0]);
+      var count = state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }).length;
+      var txt = 'REPORTE FAENA [' + target + ']\nTotal Activos: ' + count + '\nFecha: ' + new Date().toISOString();
+      var blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Reporte_' + target.replace(/[^a-zA-Z0-9]/g, '_') + '.txt';
+      a.click();
+    },
+
+    abrirEdicionGlobalNuevo: function() {
+      if (!state.usuarioActivo) {
+        alert("🔒 Inicia sesión para registrar nuevos activos.");
+        return;
+      }
+      window.CIO.abrirEdicionEquipoNuevoAuth();
+    },
+
+    abrirEdicionEquipoNuevoAuth: function() {
+      var targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
+      var newId = 'EQ_' + Date.now();
+      var coordsDefault = FAENA_COORDS[targetSite] || [-28.3294, -70.9392];
+
+      var nuevoEquipo = {
+        id: newId,
+        siteId: targetSite,
+        domain: 'planta',
+        area: state.areaSeleccionada || 'Área General',
+        tag: 'MH' + Math.floor(1000 + Math.random() * 9000),
+        tipo: 'Activo Crítico',
+        lat: coordsDefault[0],
+        lng: coordsDefault[1],
+        componentes: [
+          { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal bajo norma ISO 20816-3.', recomendacion: 'Ruta mensual.', espectros: [] }
+        ],
+        fechaMedicion: new Date().toISOString().split('T')[0],
+        fechaHallazgo: new Date().toISOString().split('T')[0],
+        estatusHallazgo: 'Abierto'
+      };
+
+      if (db) db.child(newId).set(nuevoEquipo);
+      window.CIO.irANivel3Equipo(newId);
+    },
+
     sincronizarConGoogleSheets: function(payload) {
       if (!GOOGLE_SHEETS_WEBHOOK_URL || GOOGLE_SHEETS_WEBHOOK_URL.indexOf("http") !== 0) return;
 
@@ -1537,6 +1762,7 @@
         alert("🔒 Acción restringida: Solo usuarios registrados pueden editar componentes.");
         return;
       }
+
       state.componenteIndexEdit = idx;
       window.CIO.goScreen(5);
     },
@@ -1886,9 +2112,6 @@
       window.CIO.abrirModalHistoricoTerrenoDirectoPorTag(tagValue);
     },
 
-    // -----------------------------------------------------------
-    // EDICIÓN GENERAL DE ACTIVO & GEORREFERENCIACIÓN
-    // -----------------------------------------------------------
     editarDatosGeneralesActivo: function() {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Debes iniciar sesión.");
@@ -2113,7 +2336,7 @@
       if (mInf) mInf.showModal();
     },
 
-    // IMPRESIÓN DIRECTA SIN AUTO-PRINT BLOQUEANTE
+    // IMPRESIÓN DIRECTA SIN AUTO-PRINT BLOQUEANTE (PREVIENE LOOP EN CHROMIUM)
     emitirInformeFinalImpresion: function() {
       var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
       if (!eq) return;
@@ -2219,32 +2442,6 @@
       win.document.close();
     },
 
-    abrirEdicionEquipoNuevoAuth: function() {
-      var targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
-      var newId = 'EQ_' + Date.now();
-      var coordsDefault = FAENA_COORDS[targetSite] || [-28.3294, -70.9392];
-
-      var nuevoEquipo = {
-        id: newId,
-        siteId: targetSite,
-        domain: 'planta',
-        area: state.areaSeleccionada || 'Área General',
-        tag: 'MH' + Math.floor(1000 + Math.random() * 9000),
-        tipo: 'Activo Crítico',
-        lat: coordsDefault[0],
-        lng: coordsDefault[1],
-        componentes: [
-          { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal bajo norma ISO 20816-3.', recomendacion: 'Ruta mensual.', espectros: [] }
-        ],
-        fechaMedicion: new Date().toISOString().split('T')[0],
-        fechaHallazgo: new Date().toISOString().split('T')[0],
-        estatusHallazgo: 'Abierto'
-      };
-
-      if (db) db.child(newId).set(nuevoEquipo);
-      window.CIO.irANivel3Equipo(newId);
-    },
-
     procesarCargaExcelFaena: function(e) {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Inicia sesión para realizar cargas masivas.");
@@ -2321,6 +2518,7 @@
     }
   };
 
+  // Exposición en ámbito global para listeners inline
   window.handleUserBtnClick = window.CIO.handleUserBtnClick;
   window.salirSuperAdmin = window.CIO.salirSuperAdmin;
 
