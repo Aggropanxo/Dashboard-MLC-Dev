@@ -252,9 +252,9 @@
     .preview-container {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      min-height: 52px;
-      padding: 8px;
+      gap: 10px;
+      min-height: 55px;
+      padding: 10px;
       border: 1px dashed var(--card-border);
       border-radius: 8px;
       background: rgba(0, 0, 0, 0.25);
@@ -263,8 +263,8 @@
 
     .preview-card { position: relative; display: inline-block; }
     .preview-card img, .preview-card video {
-      width: 90px;
-      height: 65px;
+      width: 95px;
+      height: 70px;
       object-fit: cover;
       border-radius: 6px;
       border: 1px solid var(--card-border);
@@ -279,9 +279,9 @@
       color: #fff;
       border: none;
       border-radius: 50%;
-      width: 18px;
-      height: 18px;
-      font-size: 11px;
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
       cursor: pointer;
       line-height: 1;
       z-index: 2;
@@ -317,7 +317,6 @@
 
   <div class="app-container">
 
-    <!-- HEADER STATUS ONLINE / OFFLINE -->
     <header class="header-card">
       <div class="header-title">
         <span>📱</span> TERRENO / RONDA OEM
@@ -327,10 +326,8 @@
       </div>
     </header>
 
-    <!-- FORMULARIO INTEGRADO -->
     <main class="form-card">
 
-      <!-- 1. FAENA OPERATIVA -->
       <div class="form-group">
         <label>1. Faena Operativa</label>
         <select id="selFaena" onchange="actualizarAreasPorFaena()">
@@ -342,7 +339,6 @@
         </select>
       </div>
 
-      <!-- 2. ÁREA OPERACIONAL -->
       <div class="form-group">
         <label>2. Área Operacional</label>
         <select id="selArea" onchange="actualizarEquiposPorArea()">
@@ -350,7 +346,6 @@
         </select>
       </div>
 
-      <!-- 3. EQUIPO / TAG DEL CATASTRO O LIBRE -->
       <div class="form-group">
         <label>3. Equipo / TAG del Catastro</label>
         <select id="selEquipo" onchange="sincronizarTagLibre(this.value)">
@@ -360,13 +355,11 @@
         <input type="text" id="inputTagLibre" placeholder="EJ: MH2709 (OPCIONAL)" class="code-font" style="text-transform: uppercase;" />
       </div>
 
-      <!-- 4. COMPONENTE / ELEMENTO (ESCRITURA LIBRE) -->
       <div class="form-group">
         <label>4. Componente / Elemento Afectado</label>
-        <input type="text" id="inputComponenteLibre" placeholder="Ej: Motor M1 lado acople, Reductor G1, Chumacera N°2, Tambor retorno..." />
+        <input type="text" id="inputComponenteLibre" placeholder="Ej: Motor M1 lado acople, Reductor G1, Chumacera N°2, Tambor..." />
       </div>
 
-      <!-- 5. CATÁLOGO EXTENDIDO DE HALLAZGOS RÁPIDOS -->
       <div class="form-group">
         <label>5. Hallazgos Frecuentes en Terreno</label>
         <div class="chips-grid">
@@ -383,19 +376,17 @@
         </div>
       </div>
 
-      <!-- 6. NOTAS / DETALLE DEL HALLAZGO -->
       <div class="form-group">
         <label>6. Notas / Detalle del Hallazgo</label>
-        <textarea id="txtDetalle" rows="3" placeholder="Ej: Se observa fuga activa por retén de entrada y soltura en perno basal frontal..."></textarea>
+        <textarea id="txtDetalle" rows="3" placeholder="Ej: Se observa fuga activa por retén de entrada y soltura en perno basal..."></textarea>
       </div>
 
-      <!-- 7. EVIDENCIAS MULTIMEDIA -->
       <div class="form-group">
-        <label>7. Evidencias Multimedia (Fotos / Galería / Video Corto)</label>
+        <label>7. Evidencias Multimedia (Múltiples Fotos / Videos Cortos)</label>
         
         <div class="media-actions-grid">
           <label class="btn-media">
-            📁 Desde Memoria
+            📁 Desde Memoria / Galería
             <input type="file" id="inputGaleria" accept="image/*,video/*" multiple style="display:none;" onchange="procesarArchivosMultimedia(event)" />
           </label>
 
@@ -415,7 +406,6 @@
         </div>
       </div>
 
-      <!-- 8. SEVERIDAD PRELIMINAR -->
       <div class="form-group">
         <label>8. Severidad Preliminar</label>
         <div class="sev-grid">
@@ -425,7 +415,6 @@
         </div>
       </div>
 
-      <!-- TRANSMISIÓN A SALA CIO -->
       <button type="button" class="btn-transmitir" id="btnTransmitir" onclick="transmitirReporteSalaCIO()">
         📡 Transmitir a Sala CIO en Tiempo Real
       </button>
@@ -453,7 +442,6 @@
     var evidenciasTemporales = [];
     var severidadSeleccionada = 'Rojo';
 
-    // 1. MONITOR DE CONECTIVIDAD & DESPACHO AUTOMÁTICO OFFLINE
     function getQueue() {
       try {
         return JSON.parse(localStorage.getItem('CIO_OFFLINE_QUEUE') || '[]');
@@ -520,7 +508,6 @@
 
     actualizarEstadoRed();
 
-    // 2. Carga en tiempo real de equipos del catastro
     dbEquipos.on('value', function(snap) {
       var raw = snap.val();
       if (!raw) return;
@@ -581,7 +568,6 @@
       if (val) input.value = val;
     }
 
-    // 3. Hallazgos rápidos con concatenación
     function agregarHallazgoRapido(texto) {
       var txt = document.getElementById('txtDetalle');
       if (txt.value.trim().length > 0) {
@@ -592,7 +578,6 @@
       txt.focus();
     }
 
-    // 4. Selector de severidad táctil
     function seleccionarSeveridad(sev) {
       severidadSeleccionada = sev;
       document.getElementById('btnSevRojo').className = 'sev-btn' + (sev === 'Rojo' ? ' active-rojo' : '');
@@ -600,7 +585,7 @@
       document.getElementById('btnSevAmarillo').className = 'sev-btn' + (sev === 'Amarillo' ? ' active-amarillo' : '');
     }
 
-    // 5. Procesamiento de evidencias con compresión
+    // PROCESAMIENTO MÚLTIPLE DE IMÁGENES
     function procesarArchivosMultimedia(event) {
       var files = Array.from(event.target.files);
       if (!files.length) return;
@@ -640,7 +625,6 @@
       event.target.value = '';
     }
 
-    // 6. Grabación y límite de video (10 segundos)
     function procesarVideoDirecto(event) {
       var file = event.target.files[0];
       if (file) validarYProcesarVideo(file);
@@ -649,7 +633,7 @@
 
     function validarYProcesarVideo(file) {
       if (file.size > 8 * 1024 * 1024) {
-        alert("⚠️ El video pesa más de 8 MB. Graba un clip de máximo 5 a 10 segundos.");
+        alert("⚠️ El video pesa más de 8 MB. Graba un clip más breve.");
         return;
       }
 
@@ -698,7 +682,6 @@
       renderizarPreview();
     }
 
-    // 7. TRANSMISIÓN CON GUARDADO LOCAL AUTOMÁTICO ANTE CAÍDA DE RED
     function transmitirReporteSalaCIO() {
       var tagFinal = document.getElementById('inputTagLibre').value.trim() || document.getElementById('selEquipo').value;
       var componenteFinal = document.getElementById('inputComponenteLibre').value.trim();
@@ -719,13 +702,14 @@
       }
 
       if (!detalle && evidenciasTemporales.length === 0) {
-        alert("⚠️ Ingresa notas del hallazgo o adjunta una fotografía/video.");
+        alert("⚠️ Ingresa notas del hallazgo o adjunta fotografías/videos.");
         return;
       }
 
       var primerFoto = evidenciasTemporales.find(function(e) { return e.tipo === 'imagen'; });
       var detalleCompleto = "[" + componenteFinal + "]: " + (detalle || 'Inspección visual de rutina efectuada en terreno.');
 
+      // GUARDADO DE LA LISTA COMPLETA DE EVIDENCIAS
       var payload = {
         faena: faena,
         area: area,
@@ -733,7 +717,7 @@
         componente: componenteFinal,
         severidad: severidadSeleccionada,
         detalle: detalleCompleto,
-        evidencias: evidenciasTemporales,
+        evidencias: evidenciasTemporales.slice(), // Arreglo completo con todas las fotos y videos
         fotoBase64: primerFoto ? primerFoto.data : '',
         timestamp: new Date().toISOString()
       };
@@ -750,13 +734,12 @@
         btn.innerText = "📡 Transmitir a Sala CIO en Tiempo Real";
       };
 
-      // Si no hay red, guardar en cola local de inmediato
       if (!navigator.onLine) {
         var queue = getQueue();
         queue.push(payload);
         saveQueue(queue);
         actualizarEstadoRed();
-        alert("💾 MODO OFFLINE: Sin conexión en faena. El reporte quedó guardado de forma segura en la memoria de tu teléfono y se sincronizará automáticamente cuando retomes señal.");
+        alert("💾 MODO OFFLINE: Sin conexión en faena. El reporte con " + evidenciasTemporales.length + " archivo(s) quedó guardado en la memoria de tu teléfono.");
         limpiarFormulario();
         return;
       }
@@ -765,10 +748,9 @@
       btn.innerText = "⏳ Transmitiendo a Sala CIO...";
 
       dbAlertas.push(payload).then(function() {
-        alert("✅ TRANSMISIÓN EXITOSA: El hallazgo en " + componenteFinal + " (" + tagFinal.toUpperCase() + ") ya está activo en Sala CIO.");
+        alert("✅ TRANSMISIÓN EXITOSA: El hallazgo en " + componenteFinal + " (" + tagFinal.toUpperCase() + ") con " + evidenciasTemporales.length + " evidencia(s) ya está activo en Sala CIO.");
         limpiarFormulario();
       }).catch(function(err) {
-        // Fallback ante microcortes durante el envío
         var queue = getQueue();
         queue.push(payload);
         saveQueue(queue);
