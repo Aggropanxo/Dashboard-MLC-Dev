@@ -38,8 +38,8 @@
         🏠 Inicio
       </button>
 
-      <!-- EMISIÓN DE REPORTE DE TERRENO GENERAL -->
-      <button class="btn-base" type="button" onclick="window.CIO.abrirFiltrosReporteTerreno()" style="border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1);">
+      <!-- EMISIÓN DE REPORTE DE TERRENO GENERAL (SOLO USUARIOS AUTENTICADOS) -->
+      <button class="btn-base auth-only" type="button" onclick="window.CIO.abrirFiltrosReporteTerreno()" style="border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1);">
         📋 Emitir Reporte Ronda
       </button>
 
@@ -63,7 +63,7 @@
     </div>
   </header>
 
-  <!-- MARKET TICKER BAR CON NODOS DINÁMICOS[cite: 9] -->
+  <!-- MARKET TICKER BAR CON NODOS DINÁMICOS -->
   <div class="market-ticker-bar">
     <div class="ticker-item">💵 USD/CLP: <strong id="tickerUsdClp">945.72</strong></div>
     <span>•</span>
@@ -97,6 +97,7 @@
         </div>
 
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <!-- BUSCADOR PREDICTIVO EN VIVO -->
           <div class="search-input-wrapper">
             <span class="search-icon-pos">🔍</span>
             <input 
@@ -316,7 +317,7 @@
         <option value="Naranja">🟠 Alerta (Naranja)</option>
         <option value="Amarillo">🟡 Seguimiento (Amarillo)</option>
       </select>
-      <button class="btn-base btn-primary" type="button" onclick="window.CIO.abrirFiltrosReporteTerreno()" style="margin-left:auto; font-size:0.76rem;">🖨️ Imprimir Reporte Seleccionado</button>
+      <button class="btn-base btn-primary auth-only" type="button" onclick="window.CIO.abrirFiltrosReporteTerreno()" style="margin-left:auto; font-size:0.76rem;">🖨️ Imprimir Reporte Seleccionado</button>
     </div>
 
     <div id="bitacoraFeedContainer" style="max-height:550px; overflow-y:auto; padding-right:6px;"></div>
