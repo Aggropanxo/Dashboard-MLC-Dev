@@ -85,6 +85,7 @@
       background: rgba(34, 197, 94, 0.15);
       border: 1px solid rgba(34, 197, 94, 0.4);
       color: #4ade80;
+      transition: all 0.3s ease;
     }
 
     .status-dot {
@@ -316,7 +317,7 @@
 
   <div class="app-container">
 
-    <!-- HEADER STATUS ONLINE -->
+    <!-- HEADER STATUS ONLINE / OFFLINE -->
     <header class="header-card">
       <div class="header-title">
         <span>📱</span> TERRENO / RONDA OEM
@@ -452,22 +453,71 @@
     var evidenciasTemporales = [];
     var severidadSeleccionada = 'Rojo';
 
-    // 1. Monitor de red
+    // 1. MONITOR DE CONECTIVIDAD & DESPACHO AUTOMÁTICO OFFLINE
+    function getQueue() {
+      try {
+        return JSON.parse(localStorage.getItem('CIO_OFFLINE_QUEUE') || '[]');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveQueue(q) {
+      try {
+        localStorage.setItem('CIO_OFFLINE_QUEUE', JSON.stringify(q));
+      } catch (e) {
+        console.warn("Storage lleno:", e);
+      }
+    }
+
     function actualizarEstadoRed() {
       var badge = document.getElementById('netStatusBadge');
       if (!badge) return;
+      var queue = getQueue();
+
       if (navigator.onLine) {
-        badge.innerHTML = '<span class="status-dot"></span> ONLINE / SYNC OK';
-        badge.style.color = '#4ade80';
-        badge.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+        if (queue.length > 0) {
+          badge.innerHTML = '<span class="status-dot" style="background:#38bdf8;box-shadow:0 0 8px #38bdf8;"></span> SINCRONIZANDO (' + queue.length + ')...';
+          badge.style.color = '#38bdf8';
+          badge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+          sincronizarColaOffline();
+        } else {
+          badge.innerHTML = '<span class="status-dot"></span> ONLINE / SYNC OK';
+          badge.style.color = '#4ade80';
+          badge.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+        }
       } else {
-        badge.innerHTML = '<span class="status-dot" style="background:#f97316;box-shadow:0 0 8px #f97316;"></span> OFFLINE / COLA LOCAL';
+        badge.innerHTML = '<span class="status-dot" style="background:#f97316;box-shadow:0 0 8px #f97316;"></span> OFFLINE / COLA (' + queue.length + ')';
         badge.style.color = '#fdba74';
         badge.style.borderColor = 'rgba(249, 115, 22, 0.4)';
       }
     }
-    window.addEventListener('online', actualizarEstadoRed);
+
+    window.addEventListener('online', function() {
+      actualizarEstadoRed();
+      sincronizarColaOffline();
+    });
     window.addEventListener('offline', actualizarEstadoRed);
+
+    function sincronizarColaOffline() {
+      if (!navigator.onLine) return;
+      var queue = getQueue();
+      if (queue.length === 0) return;
+
+      var itemsToSend = queue.slice();
+      var promesas = itemsToSend.map(function(item) {
+        return dbAlertas.push(item);
+      });
+
+      Promise.all(promesas).then(function() {
+        localStorage.removeItem('CIO_OFFLINE_QUEUE');
+        actualizarEstadoRed();
+        alert("✅ Conexión restablecida: " + itemsToSend.length + " reporte(s) offline sincronizados con Sala CIO.");
+      }).catch(function(err) {
+        console.warn("Error al sincronizar cola:", err);
+      });
+    }
+
     actualizarEstadoRed();
 
     // 2. Carga en tiempo real de equipos del catastro
@@ -531,7 +581,7 @@
       if (val) input.value = val;
     }
 
-    // 3. Hallazgos rápidos con concatenación inteligente
+    // 3. Hallazgos rápidos con concatenación
     function agregarHallazgoRapido(texto) {
       var txt = document.getElementById('txtDetalle');
       if (txt.value.trim().length > 0) {
@@ -550,7 +600,7 @@
       document.getElementById('btnSevAmarillo').className = 'sev-btn' + (sev === 'Amarillo' ? ' active-amarillo' : '');
     }
 
-    // 5. Procesamiento de evidencias (Fotos de cámara / memoria con compresión)
+    // 5. Procesamiento de evidencias con compresión
     function procesarArchivosMultimedia(event) {
       var files = Array.from(event.target.files);
       if (!files.length) return;
@@ -565,7 +615,7 @@
           reader.onload = function(e) {
             var img = new Image();
             img.onload = function() {
-              var MAX = 900;
+              var MAX = 850;
               var w = img.width, h = img.height;
               if (w > MAX) { h = Math.round((h * MAX) / w); w = MAX; }
               canvas.width = w; canvas.height = h;
@@ -573,7 +623,7 @@
 
               evidenciasTemporales.push({
                 tipo: 'imagen',
-                data: canvas.toDataURL('image/jpeg', 0.65)
+                data: canvas.toDataURL('image/jpeg', 0.60)
               });
 
               procesados++;
@@ -590,7 +640,7 @@
       event.target.value = '';
     }
 
-    // 6. Grabación y límite estricto de video corto (10 segundos)
+    // 6. Grabación y límite de video (10 segundos)
     function procesarVideoDirecto(event) {
       var file = event.target.files[0];
       if (file) validarYProcesarVideo(file);
@@ -598,8 +648,8 @@
     }
 
     function validarYProcesarVideo(file) {
-      if (file.size > 10 * 1024 * 1024) {
-        alert("⚠️ El video pesa más de 10 MB. Graba un clip más breve.");
+      if (file.size > 8 * 1024 * 1024) {
+        alert("⚠️ El video pesa más de 8 MB. Graba un clip de máximo 5 a 10 segundos.");
         return;
       }
 
@@ -648,7 +698,7 @@
       renderizarPreview();
     }
 
-    // 7. Transmisión a Sala CIO (Firebase Realtime Database)
+    // 7. TRANSMISIÓN CON GUARDADO LOCAL AUTOMÁTICO ANTE CAÍDA DE RED
     function transmitirReporteSalaCIO() {
       var tagFinal = document.getElementById('inputTagLibre').value.trim() || document.getElementById('selEquipo').value;
       var componenteFinal = document.getElementById('inputComponenteLibre').value.trim();
@@ -663,7 +713,7 @@
       }
 
       if (!componenteFinal) {
-        alert("⚠️ Por favor escribe el componente o punto afectado (ej: Motor M1, Reductor, Chumacera, etc.).");
+        alert("⚠️ Por favor escribe el componente afectado (ej: Motor M1, Reductor, Chumacera...).");
         document.getElementById('inputComponenteLibre').focus();
         return;
       }
@@ -673,12 +723,7 @@
         return;
       }
 
-      btn.disabled = true;
-      btn.innerText = "⏳ Transmitiendo a Sala CIO...";
-
       var primerFoto = evidenciasTemporales.find(function(e) { return e.tipo === 'imagen'; });
-
-      // Inclusión limpia del componente en el encabezado del detalle
       var detalleCompleto = "[" + componenteFinal + "]: " + (detalle || 'Inspección visual de rutina efectuada en terreno.');
 
       var payload = {
@@ -693,8 +738,7 @@
         timestamp: new Date().toISOString()
       };
 
-      dbAlertas.push(payload).then(function() {
-        alert("✅ TRANSMISIÓN EXITOSA: El hallazgo en " + componenteFinal + " (" + tagFinal.toUpperCase() + ") ya está visible en la consola central del CIO.");
+      var limpiarFormulario = function() {
         document.getElementById('txtDetalle').value = '';
         document.getElementById('inputTagLibre').value = '';
         document.getElementById('inputComponenteLibre').value = '';
@@ -704,10 +748,33 @@
         seleccionarSeveridad('Rojo');
         btn.disabled = false;
         btn.innerText = "📡 Transmitir a Sala CIO en Tiempo Real";
+      };
+
+      // Si no hay red, guardar en cola local de inmediato
+      if (!navigator.onLine) {
+        var queue = getQueue();
+        queue.push(payload);
+        saveQueue(queue);
+        actualizarEstadoRed();
+        alert("💾 MODO OFFLINE: Sin conexión en faena. El reporte quedó guardado de forma segura en la memoria de tu teléfono y se sincronizará automáticamente cuando retomes señal.");
+        limpiarFormulario();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = "⏳ Transmitiendo a Sala CIO...";
+
+      dbAlertas.push(payload).then(function() {
+        alert("✅ TRANSMISIÓN EXITOSA: El hallazgo en " + componenteFinal + " (" + tagFinal.toUpperCase() + ") ya está activo en Sala CIO.");
+        limpiarFormulario();
       }).catch(function(err) {
-        alert("❌ Error de transmisión: " + err.message);
-        btn.disabled = false;
-        btn.innerText = "📡 Transmitir a Sala CIO en Tiempo Real";
+        // Fallback ante microcortes durante el envío
+        var queue = getQueue();
+        queue.push(payload);
+        saveQueue(queue);
+        actualizarEstadoRed();
+        alert("⚠️ Falló el enlace de red (" + err.message + "). El reporte se guardó en la cola local de tu teléfono.");
+        limpiarFormulario();
       });
     }
   </script>

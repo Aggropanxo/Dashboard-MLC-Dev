@@ -356,7 +356,7 @@
     }
 
     .item-espectro-preview { position: relative; display: inline-block; }
-    .item-espectro-preview img {
+    .item-espectro-preview img, .item-espectro-preview video {
       width: 110px;
       height: 75px;
       object-fit: cover;
@@ -376,6 +376,7 @@
       height: 20px;
       font-size: 12px;
       cursor: pointer;
+      z-index: 2;
     }
 
     .box-ai-assistant {
@@ -455,7 +456,6 @@
       display: none;
     }
 
-    /* TARJETA DE REPORTE DE TERRENO */
     .card-terreno-item {
       background: var(--card-inner-bg);
       border: 1px solid var(--glass-border);
@@ -464,7 +464,31 @@
       margin-bottom: 14px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
+    }
+
+    /* TOAST DE ALERTA EN TIEMPO REAL FLOTANTE */
+    #liveAlertToast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(20px);
+      border: 2px solid #ef4444;
+      border-radius: 14px;
+      padding: 16px 20px;
+      box-shadow: 0 16px 40px rgba(239, 68, 68, 0.35);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      gap: 16px;
+      animation: slideUpToast 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 480px;
+    }
+
+    @keyframes slideUpToast {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
   </style>
 </head>
@@ -482,6 +506,11 @@
     </div>
 
     <div class="nav-actions">
+      <!-- BOTÓN DE BITÁCORA EN VIVO -->
+      <button class="btn-base" type="button" onclick="window.CIO.abrirBitacoraAlertasTurno()" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1);">
+        🚨 <span id="labelBitacoraBtn">Bitácora Alertas (0)</span>
+      </button>
+
       <button class="btn-base" type="button" onclick="window.CIO.toggleTheme()">🌓 Modo Tema</button>
       <button class="btn-base auth-only" type="button" onclick="window.CIO.solicitarPermisoSuperAdmin()">🔑 SuperAdmin</button>
       
@@ -590,7 +619,7 @@
       <div class="grid-equipos" id="viewScreen4Global"></div>
     </section>
 
-    <!-- PANTALLA 5 / NIVEL 4: PÁGINA COMPLETA DE EDICIÓN & DIAGNÓSTICO MULTIMODAL -->
+    <!-- PANTALLA 5 / NIVEL 4: CONSOLA DE EDICIÓN & DIAGNÓSTICO MULTIMODAL -->
     <section id="screen-5" class="screen-view">
       <div class="view-header">
         <div>
@@ -672,7 +701,7 @@
               <span id="labelZonaSubida" style="font-size:0.86rem; color:var(--text-muted); font-weight:600;">
                 📷 Clic para adjuntar archivo (Tipo: Espectro / FFT)
               </span>
-              <input type="file" id="subirEvidenciasMulti" accept="image/*" multiple style="display:none;" onchange="window.CIO.procesarSubidaEvidencias(event)" />
+              <input type="file" id="subirEvidenciasMulti" accept="image/*,video/*" multiple style="display:none;" onchange="window.CIO.procesarSubidaEvidencias(event)" />
             </div>
             <div class="preview-espectros-grid" id="previewEspectrosContainer"></div>
           </div>
@@ -704,6 +733,48 @@
     </section>
 
   </main>
+
+  <!-- BANNER TOAST DE ALERTA INMEDIATA FLOTANTE -->
+  <div id="liveAlertToast">
+    <div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="badge-indicator" id="toastBadgeSev" style="background:#ef4444; color:#fff;">ROJO</span>
+        <strong id="toastTagTitle" class="code-font" style="font-size:0.95rem; color:#fff;">TAG EQUIPO</strong>
+      </div>
+      <p id="toastDetalle" style="font-size:0.8rem; color:var(--text-muted); margin-top:4px; max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></p>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn-base btn-primary" type="button" id="toastBtnVer" style="padding:6px 12px; font-size:0.75rem;">👁️ Vista Rápida</button>
+      <button class="btn-base" type="button" onclick="document.getElementById('liveAlertToast').style.display='none'" style="padding:6px 8px;">&times;</button>
+    </div>
+  </div>
+
+  <!-- MODAL BITÁCORA DE ALERTAS EN VIVO -->
+  <dialog id="modalBitacoraTurno" style="max-width:960px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <div>
+        <span class="label-muted">Sala de Control CIO</span>
+        <h3 style="border:none; margin:2px 0 0 0;">🚨 Bitácora de Alertas de Ronda (Turno Activo)</h3>
+      </div>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalBitacoraTurno').close()">&times;</button>
+    </div>
+
+    <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center;">
+      <span style="font-size:0.8rem; color:var(--text-muted);">Filtrar por Severidad:</span>
+      <select class="btn-base" id="filterBitacoraSev" onchange="window.CIO.renderizarFeedBitacora()" style="padding:4px 10px;">
+        <option value="TODAS">Todas</option>
+        <option value="Rojo">🔴 Crítico (Rojo)</option>
+        <option value="Naranja">🟠 Alerta (Naranja)</option>
+        <option value="Amarillo">🟡 Seguimiento (Amarillo)</option>
+      </select>
+    </div>
+
+    <div id="bitacoraFeedContainer" style="max-height:550px; overflow-y:auto; padding-right:6px;"></div>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button class="btn-base" type="button" onclick="document.getElementById('modalBitacoraTurno').close()">Cerrar Bitácora</button>
+    </div>
+  </dialog>
 
   <!-- MODAL AUTH -->
   <dialog id="modalAuth">
@@ -898,10 +969,10 @@
     </div>
   </dialog>
 
-  <!-- MODAL HISTORIAL TERRENO (LISTADO DE REPORTES) -->
-  <dialog id="modalHistoricoTerreno" style="max-width:850px;">
+  <!-- MODAL HISTORIAL TERRENO -->
+  <dialog id="modalHistoricoTerreno" style="max-width:880px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-      <h3 id="histTerrenoTitle" style="border:none; margin:0;">Historial de Terreno</h3>
+      <h3 id="histTerrenoTitle" style="border:none; margin:0;">Historial de Ronda en Terreno</h3>
       <button class="btn-base" type="button" onclick="document.getElementById('modalHistoricoTerreno').close()">&times;</button>
     </div>
     <div id="histTerrenoListContainer" style="max-height:500px; overflow-y:auto; padding-right:6px;"></div>
@@ -910,8 +981,8 @@
     </div>
   </dialog>
 
-  <!-- NUEVO MODAL: EDICIÓN ESPECÍFICA DE UN REPORTE DE TERRENO -->
-  <dialog id="modalEditarReporteTerreno" style="max-width:550px;">
+  <!-- MODAL EDITAR / ELIMINAR REPORTE DE TERRENO DESDE LA CONSOLA -->
+  <dialog id="modalEditarReporteTerreno" style="max-width:620px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
       <h3 style="border:none; margin:0;">Editar Reporte de Terreno</h3>
       <button class="btn-base" type="button" onclick="document.getElementById('modalEditarReporteTerreno').close()">&times;</button>
@@ -922,7 +993,7 @@
     <div class="form-group">
       <label>Severidad del Hallazgo</label>
       <select id="editReporteSev">
-        <option value="Verde">Verde (Normal / Observación)</option>
+        <option value="Verde">Verde (Normal / Seguimiento)</option>
         <option value="Amarillo">Amarillo (Alerta)</option>
         <option value="Naranja">Naranja (Atención Requerida)</option>
         <option value="Rojo">Rojo (Crítico)</option>
@@ -931,13 +1002,12 @@
 
     <div class="form-group">
       <label>Detalle del Hallazgo / Observación</label>
-      <textarea id="editReporteDetalle" rows="4" placeholder="Describe la condición encontrada..."></textarea>
+      <textarea id="editReporteDetalle" rows="3" placeholder="Describe la condición encontrada..."></textarea>
     </div>
 
     <div class="form-group">
-      <label>Reemplazar Foto de Evidencia</label>
-      <input type="file" id="editReporteFotoInput" accept="image/*" onchange="window.CIO.procesarCambioFotoReporte(event)" />
-      <div id="editReporteFotoPreview" style="margin-top:10px;"></div>
+      <label>Evidencias Registradas:</label>
+      <div id="editReporteEvidenciasPreview" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; min-height:50px; padding:10px; border:1px dashed var(--glass-border); border-radius:8px;"></div>
     </div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid var(--glass-border); padding-top:12px;">
