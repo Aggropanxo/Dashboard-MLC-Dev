@@ -27,7 +27,7 @@
       --accent-color: #38bdf8;
       --accent-glow: rgba(56, 189, 248, 0.18);
       --input-bg: rgba(10, 15, 29, 0.7);
-      --modal-bg: rgba(13, 20, 36, 0.88);
+      --modal-bg: rgba(13, 20, 36, 0.94);
       --ticker-bg: rgba(13, 19, 33, 0.8);
       --logo-box-bg: #ffffff;
       --card-inner-bg: rgba(0, 0, 0, 0.25);
@@ -44,7 +44,7 @@
       --accent-color: #0284c7;
       --accent-glow: rgba(2, 132, 199, 0.12);
       --input-bg: rgba(248, 250, 252, 0.95);
-      --modal-bg: rgba(255, 255, 255, 0.92);
+      --modal-bg: rgba(255, 255, 255, 0.96);
       --ticker-bg: rgba(255, 255, 255, 0.85);
       --logo-box-bg: #ffffff;
       --card-inner-bg: rgba(241, 245, 249, 0.85);
@@ -454,6 +454,18 @@
       border: 1px solid var(--glass-border);
       display: none;
     }
+
+    /* TARJETA DE REPORTE DE TERRENO */
+    .card-terreno-item {
+      background: var(--card-inner-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
   </style>
 </head>
 <body>
@@ -740,7 +752,7 @@
     </div>
   </dialog>
 
-  <!-- MODAL DETALLE -->
+  <!-- MODAL DETALLE COMPONENTE -->
   <dialog id="modalDetalleComponente">
     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
       <div>
@@ -886,15 +898,54 @@
     </div>
   </dialog>
 
-  <!-- MODAL HISTORIAL TERRENO -->
-  <dialog id="modalHistoricoTerreno">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+  <!-- MODAL HISTORIAL TERRENO (LISTADO DE REPORTES) -->
+  <dialog id="modalHistoricoTerreno" style="max-width:850px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
       <h3 id="histTerrenoTitle" style="border:none; margin:0;">Historial de Terreno</h3>
       <button class="btn-base" type="button" onclick="document.getElementById('modalHistoricoTerreno').close()">&times;</button>
     </div>
-    <div id="histTerrenoListContainer" style="max-height:450px; overflow-y:auto;"></div>
-    <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+    <div id="histTerrenoListContainer" style="max-height:500px; overflow-y:auto; padding-right:6px;"></div>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
       <button class="btn-base" type="button" onclick="document.getElementById('modalHistoricoTerreno').close()">Cerrar</button>
+    </div>
+  </dialog>
+
+  <!-- NUEVO MODAL: EDICIÓN ESPECÍFICA DE UN REPORTE DE TERRENO -->
+  <dialog id="modalEditarReporteTerreno" style="max-width:550px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="border:none; margin:0;">Editar Reporte de Terreno</h3>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalEditarReporteTerreno').close()">&times;</button>
+    </div>
+
+    <input type="hidden" id="editReporteId" />
+
+    <div class="form-group">
+      <label>Severidad del Hallazgo</label>
+      <select id="editReporteSev">
+        <option value="Verde">Verde (Normal / Observación)</option>
+        <option value="Amarillo">Amarillo (Alerta)</option>
+        <option value="Naranja">Naranja (Atención Requerida)</option>
+        <option value="Rojo">Rojo (Crítico)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Detalle del Hallazgo / Observación</label>
+      <textarea id="editReporteDetalle" rows="4" placeholder="Describe la condición encontrada..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Reemplazar Foto de Evidencia</label>
+      <input type="file" id="editReporteFotoInput" accept="image/*" onchange="window.CIO.procesarCambioFotoReporte(event)" />
+      <div id="editReporteFotoPreview" style="margin-top:10px;"></div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid var(--glass-border); padding-top:12px;">
+      <button class="btn-base btn-danger" type="button" onclick="window.CIO.eliminarReporteTerrenoConfirm()">🗑️ Eliminar Reporte</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-base" type="button" onclick="document.getElementById('modalEditarReporteTerreno').close()">Cancelar</button>
+        <button class="btn-base btn-primary" type="button" onclick="window.CIO.guardarEdicionReporteTerreno()">💾 Guardar Cambios</button>
+      </div>
     </div>
   </dialog>
 
