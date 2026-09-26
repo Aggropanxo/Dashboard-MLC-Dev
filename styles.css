@@ -2,7 +2,6 @@
    RESET & VARIABLES GLOBALES
    ========================================================================== */
 :root {
-  /* Modo Oscuro - Liquid Glass Profundo */
   --bg-main: #090a0f;
   --bg-radial: radial-gradient(circle at 50% 0%, #181b26 0%, #090a0f 75%);
   --text-main: #f4f4f5;
@@ -10,7 +9,6 @@
   --accent-color: #38bdf8;
   --accent-glow: rgba(56, 189, 248, 0.18);
 
-  /* Efecto Liquid Glass Oscuro */
   --liquid-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(20, 24, 36, 0.75) 100%);
   --liquid-border: rgba(255, 255, 255, 0.14);
   --liquid-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.18);
@@ -34,7 +32,6 @@
   --card-inner-bg: rgba(0, 0, 0, 0.25);
 }
 
-/* Modo Claro - Liquid Glass Cristalino */
 body.light-mode {
   --bg-main: #f1f5f9;
   --bg-radial: radial-gradient(circle at 50% 0%, #ffffff 0%, #e2e8f0 90%);
@@ -100,7 +97,7 @@ body {
 
 .anim-rojo { animation: pulseGlowRed 1.8s infinite !important; }
 
-/* Marcadores GIS Leaflet Compactos (Punto sólido limpio sin letras) */
+/* Marcadores GIS Leaflet Compactos (14px sin texto interno) */
 .pin-marcador-gis {
   position: relative;
   display: block;
@@ -187,7 +184,7 @@ header.cio-navbar {
 .auth-only { display: none !important; }
 body.user-authenticated .auth-only { display: inline-flex !important; }
 
-/* Botones Base */
+/* Botones */
 .btn-base {
   background: var(--btn-bg);
   color: var(--text-main);
@@ -246,6 +243,40 @@ body.user-authenticated .auth-only { display: inline-flex !important; }
 }
 .user-dropdown.is-active { display: flex; }
 
+/* Buscador Rápido */
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input-box {
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  padding: 7px 12px 7px 32px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  outline: none;
+  width: 210px;
+  transition: all 0.2s ease;
+}
+
+.search-input-box:focus {
+  width: 270px;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.search-icon-pos {
+  position: absolute;
+  left: 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 /* ==========================================================================
    VIEWPORT & PANTALLAS
    ========================================================================== */
@@ -285,13 +316,15 @@ main.cio-viewport {
   gap: 20px;
 }
 
+/* Grilla Compacta de Alta Densidad */
 .grid-equipos {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 10px;
+  width: 100%;
 }
 
-.card-area, .card-equipo {
+.card-area {
   background: var(--liquid-bg);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -308,27 +341,50 @@ main.cio-viewport {
   transition: all 0.25s ease;
 }
 
-.card-area:hover, .card-equipo:hover {
+.card-area:hover {
   transform: translateY(-3px);
   border-color: rgba(255, 255, 255, 0.3);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), var(--glass-gloss);
+}
+
+/* Tarjeta de Equipo Compacta */
+.card-equipo {
+  background: var(--liquid-bg);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid var(--liquid-border);
+  box-shadow: var(--liquid-shadow);
+  border-radius: 10px;
+  padding: 10px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 92px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.card-equipo:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .card-top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
-  gap: 6px;
+  margin-bottom: 4px;
+  gap: 4px;
 }
 
 .badge-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 0.68rem;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 0.62rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -338,17 +394,22 @@ main.cio-viewport {
 .badge-al-dia { background: #10b981; color: #fff; }
 
 .card-equipo .eq-type {
-  font-size: 0.74rem;
+  font-size: 0.64rem;
   color: var(--text-muted);
   text-transform: uppercase;
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
 }
 
 .card-equipo .eq-tag {
-  font-size: 1.15rem;
+  font-size: 0.95rem;
   font-weight: 800;
-  margin: 6px 0;
+  margin: 3px 0;
   color: var(--text-main);
+  letter-spacing: 0.3px;
 }
 
 .sev-rojo { border-left: 6px solid #ef4444 !important; }
