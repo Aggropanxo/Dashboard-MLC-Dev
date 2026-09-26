@@ -63,7 +63,7 @@
     </div>
   </header>
 
-  <!-- MARKET TICKER BAR CON NODOS DINÁMICOS[cite: 9] -->
+  <!-- MARKET TICKER BAR CON NODOS DINÁMICOS -->
   <div class="market-ticker-bar">
     <div class="ticker-item">💵 USD/CLP: <strong id="tickerUsdClp">945.72</strong></div>
     <span>•</span>
@@ -327,7 +327,7 @@
     </div>
   </dialog>
 
-  <!-- MODAL CONFIGURACIÓN REPORTE DE RONDA TERRENO (FILTRADO PRECISO)[cite: 13] -->
+  <!-- MODAL CONFIGURACIÓN REPORTE DE RONDA TERRENO (FILTRADO PRECISO) -->
   <dialog id="modalFiltrosReporteTerreno" style="max-width:520px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
       <h3 style="border:none; margin:0; font-size:1.15rem;">📋 Emitir Reporte de Ronda Terreno</h3>
@@ -335,18 +335,18 @@
     </div>
     
     <div class="form-group">
-      <label>1. Alcance / Filtro de Emisión[cite: 13]</label>
+      <label>1. Alcance / Filtro de Emisión</label>
       <select id="repTerrenoFiltroTipo" onchange="window.CIO.cambiarOpcionesFiltroReporte()">
         <option value="dia">📅 Reporte del Día (Últimas 24 Horas)</option>
         <option value="rojo">🔴 Solo Hallazgos Críticos (Rojo)</option>
-        <option value="equipo">🔍 Filtrar por Equipo con Hallazgos[cite: 13]</option>
+        <option value="equipo">🔍 Filtrar por Equipo con Hallazgos</option>
         <option value="componente">⚙️ Filtrar por Componente Afectado</option>
       </select>
     </div>
 
-    <!-- SELECT DINÁMICO QUE DESPLIEGA EXCLUSIVAMENTE EQUIPOS CON HALLAZGOS EN TERRENO[cite: 13] -->
+    <!-- SELECT DINÁMICO QUE DESPLIEGA EXCLUSIVAMENTE EQUIPOS CON HALLAZGOS EN TERRENO -->
     <div class="form-group" id="boxFiltroTagRep" style="display:none;">
-      <label>Equipo con Reportes de Ronda Registrados[cite: 13]</label>
+      <label>Equipo con Reportes de Ronda Registrados</label>
       <select id="repTerrenoTagSelect">
         <option value="">-- Selecciona el Equipo --</option>
       </select>
@@ -672,9 +672,6 @@
   </dialog>
 
   <canvas id="resizeCanvas" style="display:none;"></canvas>
-
-  <!-- IFRAME OCULTO DE IMPRESIÓN DIRECTA QUE DESBLOQUEA CHROMIUM[cite: 14] -->
-  <iframe id="printReportFrame" style="position:fixed; right:0; bottom:0; width:0; height:0; border:0; visibility:hidden;"></iframe>
 
   <script src="app.js"></script>
 </body>
