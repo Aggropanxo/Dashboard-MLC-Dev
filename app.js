@@ -41,7 +41,6 @@
     'Mina, Mina el Romeral'
   ]);
 
-  // Centroides aproximados para centrar mapa según faena
   var FAENA_COORDS = Object.freeze({
     'Planta, Mina los Colorados': [-28.3294, -70.9392],
     'Mina, Mina los Colorados': [-28.3180, -70.9450],
@@ -301,7 +300,6 @@
           ? ('<div style="font-size:0.68rem; color:#2563eb; font-weight:700;">AV: ' + saps.countAvisos + ' | OM: ' + saps.countOms + '</div>') 
           : '';
 
-        // Indicador discreto de georreferencia en la tarjeta
         var hasGeo = (eq.lat !== '' && eq.lat !== undefined && eq.lng !== '' && eq.lng !== undefined);
         var geoDot = hasGeo ? '<span title="Activo Georreferenciado" style="color:#22c55e; font-size:0.75rem;">📍</span>' : '';
 
@@ -490,7 +488,7 @@
   }
 
   // -------------------------------------------------------------
-  // MAPA GIS LEAFLET (SATELLITE & COLORED PINS)
+  // MAPA GIS LEAFLET (SATELLITE & COLORED PULSING PINS)
   // -------------------------------------------------------------
   function inicializarMapaSite() {
     var mapDiv = document.getElementById('view-site-map');
@@ -501,7 +499,6 @@
       attributionControl: false
     }).setView([-28.3294, -70.9392], 15);
 
-    // Capa satelital de alta resolución (Esri World Imagery)
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19
     }).addTo(state.mapaSite);
@@ -529,12 +526,15 @@
         var colorPin = SEV_COLOR[maxSev] || '#6b7280';
         var tagVal = eq.tag || eq.id;
 
-        // Marcador con color dinámico de alerta y pulso
+        // Si es Crítico (Rojo) o Alerta (Naranja), activamos la baliza pulsante
+        var clasePulso = (maxSev === 'Rojo' || maxSev === 'Naranja') ? 'anim-pulso' : '';
+
         var iconoCustom = L.divIcon({
-          className: 'custom-leaflet-marker',
-          html: '<div class="pin-marcador-gis" style="background:' + colorPin + ';">' + tagVal.substring(0, 3) + '</div>',
+          className: 'custom-leaflet-marker-wrapper',
+          html: '<div class="pin-marcador-gis ' + clasePulso + '" style="background:' + colorPin + ';">' + tagVal.substring(0, 3) + '</div>',
           iconSize: [32, 32],
-          iconAnchor: [16, 16]
+          iconAnchor: [16, 16],
+          popupAnchor: [0, -18]
         });
 
         var marcador = L.marker([lat, lng], { icon: iconoCustom });
@@ -544,10 +544,10 @@
             '<div style="font-weight:800; font-size:0.95rem; margin-bottom:2px;">' + sanitize(tagVal) + '</div>' +
             '<div style="font-size:0.75rem; color:#64748b; margin-bottom:6px;">' + sanitize(eq.tipo || 'Activo') + ' - ' + sanitize(eq.area || '') + '</div>' +
             '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
-              '<span style="font-size:0.7rem; font-weight:800; color:' + colorPin + ';">' + maxSev.toUpperCase() + '</span>' +
+              '<span style="font-size:0.75rem; font-weight:800; color:' + colorPin + ';">' + maxSev.toUpperCase() + '</span>' +
               '<span style="font-size:0.7rem; color:#64748b;">' + (eq.fechaMedicion || '') + '</span>' +
             '</div>' +
-            '<button type="button" style="width:100%; padding:6px; background:#0284c7; color:#fff; border:none; border-radius:6px; font-weight:bold; font-size:0.75rem; cursor:pointer;" onclick="window.CIO.irANivel3Equipo(\'' + eq.id + '\')">🔍 Abrir Tren Motriz</button>' +
+            '<button type="button" style="width:100%; padding:7px; background:#0284c7; color:#fff; border:none; border-radius:6px; font-weight:bold; font-size:0.78rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="window.CIO.irANivel3Equipo(\'' + eq.id + '\')">🔍 Abrir Tren Motriz</button>' +
           '</div>';
 
         marcador.bindPopup(popupHtml);
@@ -555,7 +555,6 @@
       }
     });
 
-    // Ajustar encuadre
     if (bounds.length > 0) {
       state.mapaSite.fitBounds(bounds, { padding: [40, 40], maxZoom: 17 });
     } else {
@@ -568,7 +567,7 @@
   }
 
   // -------------------------------------------------------------
-  // SINCRONIZACIÓN REACTIVA CON FIREBASE (ROBUSTA & REALTIME)
+  // SINCRONIZACIÓN REACTIVA CON FIREBASE
   // -------------------------------------------------------------
   if (db) {
     db.on('value', function(snap) {
@@ -654,9 +653,7 @@
   // OBJETO GLOBAL CIO
   // -------------------------------------------------------------
   window.CIO = {
-    // BOTÓN DE RETORNO TOTAL
     irAInicio: function() {
-      // Cerrar modales que pudieran estar abiertos
       document.querySelectorAll('dialog').forEach(function(d) {
         if (d && typeof d.close === 'function') {
           try { d.close(); } catch (e) {}
@@ -2083,7 +2080,6 @@
     }
   };
 
-  // Exposición en ámbito global para eventos inline
   window.handleUserBtnClick = window.CIO.handleUserBtnClick;
   window.salirSuperAdmin = window.CIO.salirSuperAdmin;
 
