@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
 
-  <!-- Firebase SDKs -->
+  <!-- Firebase SDKs (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -441,31 +441,81 @@
     var catalogoEquipos = [];
     var evidenciasTemporales = [];
     var severidadSeleccionada = 'Rojo';
+    var isSyncing = false;
 
-    function getQueue() {
-      try {
-        return JSON.parse(localStorage.getItem('CIO_OFFLINE_QUEUE') || '[]');
-      } catch (e) {
-        return [];
-      }
+    // ==========================================
+    // CAPA INDEXEDDB PARA ALMACENAMIENTO OFFLINE
+    // ==========================================
+    var DB_NAME = "CIOTerrenoDB";
+    var STORE_NAME = "offline_alerts";
+    var dbInstance = null;
+
+    function initIndexedDB() {
+      return new Promise(function(resolve, reject) {
+        var request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = function(e) {
+          var db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+          }
+        };
+        request.onsuccess = function(e) {
+          dbInstance = e.target.result;
+          resolve(dbInstance);
+        };
+        request.onerror = function(e) {
+          console.error("IndexedDB error:", e);
+          reject(e);
+        };
+      });
     }
 
-    function saveQueue(q) {
-      try {
-        localStorage.setItem('CIO_OFFLINE_QUEUE', JSON.stringify(q));
-      } catch (e) {
-        console.warn("Storage lleno:", e);
-      }
+    function addOfflineItem(item) {
+      return new Promise(function(resolve, reject) {
+        if (!dbInstance) { reject("DB no inicializada"); return; }
+        var tx = dbInstance.transaction([STORE_NAME], "readwrite");
+        var store = tx.objectStore(STORE_NAME);
+        var req = store.add(item);
+        req.onsuccess = function() { resolve(); };
+        req.onerror = function(e) { reject(e); };
+      });
     }
 
-    function actualizarEstadoRed() {
+    function getAllOfflineItems() {
+      return new Promise(function(resolve, reject) {
+        if (!dbInstance) { resolve([]); return; }
+        var tx = dbInstance.transaction([STORE_NAME], "readonly");
+        var store = tx.objectStore(STORE_NAME);
+        var req = store.getAll();
+        req.onsuccess = function() { resolve(req.result || []); };
+        req.onerror = function(e) { reject(e); };
+      });
+    }
+
+    function removeOfflineItem(id) {
+      return new Promise(function(resolve, reject) {
+        if (!dbInstance) { reject("DB no inicializada"); return; }
+        var tx = dbInstance.transaction([STORE_NAME], "readwrite");
+        var store = tx.objectStore(STORE_NAME);
+        var req = store.delete(id);
+        req.onsuccess = function() { resolve(); };
+        req.onerror = function(e) { reject(e); };
+      });
+    }
+
+    // ==========================================
+    // GESTIÓN DE RED Y COLA OFFLINE
+    // ==========================================
+    async function actualizarEstadoRed() {
       var badge = document.getElementById('netStatusBadge');
       if (!badge) return;
-      var queue = getQueue();
+
+      var items = await getAllOfflineItems();
+      var count = items.length;
 
       if (navigator.onLine) {
-        if (queue.length > 0) {
-          badge.innerHTML = '<span class="status-dot" style="background:#38bdf8;box-shadow:0 0 8px #38bdf8;"></span> SINCRONIZANDO (' + queue.length + ')...';
+        if (count > 0) {
+          badge.innerHTML = '<span class="status-dot" style="background:#38bdf8;box-shadow:0 0 8px #38bdf8;"></span> SINCRONIZANDO (' + count + ')...';
           badge.style.color = '#38bdf8';
           badge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
           sincronizarColaOffline();
@@ -475,7 +525,7 @@
           badge.style.borderColor = 'rgba(34, 197, 94, 0.4)';
         }
       } else {
-        badge.innerHTML = '<span class="status-dot" style="background:#f97316;box-shadow:0 0 8px #f97316;"></span> OFFLINE / COLA (' + queue.length + ')';
+        badge.innerHTML = '<span class="status-dot" style="background:#f97316;box-shadow:0 0 8px #f97316;"></span> OFFLINE / COLA (' + count + ')';
         badge.style.color = '#fdba74';
         badge.style.borderColor = 'rgba(249, 115, 22, 0.4)';
       }
@@ -487,27 +537,49 @@
     });
     window.addEventListener('offline', actualizarEstadoRed);
 
-    function sincronizarColaOffline() {
-      if (!navigator.onLine) return;
-      var queue = getQueue();
-      if (queue.length === 0) return;
+    async function sincronizarColaOffline() {
+      if (!navigator.onLine || isSyncing) return;
+      isSyncing = true;
 
-      var itemsToSend = queue.slice();
-      var promesas = itemsToSend.map(function(item) {
-        return dbAlertas.push(item);
-      });
-
-      Promise.all(promesas).then(function() {
-        localStorage.removeItem('CIO_OFFLINE_QUEUE');
+      var items = await getAllOfflineItems();
+      if (!items || items.length === 0) {
+        isSyncing = false;
         actualizarEstadoRed();
-        alert("✅ Conexión restablecida: " + itemsToSend.length + " reporte(s) offline sincronizados con Sala CIO.");
-      }).catch(function(err) {
-        console.warn("Error al sincronizar cola:", err);
-      });
+        return;
+      }
+
+      var transmitidos = 0;
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var localId = item.id;
+        delete item.id; // Remover la clave de IndexedDB antes de subir a Firebase
+
+        try {
+          await dbAlertas.push(item);
+          await removeOfflineItem(localId);
+          transmitidos++;
+        } catch (err) {
+          console.warn("Fallo temporal sincronizando item offline:", err);
+          break; // Detener bucle para reintentar al siguiente evento online
+        }
+      }
+
+      isSyncing = false;
+      actualizarEstadoRed();
+
+      if (transmitidos > 0) {
+        alert("✅ Conexión restablecida: " + transmitidos + " reporte(s) offline sincronizados con Sala CIO.");
+      }
     }
 
-    actualizarEstadoRed();
+    // Inicializar BD local
+    initIndexedDB().then(function() {
+      actualizarEstadoRed();
+    });
 
+    // ==========================================
+    // CATÁLOGO DE ACTIVOS
+    // ==========================================
     dbEquipos.on('value', function(snap) {
       var raw = snap.val();
       if (!raw) return;
@@ -585,7 +657,9 @@
       document.getElementById('btnSevAmarillo').className = 'sev-btn' + (sev === 'Amarillo' ? ' active-amarillo' : '');
     }
 
-    // PROCESAMIENTO MÚLTIPLE DE IMÁGENES
+    // ==========================================
+    // PROCESAMIENTO MULTIMEDIA OPTIMIZADO
+    // ==========================================
     function procesarArchivosMultimedia(event) {
       var files = Array.from(event.target.files);
       if (!files.length) return;
@@ -600,15 +674,23 @@
           reader.onload = function(e) {
             var img = new Image();
             img.onload = function() {
-              var MAX = 850;
+              var MAX = 1200;
               var w = img.width, h = img.height;
-              if (w > MAX) { h = Math.round((h * MAX) / w); w = MAX; }
+              if (w > MAX || h > MAX) {
+                if (w > h) {
+                  h = Math.round((h * MAX) / w);
+                  w = MAX;
+                } else {
+                  w = Math.round((w * MAX) / h);
+                  h = MAX;
+                }
+              }
               canvas.width = w; canvas.height = h;
               ctx.drawImage(img, 0, 0, w, h);
 
               evidenciasTemporales.push({
                 tipo: 'imagen',
-                data: canvas.toDataURL('image/jpeg', 0.60)
+                data: canvas.toDataURL('image/jpeg', 0.65)
               });
 
               procesados++;
@@ -633,7 +715,7 @@
 
     function validarYProcesarVideo(file) {
       if (file.size > 8 * 1024 * 1024) {
-        alert("⚠️ El video pesa más de 8 MB. Graba un clip más breve.");
+        alert("⚠️ El video supera los 8 MB. Graba un clip más corto.");
         return;
       }
 
@@ -641,7 +723,7 @@
       vid.preload = 'metadata';
       vid.onloadedmetadata = function() {
         window.URL.revokeObjectURL(vid.src);
-        if (vid.duration > 12) {
+        if (vid.duration > 11) {
           alert("⚠️ El video dura " + Math.round(vid.duration) + "s. El límite máximo son 10 segundos.");
           return;
         }
@@ -682,7 +764,10 @@
       renderizarPreview();
     }
 
-    function transmitirReporteSalaCIO() {
+    // ==========================================
+    // TRANSMISIÓN SALA CIO / COLA INDEXEDDB
+    // ==========================================
+    async function transmitirReporteSalaCIO() {
       var tagFinal = document.getElementById('inputTagLibre').value.trim() || document.getElementById('selEquipo').value;
       var componenteFinal = document.getElementById('inputComponenteLibre').value.trim();
       var faena = document.getElementById('selFaena').value;
@@ -709,7 +794,6 @@
       var primerFoto = evidenciasTemporales.find(function(e) { return e.tipo === 'imagen'; });
       var detalleCompleto = "[" + componenteFinal + "]: " + (detalle || 'Inspección visual de rutina efectuada en terreno.');
 
-      // GUARDADO DE LA LISTA COMPLETA DE EVIDENCIAS
       var payload = {
         faena: faena,
         area: area,
@@ -717,7 +801,7 @@
         componente: componenteFinal,
         severidad: severidadSeleccionada,
         detalle: detalleCompleto,
-        evidencias: evidenciasTemporales.slice(), // Arreglo completo con todas las fotos y videos
+        evidencias: evidenciasTemporales.slice(),
         fotoBase64: primerFoto ? primerFoto.data : '',
         timestamp: new Date().toISOString()
       };
@@ -735,12 +819,14 @@
       };
 
       if (!navigator.onLine) {
-        var queue = getQueue();
-        queue.push(payload);
-        saveQueue(queue);
-        actualizarEstadoRed();
-        alert("💾 MODO OFFLINE: Sin conexión en faena. El reporte con " + evidenciasTemporales.length + " archivo(s) quedó guardado en la memoria de tu teléfono.");
-        limpiarFormulario();
+        try {
+          await addOfflineItem(payload);
+          actualizarEstadoRed();
+          alert("💾 MODO OFFLINE: Sin cobertura en terreno. El reporte con " + evidenciasTemporales.length + " evidencia(s) se resguardó en la memoria local y se transmitirá automáticamente al recuperar señal.");
+          limpiarFormulario();
+        } catch (e) {
+          alert("❌ Error al guardar localmente: " + e.message);
+        }
         return;
       }
 
@@ -748,14 +834,12 @@
       btn.innerText = "⏳ Transmitiendo a Sala CIO...";
 
       dbAlertas.push(payload).then(function() {
-        alert("✅ TRANSMISIÓN EXITOSA: El hallazgo en " + componenteFinal + " (" + tagFinal.toUpperCase() + ") con " + evidenciasTemporales.length + " evidencia(s) ya está activo en Sala CIO.");
+        alert("✅ TRANSMISIÓN EXITOSA: El hallazgo en " + componenteFinal + " (" + tagFinal.toUpperCase() + ") ya está activo en Sala CIO.");
         limpiarFormulario();
-      }).catch(function(err) {
-        var queue = getQueue();
-        queue.push(payload);
-        saveQueue(queue);
+      }).catch(async function(err) {
+        await addOfflineItem(payload);
         actualizarEstadoRed();
-        alert("⚠️ Falló el enlace de red (" + err.message + "). El reporte se guardó en la cola local de tu teléfono.");
+        alert("⚠️ Enlace inestable (" + err.message + "). El reporte se guardó en la cola local de tu equipo y se enviará en segundo plano.");
         limpiarFormulario();
       });
     }
