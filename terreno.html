@@ -86,6 +86,7 @@
       border: 1px solid rgba(34, 197, 94, 0.4);
       color: #4ade80;
       transition: all 0.3s ease;
+      user-select: none;
     }
 
     .status-dot {
@@ -162,13 +163,13 @@
       color: #fff;
     }
 
-    /* Estado inactivo y grisáceo al marcar el chip */
+    /* Botón marcado: inactivo en gris */
     .chip-btn:disabled, .chip-btn.disabled {
       background: rgba(255, 255, 255, 0.02) !important;
       border-color: rgba(255, 255, 255, 0.05) !important;
       color: #475569 !important;
       cursor: not-allowed !important;
-      opacity: 0.5;
+      opacity: 0.45;
       box-shadow: none !important;
       transform: none !important;
     }
@@ -332,7 +333,8 @@
       <div class="header-title">
         <span>📱</span> TERRENO / RONDA OEM
       </div>
-      <div class="status-badge" id="netStatusBadge">
+      <!-- Badge interactivo: tocar para forzar reintento de sincronización -->
+      <div class="status-badge" id="netStatusBadge" onclick="forzarSincronizacionManual()" style="cursor: pointer;" title="Toca para forzar sincronización">
         <span class="status-dot"></span> ONLINE / SYNC OK
       </div>
     </header>
@@ -477,14 +479,11 @@
       var frase = DICCIONARIO_HALLAZGOS[tipo];
       if (!frase) return;
 
-      // 1. Bloqueo visual e interactivo del botón
       btn.disabled = true;
       btn.classList.add('disabled');
 
-      // 2. Acumulación técnica
       hallazgosAcumulados.push(frase);
 
-      // 3. Generación gramatical coherente
       var textoSintetizado = "";
       if (hallazgosAcumulados.length === 1) {
         textoSintetizado = "En inspección de terreno se detecta " + hallazgosAcumulados[0] + ".";
@@ -496,14 +495,12 @@
         textoSintetizado = "En inspección de terreno se constata " + primeros + " y " + ultimo + ".";
       }
 
-      // 4. Inyección preservando el texto manual agregado por el usuario
       var txtArea = document.getElementById('txtDetalle');
       txtArea.value = notasManualesTecnico 
         ? (textoSintetizado + " " + notasManualesTecnico).trim() 
         : textoSintetizado;
     }
 
-    // Listener para registrar entradas manuales del técnico sin perderlas al pulsar nuevos chips
     document.getElementById('txtDetalle').addEventListener('input', function(e) {
       var val = e.target.value;
       if (hallazgosAcumulados.length > 0) {
@@ -579,8 +576,28 @@
     }
 
     // ==========================================
-    // GESTIÓN DE RED Y COLA OFFLINE
+    // RECONEXIÓN BLINDADA Y SINCRONIZACIÓN
     // ==========================================
+    function pushConTimeout(ref, data, timeoutMs) {
+      return new Promise(function(resolve, reject) {
+        var completado = false;
+        var timer = setTimeout(function() {
+          if (!completado) {
+            completado = true;
+            reject(new Error("Timeout de conexión con Firebase"));
+          }
+        }, timeoutMs || 8000);
+
+        ref.push(data, function(error) {
+          if (completado) return;
+          completado = true;
+          clearTimeout(timer);
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+    }
+
     async function actualizarEstadoRed() {
       var badge = document.getElementById('netStatusBadge');
       if (!badge) return;
@@ -606,15 +623,25 @@
       }
     }
 
-    window.addEventListener('online', function() {
-      actualizarEstadoRed();
-      sincronizarColaOffline();
-    });
-    window.addEventListener('offline', actualizarEstadoRed);
+    function forzarSincronizacionManual() {
+      if (navigator.onLine) {
+        sincronizarColaOffline();
+      } else {
+        alert("ℹ️ Tu dispositivo no tiene conexión de red actualmente.");
+      }
+    }
 
     async function sincronizarColaOffline() {
       if (!navigator.onLine || isSyncing) return;
       isSyncing = true;
+
+      try {
+        if (typeof firebase !== 'undefined' && firebase.database) {
+          firebase.database().goOnline();
+        }
+      } catch (e) {}
+
+      await new Promise(function(r) { setTimeout(r, 600); });
 
       var items = await getAllOfflineItems();
       if (!items || items.length === 0) {
@@ -624,17 +651,18 @@
       }
 
       var transmitidos = 0;
+
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
         var localId = item.id;
         delete item.id;
 
         try {
-          await dbAlertas.push(item);
+          await pushConTimeout(dbAlertas, item, 8000);
           await removeOfflineItem(localId);
           transmitidos++;
         } catch (err) {
-          console.warn("Fallo temporal sincronizando item offline:", err);
+          console.warn("Fallo temporal sincronizando item:", localId, err);
           break;
         }
       }
@@ -646,6 +674,23 @@
         alert("✅ Conexión restablecida: " + transmitidos + " reporte(s) offline sincronizados con Sala CIO.");
       }
     }
+
+    window.addEventListener('online', function() {
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        firebase.database().goOnline();
+      }
+      setTimeout(function() {
+        actualizarEstadoRed();
+        sincronizarColaOffline();
+      }, 1000);
+    });
+
+    window.addEventListener('offline', function() {
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        firebase.database().goOffline();
+      }
+      actualizarEstadoRed();
+    });
 
     initIndexedDB().then(function() {
       actualizarEstadoRed();
@@ -879,7 +924,6 @@
         renderizarPreview();
         seleccionarSeveridad('Rojo');
 
-        // Restaurar estado de los chips
         document.querySelectorAll('.chips-grid .chip-btn').forEach(function(b) {
           b.disabled = false;
           b.classList.remove('disabled');
@@ -906,7 +950,7 @@
       btn.disabled = true;
       btn.innerText = "⏳ Transmitiendo a Sala CIO...";
 
-      dbAlertas.push(payload).then(function() {
+      pushConTimeout(dbAlertas, payload, 8000).then(function() {
         alert("✅ TRANSMISIÓN EXITOSA: El hallazgo en " + componenteFinal + " (" + tagFinal.toUpperCase() + ") ya está activo en Sala CIO.");
         limpiarFormulario();
       }).catch(async function(err) {
