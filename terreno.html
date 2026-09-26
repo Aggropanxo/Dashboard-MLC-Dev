@@ -1,655 +1,224 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>TERRENO / RONDA - CAPTURA RÁPIDA [CPF]</title>
-  
-  <!-- Configuración PWA / Android -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#090a0f">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="CIO Terreno">
-  <link rel="apple-touch-icon" href="logo-cpf.png">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CIO Terreno | Captura de Ronda</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-main: #090a0f;
-      --bg-radial: radial-gradient(circle at 50% 0%, #161824 0%, #090a0f 80%);
-      --text-main: #f3f4f6;
-      --text-muted: #a1a1aa;
-      --accent-color: #3b82f6;
-
-      /* Glassmorphism Mobile */
-      --glass-surface: rgba(20, 22, 32, 0.78);
-      --glass-card: rgba(26, 28, 40, 0.62);
-      --glass-border: rgba(255, 255, 255, 0.1);
-      --glass-blur: blur(18px);
-      --input-bg: rgba(12, 14, 22, 0.85);
+      --bg: #090d16;
+      --card-bg: rgba(22, 32, 54, 0.75);
+      --border: rgba(255, 255, 255, 0.12);
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
     }
-
-    body {
-      background: var(--bg-radial);
-      background-color: var(--bg-main);
-      background-attachment: fixed;
-      color: var(--text-main);
-      font-family: 'Inter', sans-serif;
-      padding: 14px;
-      margin: 0;
-      -webkit-tap-highlight-color: transparent;
-      min-height: 100vh;
-      box-sizing: border-box;
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; display: flex; flex-direction: column; align-items: center; }
+    .card-terreno {
+      width: 100%; max-width: 520px; background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 16px; padding: 22px; backdrop-filter: blur(20px); box-shadow: 0 12px 30px rgba(0,0,0,0.5);
     }
-
-    .app-container {
-      max-width: 480px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .app-header {
-      background: var(--glass-surface);
-      backdrop-filter: var(--glass-blur);
-      -webkit-backdrop-filter: var(--glass-blur);
-      border: 1px solid var(--glass-border);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
-      border-radius: 14px;
-      padding: 14px 18px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .app-header h1 {
-      font-size: 0.95rem;
-      margin: 0;
-      text-transform: uppercase;
-      font-weight: 800;
-      color: #ef4444;
-      letter-spacing: 0.6px;
-    }
-
-    .badge-field {
-      font-size: 0.65rem;
-      padding: 5px 10px;
-      border-radius: 7px;
-      font-weight: bold;
-      border: 1px solid;
-      backdrop-filter: blur(6px);
-    }
-
-    .card-field {
-      background: var(--glass-card);
-      backdrop-filter: var(--glass-blur);
-      -webkit-backdrop-filter: var(--glass-blur);
-      border: 1px solid var(--glass-border);
-      box-shadow: 0 14px 35px rgba(0,0,0,0.7), inset 0 1px 1px rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    label {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      display: block;
-      margin-bottom: 6px;
-    }
-
+    h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 14px; text-transform: uppercase; color: var(--accent); }
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; margin-bottom: 6px; text-transform: uppercase; }
     input, select, textarea {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 9px;
-      border: 1px solid var(--glass-border);
-      background: var(--input-bg);
-      color: var(--text-main);
-      font-size: 0.92rem;
-      font-family: 'Inter', sans-serif;
-      box-sizing: border-box;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%; background: rgba(10, 15, 29, 0.85); border: 1px solid var(--border); color: #fff;
+      padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; outline: none;
     }
-
-    input:focus, select:focus, textarea:focus {
-      border-color: var(--accent-color);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    .grid-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+    .btn-action {
+      background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border); color: #fff; padding: 10px;
+      border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; text-align: center; display: block;
     }
-
-    select { font-weight: 600; color: var(--text-main); }
-    .code-font {
-      font-family: 'Roboto Mono', monospace;
-      font-size: 0.98rem;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .chips-container { display: flex; flex-wrap: wrap; gap: 8px; }
-    .chip {
-      background: rgba(18, 20, 30, 0.7);
-      backdrop-filter: blur(6px);
-      border: 1px solid var(--glass-border);
-      color: var(--text-muted);
-      padding: 9px 13px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      user-select: none;
-    }
-
-    .chip.active {
-      background: rgba(59, 130, 246, 0.35);
-      border-color: #60a5fa;
-      color: #ffffff;
-      box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
-    }
-
-    .photo-preview-box {
-      position: relative;
-      margin-top: 8px;
-      border-radius: 9px;
-      overflow: hidden;
-      border: 1px solid var(--glass-border);
-      background: #000;
-      display: none;
-    }
-
-    .photo-preview-box img {
-      width: 100%;
-      max-height: 190px;
-      object-fit: cover;
-      display: block;
-    }
-
-    .btn-remove-photo {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: rgba(220, 38, 38, 0.88);
-      backdrop-filter: blur(4px);
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 5px;
-      font-size: 0.68rem;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .sev-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .sev-btn {
-      padding: 12px 8px;
-      border-radius: 9px;
-      border: 1px solid var(--glass-border);
-      background: rgba(18, 20, 30, 0.6);
-      color: var(--text-muted);
-      font-weight: 700;
-      font-size: 0.75rem;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s;
-    }
-
-    .sev-btn.sel-rojo {
-      background: rgba(239, 68, 68, 0.3);
-      border-color: #ef4444;
-      color: #ef4444;
-      box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
-    }
-
-    .sev-btn.sel-naranja {
-      background: rgba(249, 115, 22, 0.3);
-      border-color: #f97316;
-      color: #f97316;
-      box-shadow: 0 0 16px rgba(249, 115, 22, 0.35);
-    }
-
-    .sev-btn.sel-amarillo {
-      background: rgba(234, 179, 8, 0.3);
-      border-color: #eab308;
-      color: #eab308;
-      box-shadow: 0 0 16px rgba(234, 179, 8, 0.3);
-    }
-
-    .btn-transmitir {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      color: white;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 18px;
-      border-radius: 14px;
-      font-weight: 900;
-      font-size: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      cursor: pointer;
-      box-shadow: 0 8px 25px rgba(239, 68, 68, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.3);
-      text-align: center;
-      display: block;
-      width: 100%;
-      transition: transform 0.15s;
-    }
-
-    .btn-transmitir:active { transform: scale(0.98); }
-
-    .toast-ok {
-      display: none;
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(22, 163, 74, 0.92);
-      backdrop-filter: blur(14px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: white;
-      padding: 12px 24px;
-      border-radius: 9px;
-      font-weight: bold;
-      font-size: 0.85rem;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.7);
-      z-index: 9999;
-      text-align: center;
-      max-width: 90vw;
-    }
+    .btn-action:hover { border-color: var(--accent); background: rgba(56, 189, 248, 0.15); }
+    .preview-box { display: flex; flex-wrap: wrap; gap: 8px; min-height: 50px; padding: 8px; border: 1px dashed var(--border); border-radius: 8px; margin-top: 10px; }
+    .preview-item { position: relative; display: inline-block; }
+    .preview-item img, .preview-item video { width: 90px; height: 65px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+    .preview-item button { position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; font-size: 11px; }
+    .btn-submit { width: 100%; background: #0284c7; border: none; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 0.95rem; color: #fff; cursor: pointer; margin-top: 10px; }
+    .btn-submit:hover { background: #0369a1; }
   </style>
 </head>
 <body>
 
-  <div class="toast-ok" id="toastConfirm">📡 ¡Alerta transmitida a Sala CIO!</div>
-  <canvas id="resizeCanvas" style="display:none;"></canvas>
+  <div class="card-terreno">
+    <h2>📸 Registro Ronda en Terreno</h2>
 
-  <div class="app-container">
-    <header class="app-header">
-      <h1>📱 Terreno / Ronda OEM</h1>
-      <span class="badge-field" id="badgeOfflineCount" style="background:rgba(34,197,94,0.2); color:#4ade80; border-color:rgba(34,197,94,0.4);">🟢 ONLINE / SYNC OK</span>
-    </header>
+    <div class="form-group">
+      <label>TAG del Equipo</label>
+      <input type="text" id="terrTag" placeholder="Ej: MH2709" class="code-font" />
+    </div>
 
-    <main class="card-field">
-      <div>
-        <label for="fieldFaena">1. Faena</label>
-        <select id="fieldFaena" onchange="cargarAreasPorFaena()">
-          <option value="Planta, Mina los Colorados">Planta, Mina los Colorados</option>
-          <option value="Mina, Mina los Colorados">Mina, Mina los Colorados</option>
-          <option value="Planta de Pellets">Planta de Pellets</option>
-          <option value="Planta, Mina el Romeral">Planta, Mina el Romeral</option>
-          <option value="Mina, Mina el Romeral">Mina, Mina el Romeral</option>
-        </select>
+    <div class="form-group">
+      <label>Severidad Visual / Hallazgo</label>
+      <select id="terrSev">
+        <option value="Verde">Verde (Normal / Seguimiento)</option>
+        <option value="Amarillo">Amarillo (Alerta)</option>
+        <option value="Naranja">Naranja (Atención Urgente)</option>
+        <option value="Rojo">Rojo (Crítico)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Detalle de la Observación</label>
+      <textarea id="terrDetalle" rows="3" placeholder="Fuga de lubricante, soltura basal, vibración anómala..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Evidencias (Galería, Cámara o Video Corto)</label>
+      <div class="grid-btns">
+        <label class="btn-action">
+          📁 Desde Memoria
+          <input type="file" id="terrInputGaleria" accept="image/*,video/*" multiple style="display:none;" onchange="procesarArchivos(event)" />
+        </label>
+        <label class="btn-action" style="border-color:#38bdf8;">
+          📷 Tomar Foto
+          <input type="file" id="terrInputCam" accept="image/*" capture="environment" style="display:none;" onchange="procesarArchivos(event)" />
+        </label>
       </div>
 
-      <div>
-        <label for="fieldArea">2. Área Operacional</label>
-        <select id="fieldArea" onchange="cargarEquiposPorArea()">
-          <option value="">-- Selecciona el Área --</option>
-        </select>
-      </div>
+      <label class="btn-action" style="background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.4); color:#fca5a5;">
+        🎥 Grabar Video Corto (Máx. 10s)
+        <input type="file" id="terrInputVid" accept="video/*" capture="environment" style="display:none;" onchange="procesarVideo(event)" />
+      </label>
 
-      <div>
-        <label for="fieldTagSelect">3. Equipo / Tag del Catastro</label>
-        <select id="fieldTagSelect" class="code-font" onchange="syncTagInputFromSelect()">
-          <option value="">-- Selecciona el equipo --</option>
-        </select>
-        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:6px;">O escribe si es un hallazgo libre:</div>
-        <input type="text" id="fieldTagCustom" class="code-font" placeholder="Ej: MH2709 (opcional)" style="margin-top:4px;">
+      <div class="preview-box" id="terrPreviewBox">
+        <span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">Sin archivos seleccionados</span>
       </div>
+    </div>
 
-      <div>
-        <label>4. Hallazgo Rápido</label>
-        <div class="chips-container">
-          <div class="chip" onclick="toggleChip(this, 'Fuga de aceite activa')">🛢️ Fuga aceite</div>
-          <div class="chip" onclick="toggleChip(this, 'Alto ruido / zumbido en reductor')">🔊 Alto ruido reductor</div>
-          <div class="chip" onclick="toggleChip(this, 'Vibración estructural anómala')">⚠️ Vibración alta</div>
-          <div class="chip" onclick="toggleChip(this, 'Temperatura elevada en carcasa/cojinete')">🔥 Alta temperatura</div>
-        </div>
-      </div>
-
-      <div>
-        <label for="fieldDetalle">5. Notas / Detalle del Hallazgo</label>
-        <textarea id="fieldDetalle" rows="2" placeholder="Ej: Fuga detectada en sello laberíntico lado libre..."></textarea>
-      </div>
-
-      <div>
-        <label for="fieldFotoInput">6. Evidencia Fotográfica</label>
-        <input type="file" id="fieldFotoInput" accept="image/*" capture="environment" style="font-size:0.8rem; padding:8px;" onchange="handlePhotoUpload(event)">
-        <div class="photo-preview-box" id="photoPreviewBox">
-          <img id="photoPreviewImg" alt="Vista previa de evidencia">
-          <button type="button" class="btn-remove-photo" onclick="removePhoto()">🗑️ Quitar foto</button>
-        </div>
-      </div>
-
-      <div>
-        <label>7. Severidad Preliminar</label>
-        <div class="sev-selector">
-          <div class="sev-btn sel-rojo" id="sev_Rojo" onclick="selectSev('Rojo')">🔴 Crítico</div>
-          <div class="sev-btn" id="sev_Naranja" onclick="selectSev('Naranja')">🟠 Alerta</div>
-          <div class="sev-btn" id="sev_Amarillo" onclick="selectSev('Amarillo')">🟡 Seguimiento</div>
-        </div>
-        <input type="hidden" id="fieldSev" value="Rojo">
-      </div>
-    </main>
-
-    <button type="button" class="btn-transmitir" id="btnTransmitir" onclick="enviarReporteCampo()">
-      📡 TRANSMITIR A SALA CIO EN TIEMPO REAL
-    </button>
+    <button type="button" class="btn-submit" onclick="enviarReporteTerreno()">💾 Guardar Reporte en Base de Datos</button>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then((reg) => {
-          console.log('✅ ServiceWorker registrado:', reg.scope);
-        }).catch((err) => {
-          console.warn('⚠️ Error ServiceWorker:', err);
-        });
-      });
-    }
+  <canvas id="resizeCanvas" style="display:none;"></canvas>
 
-    const firebaseConfig = {
+  <script>
+    var firebaseConfig = {
       apiKey: "AIzaSyBd5MEZdMmgzBs1xCyeGYeKtQx5gJIeY3w",
       authDomain: "dashboard-vulnerabilidades-mlc.firebaseapp.com",
       databaseURL: "https://dashboard-vulnerabilidades-mlc-default-rtdb.firebaseio.com",
       projectId: "dashboard-vulnerabilidades-mlc"
     };
 
-    try {
-      if (typeof firebase !== 'undefined' && !firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-      }
-    } catch(e) {
-      console.warn("Firebase Init:", e);
-    }
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    var dbTerreno = firebase.database().ref('alertas_terreno_dev');
+    var evidenciasLocales = [];
 
-    const db = (typeof firebase !== 'undefined') ? firebase.database().ref('activos_criticos') : null;
-    const dbAlertas = (typeof firebase !== 'undefined') ? firebase.database().ref('alertas_terreno') : null;
+    function procesarArchivos(event) {
+      var files = Array.from(event.target.files);
+      if (!files.length) return;
+      var canvas = document.getElementById('resizeCanvas');
+      var ctx = canvas.getContext('2d');
 
-    let catalogoGlobal = [];
-    let compressedPhotoBase64 = null;
-    const QUEUE_KEY = 'cio_offline_alertas_queue';
-    const CACHE_CATASTRO_KEY = 'cio_cached_catastro';
-
-    const FAENAS_VALIDAS = [
-      'Planta, Mina los Colorados',
-      'Mina, Mina los Colorados',
-      'Planta de Pellets',
-      'Planta, Mina el Romeral',
-      'Mina, Mina el Romeral'
-    ];
-
-    function normalizarFaena(s) {
-      return FAENAS_VALIDAS.includes(s) ? s : 'Planta, Mina los Colorados';
-    }
-
-    function mapearActivo(item, key) {
-      const data = item || {};
-      const tag = data.tag || data.Tag || data.TAG || data.equipo || data.Equipo || data.nombre || key || 'SIN-TAG';
-      const tipo = data.tipo || data.Tipo || data.TIPO || data.clase || data.Clase || 'Activo';
-      const area = data.area || data.Area || data.AREA || 'Área General';
-      const siteId = normalizarFaena(data.siteId || data.site || data.faena || data.Faena || 'Planta, Mina los Colorados');
-
-      return {
-        id: key || data.id,
-        tag: String(tag).trim(),
-        tipo: String(tipo).trim(),
-        area: String(area).trim(),
-        siteId: siteId
-      };
-    }
-
-    // CARGA INMEDIATA SÍNCRONA DE CACHÉ OFFLINE (Para arranque sin internet)
-    function cargarDeCacheLocalInmediato() {
-      const cached = localStorage.getItem(CACHE_CATASTRO_KEY);
-      if (cached) {
-        try {
-          const list = JSON.parse(cached);
-          if (Array.isArray(list) && list.length > 0) {
-            catalogoGlobal = list.map((item, idx) => mapearActivo(item, item.id || `cached_${idx}`));
-            cargarAreasPorFaena();
-          }
-        } catch(e) {
-          console.warn("Error leyendo caché local:", e);
+      files.forEach(function(file) {
+        if (file.type.startsWith('image/')) {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            var img = new Image();
+            img.onload = function() {
+              var MAX = 900;
+              var w = img.width, h = img.height;
+              if (w > MAX) { h = Math.round((h * MAX) / w); w = MAX; }
+              canvas.width = w; canvas.height = h;
+              ctx.drawImage(img, 0, 0, w, h);
+              evidenciasLocales.push({ tipo: 'imagen', data: canvas.toDataURL('image/jpeg', 0.65) });
+              renderPreview();
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        } else if (file.type.startsWith('video/')) {
+          procesarVideoArchivo(file);
         }
-      }
-    }
-
-    // Ejecución inicial obligatoria desde caché
-    cargarDeCacheLocalInmediato();
-
-    // Sincronización en segundo plano con Firebase cuando haya red
-    if (db) {
-      db.on('value', snap => {
-        const raw = snap.val();
-        if (raw) {
-          catalogoGlobal = Object.keys(raw).map(k => mapearActivo(raw[k], k));
-          localStorage.setItem(CACHE_CATASTRO_KEY, JSON.stringify(catalogoGlobal));
-          cargarAreasPorFaena();
-        }
-      }, (err) => {
-        console.warn("Sin conexión con Firebase, operando con caché local:", err);
       });
+      event.target.value = '';
     }
 
-    function cargarAreasPorFaena() {
-      const faenaVal = document.getElementById('fieldFaena').value;
-      const areaSelect = document.getElementById('fieldArea');
-      
-      const filtered = catalogoGlobal.filter(e => e.siteId === faenaVal);
-      const areasUnicas = [...new Set(filtered.map(e => e.area))].filter(Boolean).sort();
-
-      const currentArea = areaSelect.value;
-      areaSelect.innerHTML = '<option value="">-- Selecciona el Área --</option>' + 
-        areasUnicas.map(a => `<option value="${a}" ${a === currentArea ? 'selected' : ''}>${a}</option>`).join('');
-
-      if (!currentArea) {
-        document.getElementById('fieldTagSelect').innerHTML = '<option value="">-- Selecciona el equipo --</option>';
-      } else {
-        cargarEquiposPorArea();
-      }
+    function procesarVideo(event) {
+      var file = event.target.files[0];
+      if (file) procesarVideoArchivo(file);
+      event.target.value = '';
     }
 
-    function cargarEquiposPorArea() {
-      const faenaVal = document.getElementById('fieldFaena').value;
-      const areaVal = document.getElementById('fieldArea').value;
-      const tagSelect = document.getElementById('fieldTagSelect');
-
-      if (!areaVal) {
-        tagSelect.innerHTML = '<option value="">-- Selecciona el equipo --</option>';
+    function procesarVideoArchivo(file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert("⚠️ El video supera los 10 MB permitidos. Debe durar menos de 10 segundos.");
         return;
       }
-
-      const filtered = catalogoGlobal.filter(e => e.siteId === faenaVal && e.area === areaVal);
-
-      if (filtered.length === 0) {
-        tagSelect.innerHTML = '<option value="">-- Sin equipos registrados en esta área --</option>';
-        return;
-      }
-
-      tagSelect.innerHTML = '<option value="">-- Selecciona el equipo --</option>' + 
-        filtered.map(e => `<option value="${e.tag}">${e.tag} (${e.tipo})</option>`).join('');
-    }
-
-    function syncTagInputFromSelect() {
-      const val = document.getElementById('fieldTagSelect').value;
-      if (val) document.getElementById('fieldTagCustom').value = val;
-    }
-
-    function selectSev(sev) {
-      document.getElementById('fieldSev').value = sev;
-      ['Rojo', 'Naranja', 'Amarillo'].forEach(s => {
-        const el = document.getElementById('sev_' + s);
-        el.className = 'sev-btn' + (s === sev ? ` sel-${sev.toLowerCase()}` : '');
-      });
-    }
-
-    function toggleChip(chipEl, text) {
-      const area = document.getElementById('fieldDetalle');
-      const current = area.value.trim();
-      if (!current.includes(text)) {
-        area.value = current ? current + ' | ' + text : text;
-        chipEl.classList.add('active');
-      } else {
-        area.value = current.split(' | ').filter(t => t !== text).join(' | ');
-        chipEl.classList.remove('active');
-      }
-    }
-
-    function handlePhotoUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-          const canvas = document.getElementById('resizeCanvas');
-          const ctx = canvas.getContext('2d');
-          const MAX_WIDTH = 550;
-          let width = img.width, height = img.height;
-          if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
-            width = MAX_WIDTH;
-          }
-          canvas.width = width;
-          canvas.height = height;
-          ctx.drawImage(img, 0, 0, width, height);
-          compressedPhotoBase64 = canvas.toDataURL('image/jpeg', 0.6);
-          document.getElementById('photoPreviewImg').src = compressedPhotoBase64;
-          document.getElementById('photoPreviewBox').style.display = 'block';
+      var vid = document.createElement('video');
+      vid.preload = 'metadata';
+      vid.onloadedmetadata = function() {
+        window.URL.revokeObjectURL(vid.src);
+        if (vid.duration > 12) {
+          alert("⚠️ El video supera los 10 segundos máximos.");
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          evidenciasLocales.push({ tipo: 'video', data: e.target.result });
+          renderPreview();
         };
-        img.src = e.target.result;
+        reader.readAsDataURL(file);
       };
-      reader.readAsDataURL(file);
+      vid.src = URL.createObjectURL(file);
     }
 
-    function removePhoto() {
-      compressedPhotoBase64 = null;
-      document.getElementById('fieldFotoInput').value = '';
-      document.getElementById('photoPreviewBox').style.display = 'none';
-    }
-
-    function mostrarToast(msg) {
-      const t = document.getElementById('toastConfirm');
-      t.innerText = msg;
-      t.style.display = 'block';
-      setTimeout(() => { t.style.display = 'none'; }, 4000);
-    }
-
-    // --- COLA OFFLINE (OUTBOX) ---
-    function guardarEnColaLocal(payload) {
-      let queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-      queue.push(payload);
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-      actualizarContadorOfflineBadge();
-    }
-
-    function sincronizarColaOffline() {
-      if (!navigator.onLine || !dbAlertas) return;
-      let queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-      if (queue.length === 0) {
-        actualizarContadorOfflineBadge();
+    function renderPreview() {
+      var box = document.getElementById('terrPreviewBox');
+      if (!evidenciasLocales.length) {
+        box.innerHTML = '<span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">Sin archivos seleccionados</span>';
         return;
       }
+      box.innerHTML = evidenciasLocales.map(function(item, idx) {
+        var el = item.tipo === 'video'
+          ? '<video src="' + item.data + '" controls></video>'
+          : '<img src="' + item.data + '" />';
+        return '<div class="preview-item">' + el + '<button onclick="eliminarEvidencia(' + idx + ')">&times;</button></div>';
+      }).join('');
+    }
 
-      const item = queue.shift();
-      dbAlertas.push(item).then(() => {
-        localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-        actualizarContadorOfflineBadge();
-        if (queue.length > 0) {
-          sincronizarColaOffline();
-        } else {
-          mostrarToast("🔄 ¡Cola offline sincronizada con la Sala CIO!");
-        }
-      }).catch(() => {
-        queue.unshift(item);
-        localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    function eliminarEvidencia(idx) {
+      evidenciasLocales.splice(idx, 1);
+      renderPreview();
+    }
+
+    function enviarReporteTerreno() {
+      var tag = document.getElementById('terrTag').value.trim();
+      var sev = document.getElementById('terrSev').value;
+      var detalle = document.getElementById('terrDetalle').value.trim();
+
+      if (!tag) { alert("⚠️ Ingresa el TAG del equipo."); return; }
+      if (!detalle) { alert("⚠️ Describe la observación encontrada."); return; }
+
+      var primeraFoto = evidenciasLocales.find(function(e) { return e.tipo === 'imagen'; });
+
+      var payload = {
+        tag: tag.toUpperCase(),
+        severidad: sev,
+        detalle: detalle,
+        evidencias: evidenciasLocales,
+        fotoBase64: primeraFoto ? primeraFoto.data : '',
+        timestamp: new Date().toISOString()
+      };
+
+      dbTerreno.push(payload).then(function() {
+        alert("✅ Reporte registrado con éxito.");
+        document.getElementById('terrTag').value = '';
+        document.getElementById('terrDetalle').value = '';
+        evidenciasLocales = [];
+        renderPreview();
+      }).catch(function(err) {
+        alert("❌ Error: " + err.message);
       });
     }
-
-    function actualizarContadorOfflineBadge() {
-      let queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-      const badge = document.getElementById('badgeOfflineCount');
-      if (badge) {
-        badge.innerText = queue.length > 0 ? `📴 En cola offline: ${queue.length}` : '🟢 ONLINE / SYNC OK';
-        badge.style.color = queue.length > 0 ? '#f59e0b' : '#4ade80';
-        badge.style.borderColor = queue.length > 0 ? 'rgba(245,158,11,0.4)' : 'rgba(34,197,94,0.4)';
-        badge.style.background = queue.length > 0 ? 'rgba(245,158,11,0.2)' : 'rgba(34,197,94,0.2)';
-      }
-    }
-
-    window.addEventListener('online', () => {
-      mostrarToast("📶 Conexión recuperada. Sincronizando alertas pendientes...");
-      sincronizarColaOffline();
-    });
-
-    window.addEventListener('offline', () => {
-      mostrarToast("📴 Modo sin conexión. Las alertas se guardarán en tu teléfono.");
-      actualizarContadorOfflineBadge();
-    });
-
-    function enviarReporteCampo() {
-      const faena = document.getElementById('fieldFaena').value;
-      const area = document.getElementById('fieldArea').value || 'Área General';
-      const tagSeleccionado = document.getElementById('fieldTagSelect').value;
-      const tagManual = document.getElementById('fieldTagCustom').value;
-      const tagFinal = (tagManual || tagSeleccionado || '').trim().toUpperCase();
-      const detalle = document.getElementById('fieldDetalle').value.trim();
-      const sev = document.getElementById('fieldSev').value;
-
-      if (!tagFinal || tagFinal === 'SIN-TAG') {
-        alert("⚠️ Por favor selecciona o escribe el Tag del equipo.");
-        return;
-      }
-
-      const payload = {
-        faena: faena,
-        area: area,
-        tag: tagFinal,
-        severidad: sev,
-        detalle: detalle || 'Reporte de ronda rápida sin observación escrita.',
-        fotoBase64: compressedPhotoBase64 || null,
-        timestamp: new Date().toISOString(),
-        estado: 'nuevo'
-      };
-
-      if (navigator.onLine && dbAlertas) {
-        dbAlertas.push(payload).then(() => {
-          if (navigator.vibrate) navigator.vibrate([100, 60, 100]);
-          mostrarToast(`📡 Alerta transmitida en vivo para ${tagFinal} (${sev}).`);
-          limpiarFormularioTerreno();
-        }).catch(() => {
-          guardarEnColaLocal(payload);
-          mostrarToast(`📴 Guardado en cola local offline.`);
-          limpiarFormularioTerreno();
-        });
-      } else {
-        guardarEnColaLocal(payload);
-        if (navigator.vibrate) navigator.vibrate([200]);
-        mostrarToast(`📴 Sin internet: Alerta guardada en cola local offline.`);
-        limpiarFormularioTerreno();
-      }
-    }
-
-    function limpiarFormularioTerreno() {
-      document.getElementById('fieldDetalle').value = '';
-      removePhoto();
-      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-      actualizarContadorOfflineBadge();
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      actualizarContadorOfflineBadge();
-      cargarDeCacheLocalInmediato();
-      sincronizarColaOffline();
-    });
   </script>
 </body>
 </html>
