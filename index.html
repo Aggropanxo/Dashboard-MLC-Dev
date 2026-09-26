@@ -84,13 +84,25 @@
     <!-- PANTALLA 2: ÁREAS Y EQUIPOS -->
     <section id="screen-2" class="screen-view">
       <div class="view-header">
-        <div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <button class="btn-base" type="button" onclick="window.CIO.stepBackScreen2()">⬅️ Atrás</button>
-          <span class="label-muted" style="margin-left: 10px;">Faena:</span>
-          <h2 id="screen2SiteTitle" style="display:inline; margin-left:6px;">Planta, Mina los Colorados</h2>
+          <span class="label-muted">Faena:</span>
+          <h2 id="screen2SiteTitle" style="display:inline; margin:0;">Planta, Mina los Colorados</h2>
         </div>
 
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <!-- BUSCADOR INTEGRADO EN VIVO -->
+          <div class="search-input-wrapper">
+            <span class="search-icon-pos">🔍</span>
+            <input 
+              type="text" 
+              id="inputBuscarEquipo" 
+              class="search-input-box code-font" 
+              placeholder="Buscar TAG (ej: MH2709)..." 
+              oninput="window.CIO.filtrarEquiposYMapa(this.value)" 
+            />
+          </div>
+
           <button class="btn-base" type="button" onclick="window.CIO.toggleSiteMapTab()" id="btnToggleMapa">
             🗺️ <span id="labelToggleSiteMap">Ver Mapa de Faena</span>
           </button>
