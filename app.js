@@ -19,24 +19,15 @@
   var dbUsers = null;
   var dbAlertasTerreno = null;
 
-  // -------------------------------------------------------------
-  // INICIALIZACIÓN ROBUSTA DE FIREBASE (COMPAT & MODULAR FALLBACK)
-  // -------------------------------------------------------------
   try {
     if (typeof firebase !== 'undefined') {
-      var appInstance = null;
       if (!firebase.apps || firebase.apps.length === 0) {
-        appInstance = firebase.initializeApp(firebaseConfig);
-      } else {
-        appInstance = firebase.app();
+        firebase.initializeApp(firebaseConfig);
       }
-      
       var databaseService = firebase.database();
       db = databaseService.ref('activos_criticos_dev');
       dbUsers = databaseService.ref('usuarios_registrados_dev');
       dbAlertasTerreno = databaseService.ref('alertas_terreno_dev');
-    } else {
-      console.warn("Firebase SDK no detectado en el DOM.");
     }
   } catch (err) {
     console.warn("Firebase Init fallback:", err);
@@ -49,6 +40,15 @@
     'Planta, Mina el Romeral',
     'Mina, Mina el Romeral'
   ]);
+
+  // Centroides aproximados para centrar mapa según faena
+  var FAENA_COORDS = Object.freeze({
+    'Planta, Mina los Colorados': [-28.3294, -70.9392],
+    'Mina, Mina los Colorados': [-28.3180, -70.9450],
+    'Planta de Pellets': [-28.6720, -71.2850],
+    'Planta, Mina el Romeral': [-29.7280, -71.2450],
+    'Mina, Mina el Romeral': [-29.7150, -71.2380]
+  });
 
   var SEV_PESO = Object.freeze({ Rojo: 5, Naranja: 4, Amarillo: 3, Verde: 2, Plomo: 1 });
   var SEV_COLOR = Object.freeze({ Rojo: '#ef4444', Naranja: '#f97316', Amarillo: '#eab308', Verde: '#22c55e', Plomo: '#6b7280' });
@@ -69,7 +69,10 @@
     siteMapVisible: false,
     authMode: 'login',
     mapaSite: null,
-    capaSite: null,
+    capaMarcadores: null,
+    mapaPicker: null,
+    marcadorPicker: null,
+    pickerCoordsTemp: null,
     equipos: [],
     alertasTerreno: [],
     tempEvidenciasEdicion: [],
@@ -85,10 +88,7 @@
 
   function limpiarPrefijosIA(texto) {
     if (!texto) return '';
-    return texto
-      .replace(/^\[.*?\]:\s*/gi, '')
-      .replace(/^\[IA.*?\]\s*/gi, '')
-      .trim();
+    return texto.replace(/^\[.*?\]:\s*/gi, '').replace(/^\[IA.*?\]\s*/gi, '').trim();
   }
 
   function normalizarFaena(f) {
@@ -165,9 +165,7 @@
 
   function actualizarBadgeContadorAlertas(total) {
     var btnBit = document.getElementById('labelBitacoraBtn');
-    if (btnBit) {
-      btnBit.innerText = 'Bitácora Alertas (' + total + ')';
-    }
+    if (btnBit) btnBit.innerText = 'Bitácora Alertas (' + total + ')';
   }
 
   function renderScreen1() {
@@ -303,10 +301,14 @@
           ? ('<div style="font-size:0.68rem; color:#2563eb; font-weight:700;">AV: ' + saps.countAvisos + ' | OM: ' + saps.countOms + '</div>') 
           : '';
 
+        // Indicador discreto de georreferencia en la tarjeta
+        var hasGeo = (eq.lat !== '' && eq.lat !== undefined && eq.lng !== '' && eq.lng !== undefined);
+        var geoDot = hasGeo ? '<span title="Activo Georreferenciado" style="color:#22c55e; font-size:0.75rem;">📍</span>' : '';
+
         card.innerHTML = 
           '<div class="card-top-bar">' +
             '<span class="eq-type">' + sanitize(eq.tipo || eq.area) + '</span>' +
-            '<div style="display:flex; gap:4px;">' + badgeTerreno + badgeRuta + '</div>' +
+            '<div style="display:flex; gap:4px; align-items:center;">' + geoDot + badgeTerreno + badgeRuta + '</div>' +
           '</div>' +
           '<div class="eq-tag code-font">' + sanitize(tagValue) + '</div>' +
           '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">' +
@@ -488,6 +490,84 @@
   }
 
   // -------------------------------------------------------------
+  // MAPA GIS LEAFLET (SATELLITE & COLORED PINS)
+  // -------------------------------------------------------------
+  function inicializarMapaSite() {
+    var mapDiv = document.getElementById('view-site-map');
+    if (!mapDiv || state.mapaSite) return;
+
+    state.mapaSite = L.map('view-site-map', {
+      zoomControl: true,
+      attributionControl: false
+    }).setView([-28.3294, -70.9392], 15);
+
+    // Capa satelital de alta resolución (Esri World Imagery)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19
+    }).addTo(state.mapaSite);
+
+    state.capaMarcadores = L.layerGroup().addTo(state.mapaSite);
+  }
+
+  function actualizarMapaSite(equiposFaena) {
+    if (!state.mapaSite) inicializarMapaSite();
+    if (!state.mapaSite || !state.capaMarcadores) return;
+
+    state.capaMarcadores.clearLayers();
+
+    var targetFaena = state.faenaSeleccionada || FAENAS[0];
+    var centroide = FAENA_COORDS[targetFaena] || [-28.3294, -70.9392];
+    var bounds = [];
+
+    (equiposFaena || []).forEach(function(eq) {
+      var lat = parseFloat(eq.lat);
+      var lng = parseFloat(eq.lng);
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        bounds.push([lat, lng]);
+        var maxSev = calcMaxSev(eq.componentes);
+        var colorPin = SEV_COLOR[maxSev] || '#6b7280';
+        var tagVal = eq.tag || eq.id;
+
+        // Marcador con color dinámico de alerta y pulso
+        var iconoCustom = L.divIcon({
+          className: 'custom-leaflet-marker',
+          html: '<div class="pin-marcador-gis" style="background:' + colorPin + ';">' + tagVal.substring(0, 3) + '</div>',
+          iconSize: [32, 32],
+          iconAnchor: [16, 16]
+        });
+
+        var marcador = L.marker([lat, lng], { icon: iconoCustom });
+
+        var popupHtml = 
+          '<div style="color:#0f172a; font-family:Inter,sans-serif; min-width:180px;">' +
+            '<div style="font-weight:800; font-size:0.95rem; margin-bottom:2px;">' + sanitize(tagVal) + '</div>' +
+            '<div style="font-size:0.75rem; color:#64748b; margin-bottom:6px;">' + sanitize(eq.tipo || 'Activo') + ' - ' + sanitize(eq.area || '') + '</div>' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+              '<span style="font-size:0.7rem; font-weight:800; color:' + colorPin + ';">' + maxSev.toUpperCase() + '</span>' +
+              '<span style="font-size:0.7rem; color:#64748b;">' + (eq.fechaMedicion || '') + '</span>' +
+            '</div>' +
+            '<button type="button" style="width:100%; padding:6px; background:#0284c7; color:#fff; border:none; border-radius:6px; font-weight:bold; font-size:0.75rem; cursor:pointer;" onclick="window.CIO.irANivel3Equipo(\'' + eq.id + '\')">🔍 Abrir Tren Motriz</button>' +
+          '</div>';
+
+        marcador.bindPopup(popupHtml);
+        state.capaMarcadores.addLayer(marcador);
+      }
+    });
+
+    // Ajustar encuadre
+    if (bounds.length > 0) {
+      state.mapaSite.fitBounds(bounds, { padding: [40, 40], maxZoom: 17 });
+    } else {
+      state.mapaSite.setView(centroide, 15);
+    }
+
+    setTimeout(function() {
+      state.mapaSite.invalidateSize();
+    }, 200);
+  }
+
+  // -------------------------------------------------------------
   // SINCRONIZACIÓN REACTIVA CON FIREBASE (ROBUSTA & REALTIME)
   // -------------------------------------------------------------
   if (db) {
@@ -513,6 +593,10 @@
         });
       }
       refresh();
+      if (state.siteMapVisible) {
+        var targetFaena = state.faenaSeleccionada || FAENAS[0];
+        actualizarMapaSite(state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === targetFaena; }));
+      }
     });
 
     if (dbAlertasTerreno) {
@@ -524,7 +608,6 @@
           Object.keys(raw).forEach(function(k) {
             var item = raw[k] || {};
             item.id = k;
-
             if (!item.evidencias && item.fotoBase64) {
               item.evidencias = [{ tipo: 'imagen', data: item.fotoBase64 }];
             } else if (item.evidencias && Array.isArray(item.evidencias)) {
@@ -532,15 +615,11 @@
             } else {
               item.evidencias = [];
             }
-
             lista.push(item);
           });
         }
 
-        lista.sort(function(a, b) {
-          return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
-        });
-
+        lista.sort(function(a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
         state.alertasTerreno = lista;
         actualizarBadgeContadorAlertas(lista.length);
         refresh();
@@ -575,6 +654,26 @@
   // OBJETO GLOBAL CIO
   // -------------------------------------------------------------
   window.CIO = {
+    // BOTÓN DE RETORNO TOTAL
+    irAInicio: function() {
+      // Cerrar modales que pudieran estar abiertos
+      document.querySelectorAll('dialog').forEach(function(d) {
+        if (d && typeof d.close === 'function') {
+          try { d.close(); } catch (e) {}
+        }
+      });
+
+      state.areaSeleccionada = null;
+      state.equipoIdNivel3 = null;
+      state.equipoSeleccionado = null;
+      state.siteMapVisible = false;
+
+      var mapBox = document.getElementById('view-site-map');
+      if (mapBox) mapBox.style.display = 'none';
+
+      window.CIO.goScreen(1);
+    },
+
     dispararAlarmaFlotante: function(reporte) {
       var toast = document.getElementById('liveAlertToast');
       if (!toast) return;
@@ -879,11 +978,8 @@
         if (mapBox) mapBox.style.display = 'block';
         if (container) container.style.display = 'none';
         if (lbl) lbl.innerText = 'Ver Tarjetas';
-        setTimeout(function() {
-          if (typeof actualizarMapaSite === 'function') {
-            actualizarMapaSite(state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }));
-          }
-        }, 150);
+
+        actualizarMapaSite(state.equipos.filter(function(e) { return normalizarFaena(e.siteId) === target; }));
       } else {
         if (mapBox) mapBox.style.display = 'none';
         if (container) container.style.display = '';
@@ -1560,6 +1656,9 @@
       win.document.write('<body style="margin:0; background:#0a0a0c; display:flex; justify-content:center; align-items:center; height:100vh;"><img src="' + base64Data + '" style="max-width:98%; max-height:98%; object-fit:contain;" /></body>');
     },
 
+    // -----------------------------------------------------------
+    // EDICIÓN GENERAL DE ACTIVO & GEORREFERENCIACIÓN
+    // -----------------------------------------------------------
     editarDatosGeneralesActivo: function() {
       if (!state.usuarioActivo) {
         alert("🔒 Acción restringida: Debes iniciar sesión.");
@@ -1579,9 +1678,121 @@
       setVal('edEstatusHallazgo', eq.estatusHallazgo || 'Abierto');
       setVal('edFechaMedicion', eq.fechaMedicion || '');
       setVal('edFechaHallazgo', eq.fechaHallazgo || '');
+      setVal('edLat', eq.lat || '');
+      setVal('edLng', eq.lng || '');
+
+      window.CIO.actualizarBadgeGeoEstado(eq.lat, eq.lng);
 
       var mEd = document.getElementById('modalEdicion');
       if (mEd) mEd.showModal();
+    },
+
+    actualizarBadgeGeoEstado: function(lat, lng) {
+      var badge = document.getElementById('edGeoBadgeStatus');
+      if (!badge) return;
+
+      var nLat = parseFloat(lat);
+      var nLng = parseFloat(lng);
+
+      if (!isNaN(nLat) && !isNaN(nLng) && nLat !== 0 && nLng !== 0) {
+        badge.innerHTML = '<span style="color:#22c55e;">✅ Georreferenciado</span> <span class="code-font" style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">[' + nLat.toFixed(5) + ', ' + nLng.toFixed(5) + ']</span>';
+      } else {
+        badge.innerHTML = '<span style="color:#ef4444;">❌ Sin Georreferencia</span>';
+      }
+    },
+
+    obtenerGpsActual: function() {
+      if (!navigator.geolocation) {
+        alert("⚠️ Tu navegador no soporta geolocalización.");
+        return;
+      }
+
+      var badge = document.getElementById('edGeoBadgeStatus');
+      if (badge) badge.innerText = "⏳ Obteniendo GPS con alta precisión...";
+
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        var lat = pos.coords.latitude;
+        var lng = pos.coords.longitude;
+        document.getElementById('edLat').value = lat;
+        document.getElementById('edLng').value = lng;
+        window.CIO.actualizarBadgeGeoEstado(lat, lng);
+        alert("✅ Coordenadas capturadas con éxito:\nLat: " + lat + "\nLng: " + lng);
+      }, function(err) {
+        alert("❌ Error al capturar GPS: " + err.message);
+        window.CIO.actualizarBadgeGeoEstado(document.getElementById('edLat').value, document.getElementById('edLng').value);
+      }, {
+        enableHighAccuracy: true,
+        timeout: 10000
+      });
+    },
+
+    abrirPickerCoordenadas: function() {
+      var mPicker = document.getElementById('modalGeoPicker');
+      if (!mPicker) return;
+      mPicker.showModal();
+
+      var currentLat = parseFloat(document.getElementById('edLat').value);
+      var currentLng = parseFloat(document.getElementById('edLng').value);
+      var siteFaena = document.getElementById('edSiteId').value || FAENAS[0];
+      var defaultCenter = FAENA_COORDS[siteFaena] || [-28.3294, -70.9392];
+
+      var centerCoords = (!isNaN(currentLat) && !isNaN(currentLng) && currentLat !== 0)
+        ? [currentLat, currentLng]
+        : defaultCenter;
+
+      state.pickerCoordsTemp = { lat: centerCoords[0], lng: centerCoords[1] };
+
+      setTimeout(function() {
+        if (!state.mapaPicker) {
+          state.mapaPicker = L.map('geo-picker-map', { attributionControl: false }).setView(centerCoords, 16);
+          L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19
+          }).addTo(state.mapaPicker);
+
+          state.mapaPicker.on('click', function(e) {
+            window.CIO.moverMarcadorPicker(e.latlng.lat, e.latlng.lng);
+          });
+        } else {
+          state.mapaPicker.setView(centerCoords, 16);
+          state.mapaPicker.invalidateSize();
+        }
+
+        window.CIO.moverMarcadorPicker(centerCoords[0], centerCoords[1]);
+      }, 200);
+    },
+
+    moverMarcadorPicker: function(lat, lng) {
+      state.pickerCoordsTemp = { lat: lat, lng: lng };
+
+      if (!state.marcadorPicker) {
+        state.marcadorPicker = L.marker([lat, lng], { draggable: true }).addTo(state.mapaPicker);
+        state.marcadorPicker.on('dragend', function(e) {
+          var p = e.target.getLatLng();
+          state.pickerCoordsTemp = { lat: p.lat, lng: p.lng };
+          window.CIO.actualizarCoordsPickerTxt(p.lat, p.lng);
+        });
+      } else {
+        state.marcadorPicker.setLatLng([lat, lng]);
+      }
+
+      window.CIO.actualizarCoordsPickerTxt(lat, lng);
+    },
+
+    actualizarCoordsPickerTxt: function(lat, lng) {
+      var txt = document.getElementById('geoPickerCoordsTxt');
+      if (txt) {
+        txt.innerText = 'Lat: ' + parseFloat(lat).toFixed(6) + ' | Lng: ' + parseFloat(lng).toFixed(6);
+      }
+    },
+
+    confirmarCoordenadasPicker: function() {
+      if (!state.pickerCoordsTemp) return;
+      document.getElementById('edLat').value = state.pickerCoordsTemp.lat;
+      document.getElementById('edLng').value = state.pickerCoordsTemp.lng;
+      window.CIO.actualizarBadgeGeoEstado(state.pickerCoordsTemp.lat, state.pickerCoordsTemp.lng);
+
+      var mPicker = document.getElementById('modalGeoPicker');
+      if (mPicker) mPicker.close();
     },
 
     guardarDatosGeneralesActivo: function() {
@@ -1596,7 +1807,9 @@
         tipo: getVal('edTipo'),
         fechaMedicion: getVal('edFechaMedicion'),
         fechaHallazgo: getVal('edFechaHallazgo'),
-        estatusHallazgo: getVal('edEstatusHallazgo')
+        estatusHallazgo: getVal('edEstatusHallazgo'),
+        lat: getVal('edLat'),
+        lng: getVal('edLng')
       };
 
       if (db) db.child(state.equipoSeleccionado.id).update(payload);
@@ -1709,7 +1922,7 @@
 
       var win = window.open('', '_blank');
       if (!win) {
-        alert("⚠️ Por favor permite las ventanas emergentes en tu navegador para ver el informe.");
+        alert("⚠️ Permite las ventanas emergentes en tu navegador para ver el informe.");
         return;
       }
 
@@ -1771,6 +1984,8 @@
     abrirEdicionEquipoNuevoAuth: function() {
       var targetSite = state.faenaSeleccionada || state.faenaAsignada || FAENAS[0];
       var newId = 'EQ_' + Date.now();
+      var coordsDefault = FAENA_COORDS[targetSite] || [-28.3294, -70.9392];
+
       var nuevoEquipo = {
         id: newId,
         siteId: targetSite,
@@ -1778,6 +1993,8 @@
         area: state.areaSeleccionada || 'Área General',
         tag: 'MH' + Math.floor(1000 + Math.random() * 9000),
         tipo: 'Activo Crítico',
+        lat: coordsDefault[0],
+        lng: coordsDefault[1],
         componentes: [
           { nombre: 'Motor M1', punto: 'Lado Libre (NDE)', severidad: 'Verde', rms: '2.0', paresSap: [], analisis: 'Condición normal bajo norma ISO 20816-3.', recomendacion: 'Ruta mensual.', espectros: [] }
         ],
@@ -1824,6 +2041,8 @@
             var rawTag = normalizedRow['EQUIPO'] || normalizedRow['TAG'] || normalizedRow['ACTIVO'] || normalizedRow['NOMBRE'];
             var rawArea = normalizedRow['AREA'] || normalizedRow['ÁREA'] || 'Área General';
             var rawTipo = normalizedRow['TIPO EQUIPO'] || normalizedRow['TIPO'] || normalizedRow['CLASE'] || 'Activo';
+            var rawLat = normalizedRow['LAT'] || normalizedRow['LATITUD'] || '';
+            var rawLng = normalizedRow['LNG'] || normalizedRow['LONGITUD'] || '';
 
             if (rawTag && String(rawTag).trim() !== '') {
               var tagStr = String(rawTag).trim();
@@ -1837,8 +2056,8 @@
                 area: areaStr,
                 tag: tagStr,
                 tipo: tipoStr,
-                lat: '',
-                lng: '',
+                lat: rawLat,
+                lng: rawLng,
                 fechaMedicion: new Date().toISOString().split('T')[0],
                 fechaHallazgo: '',
                 estatusHallazgo: 'Abierto',
@@ -1864,7 +2083,7 @@
     }
   };
 
-  // Exposición en ámbito global para listeners HTML en línea
+  // Exposición en ámbito global para eventos inline
   window.handleUserBtnClick = window.CIO.handleUserBtnClick;
   window.salirSuperAdmin = window.CIO.salirSuperAdmin;
 
