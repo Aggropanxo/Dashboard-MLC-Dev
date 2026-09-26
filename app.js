@@ -991,6 +991,13 @@
       }
     },
 
+    abrirModalHistoricoTerreno: function() {
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
+      if (!eq) return;
+      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
+      window.CIO.abrirModalHistoricoTerrenoDirectoPorTag(tagValue);
+    },
+
     abrirModalHistoricoTerrenoDirectoPorTag: function(tagValue) {
       var hTitle = document.getElementById('histTerrenoTitle');
       if (hTitle) hTitle.innerText = 'Historial de Ronda: ' + tagValue;
