@@ -89,7 +89,7 @@
     }
 
     .brand-logo-container img { height: 34px; width: auto; display: block; }
-    .nav-brand { display: flex; align-items: center; gap: 16px; }
+    .nav-brand { display: flex; align-items: center; gap: 14px; }
     .nav-brand-title { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em; }
     .nav-brand-sub { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
     .nav-actions { display: flex; align-items: center; gap: 10px; position: relative; }
@@ -132,6 +132,18 @@
       background: var(--accent-glow);
       border-color: var(--accent-color);
       transform: translateY(-1px);
+    }
+
+    .btn-home {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.4);
+      color: var(--accent-color);
+      font-weight: 800;
+    }
+    .btn-home:hover {
+      background: #0284c7;
+      color: #fff;
+      border-color: #38bdf8;
     }
 
     .btn-primary { background: #0284c7; color: #fff; border-color: #38bdf8; }
@@ -449,11 +461,33 @@
     dialog::backdrop { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); }
 
     #view-site-map {
-      height: 550px;
+      height: 560px;
       width: 100%;
       border-radius: 14px;
       border: 1px solid var(--glass-border);
       display: none;
+      background: #0b1120;
+    }
+
+    /* Pines interactivos del mapa */
+    .pin-marcador-gis {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      color: #ffffff;
+      font-weight: 900;
+      font-size: 0.72rem;
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 16px rgba(0,0,0,0.6);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .pin-marcador-gis:hover {
+      transform: scale(1.25);
+      z-index: 9999;
     }
 
     .card-terreno-item {
@@ -506,6 +540,11 @@
     </div>
 
     <div class="nav-actions">
+      <!-- BOTÓN PRINCIPAL: RETORNO INMEDIATO A PANTALLA DE INICIO -->
+      <button class="btn-base btn-home" type="button" onclick="window.CIO.irAInicio()" title="Volver a la vista principal de faenas">
+        🏠 Inicio
+      </button>
+
       <!-- BOTÓN DE BITÁCORA EN VIVO -->
       <button class="btn-base" type="button" onclick="window.CIO.abrirBitacoraAlertasTurno()" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1);">
         🚨 <span id="labelBitacoraBtn">Bitácora Alertas (0)</span>
@@ -862,12 +901,28 @@
     </div>
   </dialog>
 
-  <!-- MODAL EDITAR ACTIVO -->
+  <!-- MODAL EDITAR ACTIVO (CON DETECCIÓN RÁPIDA DE GEORREFERENCIACIÓN) -->
   <dialog id="modalEdicion">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
       <h3 style="border:none; margin:0;">Editar Parámetros del Activo</h3>
       <button class="btn-base" type="button" onclick="document.getElementById('modalEdicion').close()">&times;</button>
     </div>
+
+    <!-- TARJETA STATUS GEORREFERENCIACIÓN -->
+    <div class="card-panel-inner" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div>
+        <span class="label-muted">Geolocalización Planta</span>
+        <div id="edGeoBadgeStatus" style="margin-top:4px; font-weight:800; font-size:0.88rem;">❌ Sin Georreferencia</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-base" type="button" onclick="window.CIO.abrirPickerCoordenadas()" style="font-size:0.75rem;">📍 Fijar en Mapa</button>
+        <button class="btn-base" type="button" onclick="window.CIO.obtenerGpsActual()" style="font-size:0.75rem;">📡 GPS Actual</button>
+      </div>
+    </div>
+
+    <!-- Inputs lat/lng ocultos gestionados automáticamente -->
+    <input type="hidden" id="edLat" />
+    <input type="hidden" id="edLng" />
 
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
       <div class="form-group">
@@ -931,6 +986,25 @@
       <div style="display:flex; gap:10px;">
         <button class="btn-base" type="button" onclick="document.getElementById('modalEdicion').close()">Cancelar</button>
         <button class="btn-base btn-primary" type="button" onclick="window.CIO.guardarDatosGeneralesActivo()">💾 Guardar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL MAPA PICKER DE GEORREFERENCIACIÓN -->
+  <dialog id="modalGeoPicker" style="max-width:850px; width:92%;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="border:none; margin:0;">📍 Seleccionar Ubicación en Mapa de Faena</h3>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalGeoPicker').close()">&times;</button>
+    </div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">
+      Haz clic sobre el mapa para situar o arrastrar el pin exacto del equipo.
+    </p>
+    <div id="geo-picker-map" style="height:440px; width:100%; border-radius:12px; border:1px solid var(--glass-border); background:#0b1120;"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+      <span id="geoPickerCoordsTxt" class="code-font" style="font-size:0.82rem; color:var(--accent-color);">Sin coordenadas seleccionadas</span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-base" type="button" onclick="document.getElementById('modalGeoPicker').close()">Cancelar</button>
+        <button class="btn-base btn-primary" type="button" onclick="window.CIO.confirmarCoordenadasPicker()">✅ Asignar Coordenadas</button>
       </div>
     </div>
   </dialog>
