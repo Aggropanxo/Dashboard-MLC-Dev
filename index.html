@@ -38,6 +38,11 @@
         🏠 Inicio
       </button>
 
+      <!-- EMISIÓN DE REPORTE DE TERRENO GENERAL -->
+      <button class="btn-base" type="button" onclick="window.CIO.abrirFiltrosReporteTerreno()" style="border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1);">
+        📋 Emitir Reporte Ronda
+      </button>
+
       <!-- BITÁCORA DE ALERTAS EN VIVO -->
       <button class="btn-base" type="button" onclick="window.CIO.abrirBitacoraAlertasTurno()" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1);">
         🚨 <span id="labelBitacoraBtn">Bitácora Alertas (0)</span>
@@ -58,7 +63,7 @@
     </div>
   </header>
 
-  <!-- MARKET TICKER BAR CON NODOS DINÁMICOS -->
+  <!-- MARKET TICKER BAR CON NODOS DINÁMICOS[cite: 9] -->
   <div class="market-ticker-bar">
     <div class="ticker-item">💵 USD/CLP: <strong id="tickerUsdClp">945.72</strong></div>
     <span>•</span>
@@ -92,7 +97,6 @@
         </div>
 
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <!-- BUSCADOR PREDICTIVO EN VIVO -->
           <div class="search-input-wrapper">
             <span class="search-icon-pos">🔍</span>
             <input 
@@ -304,7 +308,7 @@
       <button class="btn-base" type="button" onclick="document.getElementById('modalBitacoraTurno').close()">&times;</button>
     </div>
 
-    <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center;">
+    <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <span style="font-size:0.8rem; color:var(--text-muted);">Filtrar por Severidad:</span>
       <select class="btn-base" id="filterBitacoraSev" onchange="window.CIO.renderizarFeedBitacora()" style="padding:4px 10px;">
         <option value="TODAS">Todas</option>
@@ -312,12 +316,116 @@
         <option value="Naranja">🟠 Alerta (Naranja)</option>
         <option value="Amarillo">🟡 Seguimiento (Amarillo)</option>
       </select>
+      <button class="btn-base btn-primary" type="button" onclick="window.CIO.abrirFiltrosReporteTerreno()" style="margin-left:auto; font-size:0.76rem;">🖨️ Imprimir Reporte Seleccionado</button>
     </div>
 
     <div id="bitacoraFeedContainer" style="max-height:550px; overflow-y:auto; padding-right:6px;"></div>
 
     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
       <button class="btn-base" type="button" onclick="document.getElementById('modalBitacoraTurno').close()">Cerrar Bitácora</button>
+    </div>
+  </dialog>
+
+  <!-- MODAL CONFIGURACIÓN REPORTE DE RONDA TERRENO -->
+  <dialog id="modalFiltrosReporteTerreno" style="max-width:480px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="border:none; margin:0; font-size:1.15rem;">📋 Emitir Reporte de Ronda Terreno</h3>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalFiltrosReporteTerreno').close()">&times;</button>
+    </div>
+    
+    <div class="form-group">
+      <label>1. Alcance / Filtro de Emisión</label>
+      <select id="repTerrenoFiltroTipo" onchange="window.CIO.cambiarOpcionesFiltroReporte()">
+        <option value="dia">📅 Reporte del Día (Últimas 24 Horas)</option>
+        <option value="rojo">🔴 Solo Hallazgos Críticos (Rojo)</option>
+        <option value="equipo">🔍 Filtrar por Equipo (TAG)</option>
+        <option value="componente">⚙️ Filtrar por Componente</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="boxFiltroTagRep" style="display:none;">
+      <label>TAG del Equipo</label>
+      <input type="text" id="repTerrenoTagInput" class="code-font" placeholder="Ej: MH2709" />
+    </div>
+
+    <div class="form-group" id="boxFiltroCompRep" style="display:none;">
+      <label>Nombre del Componente</label>
+      <input type="text" id="repTerrenoCompInput" placeholder="Ej: Motor M1, Reductor..." />
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;">
+      <button class="btn-base" type="button" onclick="document.getElementById('modalFiltrosReporteTerreno').close()">Cancelar</button>
+      <button class="btn-base btn-primary" type="button" onclick="window.CIO.ejecutarGeneracionReporteTerreno()">🖨️ Generar Reporte</button>
+    </div>
+  </dialog>
+
+  <!-- MODAL EDITAR / ELIMINAR REPORTE DE TERRENO Y ADOPCIÓN -->
+  <dialog id="modalEditarReporteTerreno" style="max-width:680px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="border:none; margin:0;">Editar Reporte de Terreno</h3>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalEditarReporteTerreno').close()">&times;</button>
+    </div>
+
+    <input type="hidden" id="editReporteId" />
+    <input type="hidden" id="editReporteTag" />
+    <input type="hidden" id="editReporteComp" />
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+      <div class="form-group">
+        <label>Severidad del Hallazgo</label>
+        <select id="editReporteSev">
+          <option value="Verde">Verde (Normal / Seguimiento)</option>
+          <option value="Amarillo">Amarillo (Alerta)</option>
+          <option value="Naranja">Naranja (Atención Requerida)</option>
+          <option value="Rojo">Rojo (Crítico)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Aviso SAP (Para Reportes/Seguimiento)</label>
+        <input type="text" id="editReporteAviso" class="code-font" placeholder="Ej: 10023456" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Detalle del Hallazgo / Observación</label>
+      <textarea id="editReporteDetalle" rows="3" placeholder="Describe la condición encontrada..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <label style="margin:0;">Evidencias Multimedia Adjuntas:</label>
+        <div style="display:flex; gap:6px;">
+          <label class="btn-base" style="font-size:0.72rem; padding:4px 8px; cursor:pointer;">
+            📷 Agregar Foto
+            <input type="file" accept="image/*" multiple style="display:none;" onchange="window.CIO.procesarNuevasEvidenciasEdicionReporte(event, 'imagen')" />
+          </label>
+          <label class="btn-base" style="font-size:0.72rem; padding:4px 8px; cursor:pointer;">
+            🎥 Video (10s)
+            <input type="file" accept="video/*" style="display:none;" onchange="window.CIO.procesarNuevasEvidenciasEdicionReporte(event, 'video')" />
+          </label>
+        </div>
+      </div>
+      <div id="editReporteEvidenciasPreview" style="display:flex; flex-wrap:wrap; gap:10px; min-height:60px; padding:10px; border:1px dashed var(--glass-border); border-radius:8px; background:var(--card-inner-bg);"></div>
+    </div>
+
+    <!-- BOTÓN DE TRASPASO DIRECTO A NIVEL 3 -->
+    <div class="card-panel-inner" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; background:rgba(2, 132, 199, 0.1); border-color:rgba(56, 189, 248, 0.35);">
+      <div>
+        <strong style="font-size:0.82rem; color:#38bdf8;">📌 Consolidación en Catastro</strong>
+        <p style="font-size:0.72rem; color:var(--text-muted); margin:2px 0 0 0;">Fija el diagnóstico, severidad y traspasa estas imágenes al Tren Motriz definitivo.</p>
+      </div>
+      <button class="btn-base btn-primary" type="button" onclick="window.CIO.adoptarEvidenciasAComponenteDefinitivo()" style="font-size:0.74rem;">
+        📥 Traspasar a Nivel 3
+      </button>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:18px; border-top:1px solid var(--glass-border); padding-top:12px;">
+      <button class="btn-base btn-danger" type="button" onclick="window.CIO.eliminarReporteTerrenoConfirm()">🗑️ Eliminar Reporte</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-base" type="button" onclick="document.getElementById('modalEditarReporteTerreno').close()">Cancelar</button>
+        <button class="btn-base btn-primary" type="button" onclick="window.CIO.guardarEdicionReporteTerreno()">💾 Guardar Cambios</button>
+      </div>
     </div>
   </dialog>
 
@@ -414,7 +522,6 @@
       <button class="btn-base" type="button" onclick="document.getElementById('modalEdicion').close()">&times;</button>
     </div>
 
-    <!-- TARJETA STATUS GEORREFERENCIACIÓN -->
     <div class="card-panel-inner" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
       <div>
         <span class="label-muted">Geolocalización Planta</span>
@@ -514,7 +621,7 @@
     </div>
   </dialog>
 
-  <!-- MODAL INFORME -->
+  <!-- MODAL INFORME TREN MOTRIZ -->
   <dialog id="modalEditorInforme">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
       <h3 id="infModalTitle" style="border:none; margin:0;">Emisión de Informe Técnico Oficial</h3>
@@ -557,44 +664,6 @@
     <div id="histTerrenoListContainer" style="max-height:500px; overflow-y:auto; padding-right:6px;"></div>
     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
       <button class="btn-base" type="button" onclick="document.getElementById('modalHistoricoTerreno').close()">Cerrar</button>
-    </div>
-  </dialog>
-
-  <!-- MODAL EDITAR / ELIMINAR REPORTE DE TERRENO DESDE LA CONSOLA -->
-  <dialog id="modalEditarReporteTerreno" style="max-width:620px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-      <h3 style="border:none; margin:0;">Editar Reporte de Terreno</h3>
-      <button class="btn-base" type="button" onclick="document.getElementById('modalEditarReporteTerreno').close()">&times;</button>
-    </div>
-
-    <input type="hidden" id="editReporteId" />
-
-    <div class="form-group">
-      <label>Severidad del Hallazgo</label>
-      <select id="editReporteSev">
-        <option value="Verde">Verde (Normal / Seguimiento)</option>
-        <option value="Amarillo">Amarillo (Alerta)</option>
-        <option value="Naranja">Naranja (Atención Requerida)</option>
-        <option value="Rojo">Rojo (Crítico)</option>
-      </select>
-    </div>
-
-    <div class="form-group">
-      <label>Detalle del Hallazgo / Observación</label>
-      <textarea id="editReporteDetalle" rows="3" placeholder="Describe la condición encontrada..."></textarea>
-    </div>
-
-    <div class="form-group">
-      <label>Evidencias Registradas:</label>
-      <div id="editReporteEvidenciasPreview" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; min-height:50px; padding:10px; border:1px dashed var(--glass-border); border-radius:8px;"></div>
-    </div>
-
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid var(--glass-border); padding-top:12px;">
-      <button class="btn-base btn-danger" type="button" onclick="window.CIO.eliminarReporteTerrenoConfirm()">🗑️ Eliminar Reporte</button>
-      <div style="display:flex; gap:10px;">
-        <button class="btn-base" type="button" onclick="document.getElementById('modalEditarReporteTerreno').close()">Cancelar</button>
-        <button class="btn-base btn-primary" type="button" onclick="window.CIO.guardarEdicionReporteTerreno()">💾 Guardar Cambios</button>
-      </div>
     </div>
   </dialog>
 
