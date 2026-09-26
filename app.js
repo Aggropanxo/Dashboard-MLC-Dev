@@ -765,7 +765,7 @@
   var reportePendienteImpresion = null;
 
   // =============================================================
-  // OBJETO GLOBAL CIO (CON TODAS LAS FUNCIONES VINCULADAS)
+  // OBJETO GLOBAL CIO
   // =============================================================
   window.CIO = {
     goScreen: function(num) {
@@ -1184,7 +1184,7 @@
             listaArchivos.map(function(ev) {
               var src = ev.data || ev.src || ev;
               if (ev.tipo === 'video') {
-                return '<div style="text-align:center;"><video src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc;"></video><div style="font-size:0.65rem; color:#64748b; font-weight:bold;">VIDEO</div></div>';
+                return '<div style="text-align:center;"><video src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc;"></video><div style="font-size:0.65rem; color:#647280; font-weight:bold;">VIDEO</div></div>';
               } else {
                 return '<div style="text-align:center;"><img src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#64748b; font-weight:bold;">FOTO</div></div>';
               }
@@ -1601,7 +1601,7 @@
             '</div>';
         } else {
           return '<div class="item-espectro-preview">' +
-              '<img src="' + src + '" style="width:100px; height:70px; object-fit:cover; border-radius:6px; cursor:pointer;" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + \')" />' +
+              '<img src="' + src + '" style="width:100px; height:70px; object-fit:cover; border-radius:6px; cursor:pointer;" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" />' +
               '<button type="button" onclick="window.CIO.eliminarEvidenciaReporte(' + idx + ')">&times;</button>' +
             '</div>';
         }
