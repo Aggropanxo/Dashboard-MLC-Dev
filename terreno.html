@@ -153,13 +153,24 @@
       align-items: center;
       justify-content: flex-start;
       gap: 6px;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
     }
 
-    .chip-btn:hover, .chip-btn:active {
+    .chip-btn:hover:not(:disabled) {
       background: rgba(56, 189, 248, 0.15);
       border-color: var(--accent);
       color: #fff;
+    }
+
+    /* Estado inactivo y grisáceo al marcar el chip */
+    .chip-btn:disabled, .chip-btn.disabled {
+      background: rgba(255, 255, 255, 0.02) !important;
+      border-color: rgba(255, 255, 255, 0.05) !important;
+      color: #475569 !important;
+      cursor: not-allowed !important;
+      opacity: 0.5;
+      box-shadow: none !important;
+      transform: none !important;
     }
 
     .sev-grid {
@@ -363,22 +374,22 @@
       <div class="form-group">
         <label>5. Hallazgos Frecuentes en Terreno</label>
         <div class="chips-grid">
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🛢️ Fuga de lubricante (aceite/grasa)')">🛢️ Fuga de aceite</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('📢 Ruido anómalo / golpeteo interno')">📢 Ruido reductor</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('⚠️ Vibración perceptible al tacto')">⚠️ Vibración alta</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🔥 Temperatura anormal en descanso')">🔥 Alta temperatura</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🔩 Perno basal cortado o soltura mecánica')">🔩 Perno / Soltura basal</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🧴 Grasa degradada o purga contaminada')">🧴 Grasa degradada</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('⚡ Conexión eléctrica recalentada')">⚡ Recalentamiento</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('💨 Fuga de aire o sistema de venteo tapado')">💨 Fuga aire / Venteo</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('⚙️ Desalineación poleas o acople dañado')">⚙️ Acople / Desalineación</button>
-          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido('🛡️ Protección suelta o rozamiento con eje')">🛡️ Guarda / Rozamiento</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido(this, 'fuga_aceite')">🛢️ Fuga de aceite</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido(this, 'ruido_reductor')">📢 Ruido reductor</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido(this, 'vibracion')">⚠️ Vibración alta</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido(this, 'temperatura')">🔥 Alta temperatura</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido(this, 'perno_soltura')">🔩 Perno / Soltura basal</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido(this, 'grasa_degradada')">🧴 Grasa degradada</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido(this, 'recalentamiento')">⚡ Recalentamiento</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido(this, 'fuga_aire')">💨 Fuga aire / Venteo</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido(this, 'acople')">⚙️ Acople / Desalineación</button>
+          <button type="button" class="chip-btn" onclick="agregarHallazgoRapido(this, 'guarda')">🛡️ Guarda / Rozamiento</button>
         </div>
       </div>
 
       <div class="form-group">
         <label>6. Notas / Detalle del Hallazgo</label>
-        <textarea id="txtDetalle" rows="3" placeholder="Ej: Se observa fuga activa por retén de entrada y soltura en perno basal..."></textarea>
+        <textarea id="txtDetalle" rows="4" placeholder="Selecciona hallazgos o escribe directamente observaciones adicionales..."></textarea>
       </div>
 
       <div class="form-group">
@@ -442,6 +453,70 @@
     var evidenciasTemporales = [];
     var severidadSeleccionada = 'Rojo';
     var isSyncing = false;
+
+    // =============================================================
+    // DICCIONARIO TÉCNICO Y REDACCIÓN GRAMATICAL AUTOMÁTICA
+    // =============================================================
+    var DICCIONARIO_HALLAZGOS = {
+      fuga_aceite: "fuga activa de lubricante con escurrimiento en carcasa/retenes",
+      ruido_reductor: "ruido anómalo y golpeteo cíclico perceptible en tren de engranajes",
+      vibracion: "nivel de vibración mecánica severo sensible al tacto en descansos",
+      temperatura: "gradiente térmico anormal elevado en zona de rodamientos",
+      perno_soltura: "soltura mecánica estructural por pernos basales cortados o flojos",
+      grasa_degradada: "pérdida de propiedades y contaminación en purga de grasa",
+      recalentamiento: "signos evidentes de recalentamiento en bornes o conexiones",
+      fuga_aire: "fuga de presión neumática con obstrucción en línea de venteo",
+      acople: "desalineación angular/paralela evidente con desgaste en elementos de acople",
+      guarda: "protección de seguridad deformada con rozamiento directo sobre eje rotatorio"
+    };
+
+    var hallazgosAcumulados = [];
+    var notasManualesTecnico = "";
+
+    function agregarHallazgoRapido(btn, tipo) {
+      var frase = DICCIONARIO_HALLAZGOS[tipo];
+      if (!frase) return;
+
+      // 1. Bloqueo visual e interactivo del botón
+      btn.disabled = true;
+      btn.classList.add('disabled');
+
+      // 2. Acumulación técnica
+      hallazgosAcumulados.push(frase);
+
+      // 3. Generación gramatical coherente
+      var textoSintetizado = "";
+      if (hallazgosAcumulados.length === 1) {
+        textoSintetizado = "En inspección de terreno se detecta " + hallazgosAcumulados[0] + ".";
+      } else if (hallazgosAcumulados.length === 2) {
+        textoSintetizado = "En inspección de terreno se detecta " + hallazgosAcumulados[0] + ", evidenciándose además " + hallazgosAcumulados[1] + ".";
+      } else {
+        var primeros = hallazgosAcumulados.slice(0, -1).join(", ");
+        var ultimo = hallazgosAcumulados[hallazgosAcumulados.length - 1];
+        textoSintetizado = "En inspección de terreno se constata " + primeros + " y " + ultimo + ".";
+      }
+
+      // 4. Inyección preservando el texto manual agregado por el usuario
+      var txtArea = document.getElementById('txtDetalle');
+      txtArea.value = notasManualesTecnico 
+        ? (textoSintetizado + " " + notasManualesTecnico).trim() 
+        : textoSintetizado;
+    }
+
+    // Listener para registrar entradas manuales del técnico sin perderlas al pulsar nuevos chips
+    document.getElementById('txtDetalle').addEventListener('input', function(e) {
+      var val = e.target.value;
+      if (hallazgosAcumulados.length > 0) {
+        var ultimoPunto = val.lastIndexOf('.');
+        if (ultimoPunto !== -1 && ultimoPunto < val.length - 1) {
+          notasManualesTecnico = val.substring(ultimoPunto + 1).trim();
+        } else if (ultimoPunto === -1) {
+          notasManualesTecnico = val.trim();
+        }
+      } else {
+        notasManualesTecnico = val.trim();
+      }
+    });
 
     // ==========================================
     // CAPA INDEXEDDB PARA ALMACENAMIENTO OFFLINE
@@ -552,7 +627,7 @@
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
         var localId = item.id;
-        delete item.id; // Remover la clave de IndexedDB antes de subir a Firebase
+        delete item.id;
 
         try {
           await dbAlertas.push(item);
@@ -560,7 +635,7 @@
           transmitidos++;
         } catch (err) {
           console.warn("Fallo temporal sincronizando item offline:", err);
-          break; // Detener bucle para reintentar al siguiente evento online
+          break;
         }
       }
 
@@ -572,7 +647,6 @@
       }
     }
 
-    // Inicializar BD local
     initIndexedDB().then(function() {
       actualizarEstadoRed();
     });
@@ -638,16 +712,6 @@
     function sincronizarTagLibre(val) {
       var input = document.getElementById('inputTagLibre');
       if (val) input.value = val;
-    }
-
-    function agregarHallazgoRapido(texto) {
-      var txt = document.getElementById('txtDetalle');
-      if (txt.value.trim().length > 0) {
-        txt.value = txt.value.trim() + " | " + texto;
-      } else {
-        txt.value = texto;
-      }
-      txt.focus();
     }
 
     function seleccionarSeveridad(sev) {
@@ -814,6 +878,15 @@
         evidenciasTemporales = [];
         renderizarPreview();
         seleccionarSeveridad('Rojo');
+
+        // Restaurar estado de los chips
+        document.querySelectorAll('.chips-grid .chip-btn').forEach(function(b) {
+          b.disabled = false;
+          b.classList.remove('disabled');
+        });
+        hallazgosAcumulados = [];
+        notasManualesTecnico = "";
+
         btn.disabled = false;
         btn.innerText = "📡 Transmitir a Sala CIO en Tiempo Real";
       };
