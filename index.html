@@ -1,147 +1,765 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CIO - Centro Integrado de Operaciones [DEV]</title>
-  
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;700&display=swap" />
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CIO - Centro Integrado de Operaciones | Monitoreo Predictivo CMP</title>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at 50% 0%, #17223b 0%, #0a0e17 100%);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      /* True Liquid Glass */
+      --glass-card: rgba(22, 32, 54, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.14);
+      --glass-gloss: inset 0 1px 1px 0 rgba(255, 255, 255, 0.22);
+      --glass-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.45);
+      --accent-color: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.18);
+      --input-bg: rgba(10, 15, 29, 0.7);
+      --modal-bg: rgba(13, 20, 36, 0.95);
+      --ticker-bg: rgba(13, 19, 33, 0.8);
+      --logo-box-bg: #ffffff;
+      --card-inner-bg: rgba(0, 0, 0, 0.25);
+    }
+
+    body.light-mode {
+      --bg-gradient: radial-gradient(circle at 50% 0%, #ffffff 0%, #e2e8f0 100%);
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --glass-card: rgba(255, 255, 255, 0.78);
+      --glass-border: rgba(0, 0, 0, 0.09);
+      --glass-gloss: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
+      --glass-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.08);
+      --accent-color: #0284c7;
+      --accent-glow: rgba(2, 132, 199, 0.12);
+      --input-bg: rgba(248, 250, 252, 0.95);
+      --modal-bg: rgba(255, 255, 255, 0.97);
+      --ticker-bg: rgba(255, 255, 255, 0.85);
+      --logo-box-bg: #ffffff;
+      --card-inner-bg: rgba(241, 245, 249, 0.85);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+
+    body {
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    .code-font { font-family: 'JetBrains Mono', monospace; }
+
+    /* NAVBAR */
+    header.cio-navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 28px;
+      background: var(--glass-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-logo-container {
+      background: var(--logo-box-bg);
+      border: 1px solid rgba(0,0,0,0.1);
+      padding: 5px 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    }
+
+    .brand-logo-container img { height: 34px; width: auto; display: block; }
+    .nav-brand { display: flex; align-items: center; gap: 16px; }
+    .nav-brand-title { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em; }
+    .nav-brand-sub { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+    .nav-actions { display: flex; align-items: center; gap: 10px; position: relative; }
+
+    /* TICKER */
+    .market-ticker-bar {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: var(--ticker-bg);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 7px 28px;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .ticker-item strong { color: var(--text-main); font-weight: 700; }
+
+    /* SEGURIDAD DE ROLES */
+    .auth-only { display: none !important; }
+    body.user-authenticated .auth-only { display: inline-flex !important; }
+
+    /* BOTONES */
+    .btn-base {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border: 1px solid var(--glass-border);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      box-shadow: var(--glass-gloss);
+    }
+
+    .btn-base:hover {
+      background: var(--accent-glow);
+      border-color: var(--accent-color);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary { background: #0284c7; color: #fff; border-color: #38bdf8; }
+    .btn-primary:hover { background: #0369a1; }
+    .btn-success { background: #059669; color: #fff; border-color: #34d399; }
+    .btn-success:hover { background: #047857; }
+    .btn-danger { background: #dc2626; color: #fff; border-color: #f87171; }
+    .btn-danger:hover { background: #b91c1c; }
+
+    /* MENÚ USUARIO */
+    .user-dropdown {
+      position: absolute;
+      top: 115%;
+      right: 0;
+      background: var(--modal-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.5);
+      padding: 14px;
+      min-width: 220px;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .user-dropdown.is-active { display: flex; }
+
+    /* VIEWPORT */
+    main.cio-viewport {
+      flex: 1;
+      padding: 24px 28px;
+      max-width: 1650px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .screen-view { display: none; }
+    .screen-view.active { display: block; }
+
+    .view-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .label-muted {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .value-strong { font-weight: 800; font-size: 1.15rem; }
+
+    /* LIQUID GLASS CARDS */
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 20px;
+    }
+
+    .grid-equipos {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .card-area, .card-equipo {
+      background: var(--glass-card);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow), var(--glass-gloss);
+      border-radius: 14px;
+      padding: 18px 20px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 135px;
+      position: relative;
+      transition: all 0.25s ease;
+    }
+
+    .card-area:hover, .card-equipo:hover {
+      transform: translateY(-3px);
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), var(--glass-gloss);
+    }
+
+    .card-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      gap: 6px;
+    }
+
+    .badge-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge-reportes { background: #0284c7; color: #fff; }
+    .badge-vencido { background: #ef4444; color: #fff; }
+    .badge-al-dia { background: #10b981; color: #fff; }
+
+    .card-equipo .eq-type {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .card-equipo .eq-tag {
+      font-size: 1.15rem;
+      font-weight: 800;
+      margin: 6px 0;
+      color: var(--text-main);
+    }
+
+    .sev-rojo { border-left: 6px solid #ef4444; }
+    .sev-naranja { border-left: 6px solid #f97316; }
+    .sev-amarillo { border-left: 6px solid #eab308; }
+    .sev-verde { border-left: 6px solid #22c55e; }
+    .sev-plomo { border-left: 6px solid #6b7280; }
+
+    .banner-contador-alerta {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .banner-contador-alerta.vencido { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; }
+    .banner-contador-alerta.al-dia { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; }
+
+    .n3-diagnostic-box {
+      background: var(--glass-card);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(24px) saturate(180%);
+      box-shadow: var(--glass-shadow), var(--glass-gloss);
+      border-radius: 14px;
+      padding: 18px 24px;
+      margin-bottom: 22px;
+    }
+
+    /* MODAL PRO REDISEÑADO CON ESPACIO ERGONÓMICO */
+    dialog {
+      background: var(--modal-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px;
+      color: var(--text-main);
+      padding: 32px;
+      max-width: 1040px;
+      width: 94%;
+      margin: auto;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.7);
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+    }
+
+    dialog h3 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 10px;
+    }
+
+    .modal-grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 26px;
+    }
+
+    @media (max-width: 850px) {
+      .modal-grid-2col { grid-template-columns: 1fr; gap: 16px; }
+      dialog { padding: 20px; }
+    }
+
+    .card-panel-inner {
+      background: var(--card-inner-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 16px;
+    }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: 0.04em;
+    }
+
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--accent-color);
+    }
+
+    /* ZONA ESPECTROS */
+    .drop-espectros-zone {
+      border: 2px dashed rgba(56, 189, 248, 0.35);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      background: rgba(56, 189, 248, 0.04);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .drop-espectros-zone:hover {
+      border-color: var(--accent-color);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .preview-espectros-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+      max-height: 140px;
+      overflow-y: auto;
+    }
+
+    .item-espectro-preview { position: relative; display: inline-block; }
+    .item-espectro-preview img {
+      width: 95px;
+      height: 65px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--glass-border);
+      cursor: pointer;
+    }
+    .item-espectro-preview button {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .box-ai-assistant {
+      background: linear-gradient(135deg, rgba(2, 132, 199, 0.15) 0%, rgba(15, 23, 42, 0.35) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+
+    #view-site-map {
+      height: 550px;
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--glass-border);
+      display: none;
+    }
+  </style>
 </head>
 <body>
 
-  <!-- Cabecera Principal -->
-  <header class="app-header">
-    <div class="brand" onclick="window.CIO.goScreen(1)">
-      <div class="brand-logo">
-        <img src="logo-cpf.png" alt="CPF" class="logo-img" onerror="this.outerHTML='<span class=\x27logo-text\x27>CPF</span>'">
+  <!-- NAVBAR -->
+  <header class="cio-navbar">
+    <div class="nav-brand">
+      <div class="brand-logo-container">
+        <img src="logo-cpf.png" alt="CPF Ingeniería" onerror="this.style.display='none'" />
       </div>
-      <div class="brand-info">
-        <h1>CIO - <span id="headerScreenTitle">Vista Pública (Global - DEV)</span></h1>
-        <p>Compañía Minera del Pacífico (CMP)</p>
+      <div>
+        <div class="nav-brand-title">CIO CONFIABILIDAD & PREDICTIVO</div>
+        <div class="nav-brand-sub" id="headerScreenTitle">Vista Pública (Global - DEV)</div>
       </div>
     </div>
 
-    <nav class="header-nav">
-      <button type="button" class="btn-base" onclick="window.CIO.toggleTheme()">☀️ / 🌙</button>
-      <div class="user-dropdown-wrapper" id="userMenuWrapper">
-        <button type="button" class="btn-base btn-primary" id="btnUsuarioMenu" onclick="window.CIO.handleUserBtnClick()">
-          👤 <span id="labelUsuarioBtn">Entrar</span> ▾
-        </button>
-        <menu class="dropdown-menu" id="userDropdownMenu">
-          <li class="menu-item-info" id="dropUserInfo">Invitado (Solo Lectura)</li>
-          <li>
-            <button type="button" class="btn-menu-logout" id="dropLogoutBtn" onclick="window.CIO.cerrarSesionUsuario()">
-              🚪 Cerrar Sesión
-            </button>
-          </li>
-        </menu>
+    <div class="nav-actions">
+      <button class="btn-base" type="button" onclick="window.CIO.toggleTheme()">🌓 Modo Tema</button>
+      <button class="btn-base auth-only" type="button" onclick="window.CIO.solicitarPermisoSuperAdmin()">🔑 SuperAdmin</button>
+      
+      <button class="btn-base btn-primary" type="button" id="btnUsuarioMenu" onclick="window.CIO.handleUserBtnClick()">
+        👤 <span id="labelUsuarioBtn">Entrar</span>
+      </button>
+
+      <div class="user-dropdown" id="userDropdownMenu">
+        <div style="font-size:0.75rem; color:var(--text-muted);" id="dropUserInfo">Invitado (Solo Lectura)</div>
+        <hr style="border:0; border-top:1px solid var(--glass-border);" />
+        <button class="btn-base btn-danger" type="button" style="width:100%; justify-content:center;" onclick="window.CIO.cerrarSesionUsuario()">Cerrar Sesión</button>
       </div>
-    </nav>
+    </div>
   </header>
 
-  <!-- Ticker Informativo -->
-  <aside class="mining-ticker" aria-label="Indicadores de Faena">
-    <span class="ticker-item">💵 <strong>USD/CLP:</strong> 945.72</span>
-    <span class="ticker-divider"></span>
-    <span class="ticker-item">⛏️ <strong>Fe 62%:</strong> 98.02 USD/t</span>
-    <span class="ticker-divider"></span>
-    <span class="ticker-item">💱 <strong>Hierro/CLP:</strong> 92,700 CLP/t</span>
-    <span class="ticker-divider"></span>
-    <span class="ticker-item">☀️ <strong>Clima:</strong> 22°C (Vallenar)</span>
-  </aside>
+  <!-- TICKER -->
+  <div class="market-ticker-bar">
+    <div class="ticker-item">💵 USD/CLP: <strong>945.72</strong></div>
+    <span>•</span>
+    <div class="ticker-item">⛏️ Fe 62%: <strong>98.02 USD/t</strong></div>
+    <span>•</span>
+    <div class="ticker-item">🔄 Hierro/CLP: <strong>92,700 CLP/t</strong></div>
+    <span>•</span>
+    <div class="ticker-item">☀️ Clima: <strong>22°C (Vallenar)</strong></div>
+  </div>
 
-  <!-- Contenedor Principal de Pantallas -->
-  <main class="views-wrapper">
-    <!-- PANTALLA 1: NIVEL 1 - VISTA GLOBAL DE FAENAS -->
+  <main class="cio-viewport">
+
+    <!-- PANTALLA 1: FAENAS -->
     <section id="screen-1" class="screen-view active">
-      <div class="view-section-header">
-        <h2>Nivel 1: Visualización Global de Faenas (Criticidad Máxima)</h2>
-      </div>
-      <section id="viewScreen1Content" class="grid-container"></section>
-    </section>
-
-    <!-- PANTALLA 2: NIVEL 2 - VISTA DE ÁREAS Y EQUIPOS -->
-    <section id="screen-2" class="screen-view">
-      <header class="site-nav-bar">
-        <div class="site-nav-left">
-          <button type="button" class="btn-back-nav" onclick="window.CIO.stepBackScreen2()">
-            ⬅️ <span id="labelStepBack">Volver a Global</span>
-          </button>
-          <div>
-            <span class="label-muted" id="subBreadcrumbSite">Faena Operativa</span>
-            <h2 id="screen2SiteTitle" class="site-title-heading">Faena Seleccionada</h2>
-          </div>
-        </div>
-        
-        <nav class="site-actions">
-          <span class="badge-faena" id="badgeFaenaAsignada">Faena</span>
-          <button type="button" class="btn-base btn-success auth-only" onclick="document.getElementById('excelSiteUpload').click()">📂 Carga Masiva</button>
-          <input type="file" id="excelSiteUpload" accept=".xlsx, .xls" class="visually-hidden" onchange="window.CIO.procesarCargaExcelFaena(event)">
-          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.abrirEdicionEquipoNuevoAuth()">➕ Crear Activo</button>
-          <button type="button" class="btn-base btn-primary" onclick="window.CIO.toggleSiteMapTab()">🗺️ <span id="labelToggleSiteMap">Ver Mapa de Faena</span></button>
-          <button type="button" class="btn-base btn-warning auth-only" onclick="window.CIO.solicitarPermisoSuperAdmin()">🛡️ SuperAdmin</button>
-        </nav>
-      </header>
-
-      <section id="view-site-map" class="map-view-box"></section>
-      <section id="viewScreen2Container" class="grid-container"></section>
-    </section>
-
-    <!-- PANTALLA 3: NIVEL 3 - TARJETAS DASHBOARD DE COMPONENTES Y PUNTOS -->
-    <section id="screen-3" class="screen-view">
-      <header class="site-nav-bar">
-        <div class="site-nav-left">
-          <button type="button" class="btn-back-nav" onclick="window.CIO.volverDeNivel3()">
-            ⬅️ Volver a Equipos
-          </button>
-          <div>
-            <span class="label-muted" id="n3Breadcrumb">Faena | Área | TAG</span>
-            <h2 id="n3Title" class="site-title-heading" style="margin:2px 0 0 0;">Nombre del Equipo</h2>
-            <div id="n3BannerMedicion" style="margin-top:4px;"></div>
-          </div>
-        </div>
-
-        <nav class="site-actions">
-          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.agregarNuevoComponenteDirecto()">➕ Añadir Punto/Componente</button>
-          <button type="button" class="btn-base btn-primary auth-only" onclick="window.CIO.editarDatosGeneralesActivo()">✏️ Editar Datos Equipo</button>
-          <button type="button" class="btn-base btn-success auth-only" onclick="window.CIO.abrirEditorInformeModal()">📄 Generar Informe Editable</button>
-        </nav>
-      </header>
-
-      <!-- Banner de Resumen Ejecutivo y Pares SAP del Equipo -->
-      <section id="n3DiagnosticoBox" class="diagnostico-activo-panel" style="margin-bottom:18px;"></section>
-
-      <!-- Grilla Dashboard de Tarjetas de Componentes -->
-      <div class="view-section-header">
-        <h2 style="font-size:0.88rem; color:#93c5fd;">⚙️ Puntos de Medición del Tren Motriz & Bitácora de Terreno</h2>
-      </div>
-      <section id="n3GridCards" class="grid-equipos"></section>
-    </section>
-
-    <!-- PANTALLA 4: SUPERADMIN GLOBAL -->
-    <section id="screen-4" class="screen-view">
-      <header class="superadmin-bar">
+      <div class="view-header">
         <div>
-          <button type="button" class="btn-back-nav" onclick="window.CIO.goScreen(2)">⬅️ Salir SuperAdmin</button>
-          <h2 class="superadmin-title">⚡ Consola Global SuperAdmin</h2>
+          <span class="label-muted">Consolidado Corporativo CMP</span>
+          <h2>Operaciones & Faenas Mineras</h2>
         </div>
-        <nav class="superadmin-actions">
-          <button type="button" class="btn-base btn-success" onclick="window.CIO.abrirEdicionGlobalNuevo()">➕ Crear Activo Global</button>
-          <button type="button" class="btn-base btn-primary" onclick="window.CIO.exportarReporteGerenciaAlta()">📊 Reporte Alta Gerencia</button>
-          <button type="button" class="btn-base btn-warning" onclick="window.CIO.exportarReporteGerenciaPorFaena()">📑 Reporte por Faena</button>
-        </nav>
-      </header>
+      </div>
+      <div class="grid-container" id="viewScreen1Content"></div>
+    </section>
 
-      <div class="filter-box">
-        <select id="superAdminFilterSite" class="filter-select" onchange="window.CIO.renderScreen4Global()">
-          <option value="TODAS">Ver Todas las Faenas</option>
+    <!-- PANTALLA 2: ÁREAS Y EQUIPOS -->
+    <section id="screen-2" class="screen-view">
+      <div class="view-header">
+        <div>
+          <button class="btn-base" type="button" onclick="window.CIO.stepBackScreen2()">⬅️ Atrás</button>
+          <span class="label-muted" style="margin-left: 10px;">Faena:</span>
+          <h2 id="screen2SiteTitle" style="display:inline; margin-left:6px;">Planta, Mina los Colorados</h2>
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button class="btn-base" type="button" onclick="window.CIO.toggleSiteMapTab()" id="btnToggleMapa">
+            🗺️ <span id="labelToggleSiteMap">Ver Mapa de Faena</span>
+          </button>
+          
+          <label class="btn-base auth-only" style="cursor:pointer;" title="Importar base de equipos Excel">
+            📥 Carga Excel
+            <input type="file" accept=".xlsx, .xls" style="display:none;" onchange="window.CIO.procesarCargaExcelFaena(event)" />
+          </label>
+        </div>
+      </div>
+
+      <div id="view-site-map"></div>
+      <div id="viewScreen2Container" class="grid-container"></div>
+    </section>
+
+    <!-- PANTALLA 3: NIVEL 3 (DETALLE ACTIVO) -->
+    <section id="screen-3" class="screen-view">
+      <div class="view-header">
+        <div>
+          <button class="btn-base" type="button" onclick="window.CIO.volverDeNivel3()">⬅️ Volver a Lista</button>
+          <span class="label-muted" style="margin-left: 10px;" id="n3Breadcrumb">Faena | Área | TAG</span>
+          <h2 id="n3Title" style="margin-top:4px;">Tren Motriz del Activo</h2>
+        </div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-base auth-only" type="button" onclick="window.CIO.editarDatosGeneralesActivo()">⚙️ Editar Activo</button>
+          <button class="btn-base btn-primary auth-only" type="button" onclick="window.CIO.abrirEditorInformeModal()">📄 Emitir Informe</button>
+          <button class="btn-base btn-success auth-only" type="button" onclick="window.CIO.agregarNuevoComponenteDirecto()">➕ Componente</button>
+        </div>
+      </div>
+
+      <div id="n3BannerMedicion" style="margin-bottom:14px;"></div>
+      <div class="n3-diagnostic-box" id="n3DiagnosticoBox"></div>
+      <div class="grid-equipos" id="n3GridCards"></div>
+    </section>
+
+    <!-- PANTALLA 4: SUPERADMIN -->
+    <section id="screen-4" class="screen-view">
+      <div class="view-header">
+        <div>
+          <button class="btn-base" type="button" onclick="window.CIO.salirSuperAdmin()">⬅️ Salir SuperAdmin</button>
+          <span class="label-muted" style="margin-left:10px;">Gestión de Alta Confiabilidad</span>
+          <h2>Consola Global SuperAdmin</h2>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <select class="btn-base" id="superAdminFilterSite" onchange="window.CIO.renderScreen4Global()">
+            <option value="TODAS">Ver Todas las Faenas</option>
+            <option value="Planta, Mina los Colorados">Planta, Mina los Colorados</option>
+            <option value="Mina, Mina los Colorados">Mina, Mina los Colorados</option>
+            <option value="Planta de Pellets">Planta de Pellets</option>
+            <option value="Planta, Mina el Romeral">Planta, Mina el Romeral</option>
+            <option value="Mina, Mina el Romeral">Mina, Mina el Romeral</option>
+          </select>
+          <button class="btn-base btn-success" type="button" onclick="window.CIO.abrirEdicionGlobalNuevo()">➕ Crear Activo</button>
+          <button class="btn-base btn-primary" type="button" onclick="window.CIO.exportarReporteGerenciaAlta()">📊 Reporte Alta Gerencia</button>
+          <button class="btn-base" type="button" onclick="window.CIO.exportarReporteGerenciaPorFaena()">📑 Reporte Faena</button>
+        </div>
+      </div>
+      <div class="grid-equipos" id="viewScreen4Global"></div>
+    </section>
+
+  </main>
+
+  <!-- MODAL LOGIN/REGISTRO -->
+  <dialog id="modalAuth">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 id="authModalHeaderTitle" style="border:none; margin:0;">Acceso Operador CIO</h3>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalAuth').close()">&times;</button>
+    </div>
+    <p id="authModalHeaderDesc" style="font-size:0.82rem; color:var(--text-muted); margin-bottom:14px;">
+      Inicia sesión para habilitar funciones operativas de edición, informes y gestión de condición.
+    </p>
+
+    <div style="display:flex; gap:10px; margin-bottom:16px;">
+      <button class="btn-base is-active" id="tabBtnLogin" type="button" style="flex:1;" onclick="window.CIO.setAuthMode('login')">Ingresar</button>
+      <button class="btn-base" id="tabBtnRegister" type="button" style="flex:1;" onclick="window.CIO.setAuthMode('register')">Registrarse</button>
+    </div>
+
+    <div class="form-group" id="boxFullName" style="display:none;">
+      <label>Nombre y Apellido</label>
+      <input type="text" id="authFullname" placeholder="Ej: Francisco Leiva" />
+    </div>
+
+    <div class="form-group">
+      <label>Usuario / Email</label>
+      <input type="text" id="authUsername" placeholder="nombre.apellido" />
+    </div>
+
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="authPassword" placeholder="••••••••" />
+    </div>
+
+    <div class="form-group" id="boxFaenaSite" style="display:none;">
+      <label>Faena Base Asignada</label>
+      <select id="authSelectedSite">
+        <option value="Planta, Mina los Colorados">Planta, Mina los Colorados</option>
+        <option value="Mina, Mina los Colorados">Mina, Mina los Colorados</option>
+        <option value="Planta de Pellets">Planta de Pellets</option>
+        <option value="Planta, Mina el Romeral">Planta, Mina el Romeral</option>
+        <option value="Mina, Mina el Romeral">Mina, Mina el Romeral</option>
+      </select>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;">
+      <button class="btn-base" type="button" onclick="document.getElementById('modalAuth').close()">Cancelar</button>
+      <button class="btn-base btn-primary" type="button" id="authSubmitActionBtn" onclick="window.CIO.handleAuthSubmission()">Ingresar al Sistema</button>
+    </div>
+  </dialog>
+
+  <!-- MODAL CONSULTA DE COMPONENTE -->
+  <dialog id="modalDetalleComponente">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <span class="label-muted" id="detCompTagHeader">TAG | TREN MOTRIZ</span>
+        <h3 id="detCompTitle" style="border:none; margin:4px 0 0 0;">Componente - Punto</h3>
+      </div>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalDetalleComponente').close()">&times;</button>
+    </div>
+
+    <div style="margin:14px 0 10px 0;">
+      <span class="banner-contador-alerta" id="detCompBadgeSev" style="border:1px solid;">VERDE</span>
+    </div>
+
+    <div class="form-group" style="margin-top:10px;">
+      <div id="detCompParesSapBox" class="card-panel-inner"></div>
+    </div>
+
+    <div class="form-group">
+      <label>Diagnóstico Técnico Especialista</label>
+      <p id="detCompAnalisisTxt" style="font-size:0.88rem; line-height:1.45; background:var(--input-bg); padding:12px; border-radius:8px;"></p>
+    </div>
+
+    <div class="form-group">
+      <label>Recomendación Mecánica / Operativa</label>
+      <p id="detCompRecomTxt" style="font-size:0.88rem; line-height:1.45; background:var(--input-bg); padding:12px; border-radius:8px; color:#10b981;"></p>
+    </div>
+
+    <div class="form-group">
+      <label>Galería de Espectros FFT & Evidencias</label>
+      <div id="detCompGaleriaFotos" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;"></div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;">
+      <button class="btn-base" type="button" onclick="document.getElementById('modalDetalleComponente').close()">Cerrar</button>
+      <button class="btn-base btn-primary auth-only" type="button" id="btnEditarDesdeDetalle" onclick="window.CIO.editarComponenteDesdeDetalleModal()">✏️ Editar este Componente</button>
+    </div>
+  </dialog>
+
+  <!-- MODAL EDICIÓN DE COMPONENTE PROFESIONAL Y ESPACIOSO -->
+  <dialog id="modalEditarComponenteIndividual">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 id="edCompModalTitle" style="border:none; margin:0;">Editar Punto de Medición</h3>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalEditarComponenteIndividual').close()">&times;</button>
+    </div>
+
+    <input type="hidden" id="edCompIndex" />
+
+    <div class="modal-grid-2col">
+      <!-- COLUMNA 1: DATOS OPERACIONALES -->
+      <div>
+        <div class="card-panel-inner">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label>Componente</label>
+              <input type="text" id="indCompNombre" placeholder="Ej: Motor M1" />
+            </div>
+            <div class="form-group">
+              <label>Punto de Inspección</label>
+              <input type="text" id="indCompPunto" placeholder="Ej: Lado Libre (NDE)" />
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label>RMS Global (mm/s)</label>
+              <input type="text" id="indCompRms" oninput="window.CIO.evaluarIsoRmsEnVivo()" placeholder="Ej: 3.8" />
+            </div>
+            <div class="form-group">
+              <label>Severidad ISO</label>
+              <select id="indCompSev">
+                <option value="Verde">Verde (Zona A/B)</option>
+                <option value="Amarillo">Amarillo (Zona C)</option>
+                <option value="Naranja">Naranja (Alerta)</option>
+                <option value="Rojo">Rojo (Zona D - Crítico)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-panel-inner">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label style="margin:0;">Órdenes SAP Asociadas:</label>
+            <button class="btn-base" type="button" style="padding:3px 10px; font-size:0.7rem;" onclick="window.CIO.agregarFilaParSapIndividual()">➕ Par SAP</button>
+          </div>
+          <div id="indParesSapContainer"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Diagnóstico Técnico Final</label>
+          <textarea id="indCompAnalisis" rows="3" placeholder="Dictamen pericial definitivo..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Recomendación Mecánica Final</label>
+          <textarea id="indCompRecom" rows="2" placeholder="Acciones preventivas / correctivas requeridas..."></textarea>
+        </div>
+      </div>
+
+      <!-- COLUMNA 2: ESPECTROS Y GEMINI AI -->
+      <div>
+        <div class="card-panel-inner">
+          <label>📈 Espectro FFT / Cascada</label>
+          <div class="drop-espectros-zone" onclick="document.getElementById('subirFotoEspectro').click()">
+            <span style="font-size:0.84rem; color:var(--text-muted);">📷 Clic para adjuntar capturas de espectros</span>
+            <input type="file" id="subirFotoEspectro" accept="image/*" multiple style="display:none;" onchange="window.CIO.procesarSubidaEspectros(event)" />
+          </div>
+          <div class="preview-espectros-grid" id="previewEspectrosContainer"></div>
+        </div>
+
+        <!-- GEMINI AI -->
+        <div class="box-ai-assistant">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:0.84rem; font-weight:800; color:#38bdf8;">🧠 Asistente Pericial Gemini AI</span>
+            <button class="btn-base btn-primary" type="button" style="font-size:0.72rem; padding:4px 10px;" onclick="window.CIO.generarDictamenTecnicoIso()">
+              ✨ Evaluar Espectro & RMS
+            </button>
+          </div>
+
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="font-size:0.7rem; color:var(--text-muted);">Sugerencia de Diagnóstico:</label>
+            <textarea id="indSugAnalisis" rows="2" readonly style="font-size:0.8rem;"></textarea>
+          </div>
+
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="font-size:0.7rem; color:var(--text-muted);">Sugerencia de Recomendación:</label>
+            <textarea id="indSugRecom" rows="2" readonly style="font-size:0.8rem;"></textarea>
+          </div>
+
+          <button class="btn-base btn-success" type="button" style="width:100%; justify-content:center; font-size:0.75rem; padding:8px;" onclick="window.CIO.adoptarTodoDiagnosticoRecomendacion()">
+            ✅ Adoptar Dictamen de la IA al Informe
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid var(--glass-border); padding-top:16px;">
+      <button class="btn-base btn-danger" type="button" onclick="window.CIO.eliminarComponenteActual()">🗑️ Eliminar Punto</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-base" type="button" onclick="document.getElementById('modalEditarComponenteIndividual').close()">Cancelar</button>
+        <button class="btn-base btn-primary" type="button" onclick="window.CIO.guardarComponenteIndividual()">💾 Guardar Cambios</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL EDITAR ACTIVO -->
+  <dialog id="modalEdicion">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="border:none; margin:0;">Editar Parámetros del Activo</h3>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalEdicion').close()">&times;</button>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+      <div class="form-group">
+        <label>Faena Base</label>
+        <select id="edSiteId">
           <option value="Planta, Mina los Colorados">Planta, Mina los Colorados</option>
           <option value="Mina, Mina los Colorados">Mina, Mina los Colorados</option>
           <option value="Planta de Pellets">Planta de Pellets</option>
@@ -149,352 +767,97 @@
           <option value="Mina, Mina el Romeral">Mina, Mina el Romeral</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Dominio</label>
+        <select id="edDomain">
+          <option value="planta">Planta</option>
+          <option value="mina">Mina</option>
+        </select>
+      </div>
+    </div>
 
-      <section id="viewScreen4Global" class="grid-equipos"></section>
-    </section>
-  </main>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+      <div class="form-group">
+        <label>Área Operacional</label>
+        <input type="text" id="edArea" />
+      </div>
+      <div class="form-group">
+        <label>TAG Identificador</label>
+        <input type="text" id="edTag" />
+      </div>
+    </div>
 
-  <!-- MODAL: DETALLE COMPLETO DEL COMPONENTE / PUNTO -->
-  <dialog id="modalDetalleComponente" class="modal-dialog">
-    <div class="modal-content modal-lg" style="border-top: 4px solid #2563eb;">
-      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalDetalleComponente').close()">&times;</button>
-      
-      <header class="modal-header">
-        <div>
-          <span class="label-muted" id="detCompTagHeader">COMPONENTE / PUNTO</span>
-          <h2 id="detCompTitle" style="margin:2px 0 0 0; font-size:1.35rem;">Motor M1 - Lado Libre (NDE)</h2>
-        </div>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <span id="detCompBadgeSev" style="padding:4px 10px; border-radius:6px; font-weight:800; font-size:0.85rem; border:1px solid;">SEVERIDAD</span>
-          <button type="button" class="btn-base btn-primary auth-only" id="btnEditarCompDesdeDetalle" onclick="window.CIO.editarComponenteDesdeDetalleModal()">✏️ Editar Punto</button>
-        </div>
-      </header>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+      <div class="form-group">
+        <label>Tipo de Equipo</label>
+        <input type="text" id="edTipo" />
+      </div>
+      <div class="form-group">
+        <label>Estatus Hallazgo</label>
+        <select id="edEstatusHallazgo">
+          <option value="Abierto">Abierto</option>
+          <option value="Cerrado / Normal">Cerrado / Normal</option>
+        </select>
+      </div>
+    </div>
 
-      <!-- Resumen de Pares SAP del punto -->
-      <div id="detCompParesSapBox" style="background:var(--box-sap-bg); border:1px solid var(--box-sap-border); border-radius:8px; padding:10px 14px; margin:14px 0;"></div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+      <div class="form-group">
+        <label>Fecha de Medición</label>
+        <input type="date" id="edFechaMedicion" onchange="window.CIO.auditarDiasMedicionForm()" />
+        <div id="edFeedbackContadorDias" style="margin-top:4px;"></div>
+      </div>
+      <div class="form-group">
+        <label>Fecha del Hallazgo</label>
+        <input type="date" id="edFechaHallazgo" />
+      </div>
+    </div>
 
-      <div class="detalle-grid-layout">
-        <div>
-          <h3 class="label-muted section-heading" style="color:#2563eb;">📊 Diagnóstico de Vibraciones & Recomendación</h3>
-          <div style="background:var(--box-diag-bg); border:1px solid var(--glass-border); border-radius:8px; padding:14px; margin-bottom:12px;">
-            <span class="label-muted">Diagnóstico Técnico del Punto:</span>
-            <div id="detCompAnalisisTxt" style="font-size:0.88rem; color:var(--box-diag-text); margin-top:4px; line-height:1.4;"></div>
-          </div>
-          <div style="background:var(--box-recom-bg); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:14px;">
-            <span class="label-muted" style="color:#059669;">Recomendación Mecánica / Mantención:</span>
-            <div id="detCompRecomTxt" style="font-size:0.88rem; color:var(--box-recom-text); margin-top:4px; line-height:1.4;"></div>
-          </div>
-        </div>
-
-        <!-- Galería de Espectros y Fotos de Respaldo -->
-        <div>
-          <h3 class="label-muted section-heading" style="color:#0284c7;">📈 Espectros de Vibración & Respaldo Fotográfico</h3>
-          <div id="detCompGaleriaFotos" class="galeria-espectros-grid"></div>
-        </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+      <button class="btn-base btn-danger" type="button" onclick="window.CIO.eliminarEquipo()">🗑️ Eliminar Activo</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-base" type="button" onclick="document.getElementById('modalEdicion').close()">Cancelar</button>
+        <button class="btn-base btn-primary" type="button" onclick="window.CIO.guardarDatosGeneralesActivo()">💾 Guardar</button>
       </div>
     </div>
   </dialog>
 
-  <!-- MODAL INDIVIDUAL: CONFIGURACIÓN DE PUNTO, ANÁLISIS DUAL ISO 20816-3 Y ESPECTROS -->
-  <dialog id="modalEditarComponenteIndividual" class="modal-dialog">
-    <div class="modal-content modal-lg" style="border-top: 4px solid #2563eb;">
-      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEditarComponenteIndividual').close()">&times;</button>
-      <header class="modal-header">
-        <div>
-          <span class="label-muted">Configuración de Punto & Espectros</span>
-          <h2 id="edCompModalTitle" style="margin:2px 0 0 0; font-size:1.3rem;">Editar Componente</h2>
-        </div>
-      </header>
-
-      <form id="formCompIndividual" onsubmit="event.preventDefault(); window.CIO.guardarComponenteIndividual();" style="margin-top:14px;">
-        <input type="hidden" id="edCompIndex" value="-1" />
-
-        <div class="form-grid" style="margin-bottom:14px;">
-          <div>
-            <label>Componente</label>
-            <input type="text" id="indCompNombre" placeholder="Ej: Motor M1, Reductor G1, Polea Motriz" required />
-          </div>
-          <div>
-            <label style="color:#0284c7;">Punto / Lado de Medición</label>
-            <input type="text" id="indCompPunto" placeholder="Ej: Lado Libre (NDE), Lado Acople (DE)" required />
-          </div>
-          <div>
-            <label>RMS Global (mm/s)</label>
-            <input type="text" id="indCompRms" placeholder="Ej: 4.2" oninput="window.CIO.evaluarIsoRmsEnVivo()" required />
-          </div>
-          <div>
-            <label>Severidad del Punto</label>
-            <select id="indCompSev">
-              <option value="Rojo">🔴 Rojo (Crítico / Zona D)</option>
-              <option value="Naranja">🟠 Naranja (Alerta / Zona C-D)</option>
-              <option value="Amarillo">🟡 Amarillo (Advertencia / Zona C)</option>
-              <option value="Verde">🟢 Verde (Admisible / Zona A-B)</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Pares SAP de este Componente / Punto -->
-        <div class="sap-pairs-panel" style="margin-bottom:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span class="label-muted" style="color:#1d4ed8;">Órdenes SAP Asignadas a este Punto (Aviso ➔ OM)</span>
-            <button type="button" class="btn-base btn-success" style="font-size:0.68rem; padding:3px 10px;" onclick="window.CIO.agregarFilaParSapIndividual()">
-              + Añadir Par SAP
-            </button>
-          </div>
-          <div id="indParesSapContainer"></div>
-        </div>
-
-        <!-- SECCIÓN COMPARATIVA: ANÁLISIS DEL ESPECIALISTA VS. PROPUESTA ISO 20816-3 -->
-        <div class="dual-analysis-container" style="margin-bottom:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-            <div>
-              <span class="label-muted" style="font-size:0.75rem; color:var(--text-main); font-weight:800;">Evaluación Técnica del Estado Dinámico</span>
-              <div style="font-size:0.75rem; color:var(--text-muted);">Compara tu dictamen de terreno con el estándar de severidad ISO 20816-3 antes de guardar.</div>
-            </div>
-            <button type="button" class="btn-base btn-primary" onclick="window.CIO.generarDictamenTecnicoIso()">
-              ✨ Generar Sugerencia Técnica (ISO 20816-3)
-            </button>
-          </div>
-
-          <div class="dual-analysis-grid">
-            <!-- Columna 1: Criterio del Analista (Definitivo) -->
-            <div class="analysis-box-analista">
-              <div class="analysis-box-header" style="color:#1e3a8a;">
-                <span>👨‍🔧 Dictamen del Analista (Oficial a Reportar)</span>
-              </div>
-              <div style="margin-bottom:10px;">
-                <label style="font-size:0.68rem;">Diagnóstico Técnico del Punto</label>
-                <textarea id="indCompAnalisis" rows="3" placeholder="Describe patrones FFT, frecuencias armónicas o condición detectada..."></textarea>
-              </div>
-              <div>
-                <label style="font-size:0.68rem; color:#065f46;">Recomendación Mecánica / Operativa</label>
-                <textarea id="indCompRecom" rows="2" placeholder="Acciones preventivas, lubricación, corrección de alineamiento o chequeo..."></textarea>
-              </div>
-            </div>
-
-            <!-- Columna 2: Sugerencia Técnica Normativa ISO 20816-3 -->
-            <div class="analysis-box-sugerencia">
-              <div class="analysis-box-header" style="color:#0369a1;">
-                <span>📐 Dictamen Normativo Basado en ISO 20816-3</span>
-              </div>
-              <div style="margin-bottom:10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
-                  <label style="font-size:0.68rem;">Diagnóstico Sugerido</label>
-                  <button type="button" class="btn-adoptar" onclick="window.CIO.adoptarDiagnosticoSugerido()">📥 Adoptar</button>
-                </div>
-                <textarea id="indSugAnalisis" rows="3" readonly placeholder="Presiona 'Generar Sugerencia Técnica' para calcular según valor RMS y componente..."></textarea>
-              </div>
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
-                  <label style="font-size:0.68rem; color:#065f46;">Recomendación Sugerida</label>
-                  <button type="button" class="btn-adoptar" onclick="window.CIO.adoptarRecomendacionSugerida()">📥 Adoptar</button>
-                </div>
-                <textarea id="indSugRecom" rows="2" readonly placeholder="Recomendación basada en severidad dinámica..."></textarea>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- SUBIDA DE MÚLTIPLES ESPECTROS / FOTOS DE RESPALDO -->
-        <div class="espectros-upload-panel" style="margin-bottom:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
-            <div>
-              <span class="label-muted" style="color:#0284c7;">📈 Espectros FFT / Gráficos / Evidencias Fotográficas</span>
-              <div style="font-size:0.7rem; color:var(--text-muted);">Puedes seleccionar varias imágenes a la vez (PNG, JPG).</div>
-            </div>
-            <button type="button" class="btn-base btn-primary" onclick="document.getElementById('inputSubirEspectros').click()">
-              📷 Adjuntar Fotos/Espectros
-            </button>
-            <input type="file" id="inputSubirEspectros" accept="image/*" multiple class="visually-hidden" onchange="window.CIO.procesarSubidaEspectros(event)">
-          </div>
-
-          <div id="previewEspectrosContainer" class="galeria-espectros-grid"></div>
-        </div>
-
-        <footer class="modal-footer-actions">
-          <button type="button" class="btn-base btn-danger" onclick="window.CIO.eliminarComponenteActual()">🗑️ Eliminar Punto</button>
-          <button type="submit" class="btn-base btn-success" style="padding:10px 22px;">💾 Guardar Cambios</button>
-        </footer>
-      </form>
+  <!-- MODAL INFORME TÉCNICO -->
+  <dialog id="modalEditorInforme">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 id="infModalTitle" style="border:none; margin:0;">Emisión de Informe Técnico Oficial</h3>
+      <button class="btn-base" type="button" onclick="document.getElementById('modalEditorInforme').close()">&times;</button>
     </div>
-  </dialog>
 
-  <!-- MODAL HISTÓRICO: BITÁCORA DE TERRENO Y FOTOGRAFÍAS -->
-  <dialog id="modalHistoricoTerreno" class="modal-dialog">
-    <div class="modal-content modal-lg" style="border-top: 4px solid #38bdf8;">
-      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalHistoricoTerreno').close()">&times;</button>
-      <header class="modal-header">
-        <div>
-          <span class="label-muted">Inspección de Ronda & Terreno</span>
-          <h2 id="histTerrenoTitle" style="margin:2px 0 0 0; font-size:1.3rem;">Historial de Hallazgos en Terreno</h2>
-          <p style="margin:4px 0 0 0; font-size:0.75rem; color:var(--text-muted);">
-            Reportes transmitidos en tiempo real desde terreno con fecha, severidad y fotografías de evidencia.
-          </p>
-        </div>
-      </header>
-
-      <div id="histTerrenoListContainer" class="field-list" style="margin-top:16px; max-height:65vh;"></div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+      <div class="form-group">
+        <label>Avisos SAP Totales</label>
+        <input type="text" id="infAvisosSap" />
+      </div>
+      <div class="form-group">
+        <label>Órdenes OM SAP Totales</label>
+        <input type="text" id="infOmSap" />
+      </div>
     </div>
-  </dialog>
 
-  <!-- MODAL EDITOR DE INFORME TÉCNICO EDITABLE PRE-IMPRESIÓN (CON LOGO CPF) -->
-  <dialog id="modalEditorInforme" class="modal-dialog">
-    <div class="modal-content modal-lg" style="border-top: 4px solid #16a34a;">
-      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEditorInforme').close()">&times;</button>
-      <header class="modal-header">
-        <div>
-          <span class="label-muted">Editor Ejecutivo de Informe Técnico</span>
-          <h2 id="infModalTitle" style="margin:2px 0 0 0; font-size:1.3rem;">Edición de Informe antes de Imprimir</h2>
-          <p style="margin:4px 0 0 0; font-size:0.75rem; color:var(--text-muted);">
-            Puedes complementar análisis, ingresar avisos adicionales o redactar observaciones antes de generar el PDF final.
-          </p>
-        </div>
-      </header>
-
-      <form id="formEditorInforme" onsubmit="event.preventDefault(); window.CIO.emitirInformeFinalImpresion();" style="margin-top:16px;">
-        <div class="form-grid" style="margin-bottom:14px;">
-          <div>
-            <label>Avisos SAP a Incluir en Portada</label>
-            <input type="text" id="infAvisosSap" class="code-font" placeholder="Ej: 10054321, 10054399" />
-          </div>
-          <div>
-            <label>Órdenes OM SAP a Incluir en Portada</label>
-            <input type="text" id="infOmSap" class="code-font" placeholder="Ej: 40012984, 40013000" />
-          </div>
-        </div>
-
-        <div style="margin-bottom:14px;">
-          <label>Conclusión / Resumen General del Especialista (Portada)</label>
-          <textarea id="infResumenGeneral" rows="3" placeholder="Redacta la conclusión ejecutiva del estado general del equipo..."></textarea>
-        </div>
-
-        <h3 class="label-muted" style="margin-bottom:10px; color:#93c5fd;">Puntos de Inspección a Reportar (Editables)</h3>
-        <div id="infComponentesContainer" class="components-stack-container" style="max-height:40vh; overflow-y:auto; padding-right:6px;"></div>
-
-        <footer class="modal-footer-actions">
-          <button type="button" class="btn-base" onclick="document.getElementById('modalEditorInforme').close()">Cancelar</button>
-          <button type="submit" class="btn-base btn-success" style="padding:10px 20px;">🖨️ Generar & Imprimir PDF Oficial</button>
-        </footer>
-      </form>
+    <div class="form-group">
+      <label>Resumen Ejecutivo & Conclusiones Generales</label>
+      <textarea id="infResumenGeneral" rows="3"></textarea>
     </div>
-  </dialog>
 
-  <!-- MODAL AUTENTICACIÓN MEJORADO -->
-  <dialog id="modalAuth" class="modal-dialog">
-    <div class="modal-content modal-auth-box">
-      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalAuth').close()" aria-label="Cerrar modal">&times;</button>
-      
-      <nav class="auth-segmented-control">
-        <button type="button" id="tabBtnLogin" class="auth-segment-btn is-active" onclick="window.CIO.setAuthMode('login')">
-          🔑 Iniciar Sesión
-        </button>
-        <button type="button" id="tabBtnRegister" class="auth-segment-btn" onclick="window.CIO.setAuthMode('register')">
-          👤 Crear Cuenta
-        </button>
-      </nav>
-
-      <header class="auth-modal-header">
-        <h3 id="authModalHeaderTitle">Acceso Operador CIO</h3>
-        <p id="authModalHeaderDesc">Ingresa tus credenciales autorizadas por CPF para gestionar condición y emitir informes.</p>
-      </header>
-      
-      <form class="auth-form-vertical" onsubmit="event.preventDefault(); window.CIO.handleAuthSubmission();">
-        <div id="boxFullName" class="auth-field-group" style="display: none !important;">
-          <label for="authFullname">Nombre y Apellido</label>
-          <div class="auth-input-wrapper">
-            <span class="auth-input-icon">👤</span>
-            <input type="text" id="authFullname" class="auth-input-control" placeholder="Ej: Francisco Leiva" autocomplete="name" />
-          </div>
-        </div>
-
-        <div class="auth-field-group">
-          <label for="authUsername">Usuario / Correo Corporativo</label>
-          <div class="auth-input-wrapper">
-            <span class="auth-input-icon">✉️</span>
-            <input type="text" id="authUsername" class="auth-input-control code-font" placeholder="ej: fleiva@cpf.cl" required autocomplete="username" />
-          </div>
-        </div>
-
-        <div class="auth-field-group">
-          <label for="authPassword">Contraseña</label>
-          <div class="auth-input-wrapper">
-            <span class="auth-input-icon">🔒</span>
-            <input type="password" id="authPassword" class="auth-input-control" placeholder="••••••••" required autocomplete="current-password" />
-          </div>
-        </div>
-
-        <div id="boxFaenaSite" class="auth-field-group" style="display: none !important;">
-          <label for="authSelectedSite" style="color:var(--accent-color);">📍 Faena Asignada (Escritura)</label>
-          <div class="auth-input-wrapper">
-            <span class="auth-input-icon">🏭</span>
-            <select id="authSelectedSite" class="auth-input-control">
-              <option value="Planta, Mina los Colorados">Planta, Mina los Colorados</option>
-              <option value="Mina, Mina los Colorados">Mina, Mina los Colorados</option>
-              <option value="Planta de Pellets">Planta de Pellets</option>
-              <option value="Planta, Mina el Romeral">Planta, Mina el Romeral</option>
-              <option value="Mina, Mina el Romeral">Mina, Mina el Romeral</option>
-            </select>
-          </div>
-        </div>
-
-        <button type="submit" id="authSubmitActionBtn" class="btn-auth-submit">
-          Ingresar al Sistema
-        </button>
-      </form>
+    <div class="form-group">
+      <label>Revisión Técnica por Puntos de Medición:</label>
+      <div id="infComponentesContainer" style="max-height:300px; overflow-y:auto; padding-right:6px;"></div>
     </div>
-  </dialog>
 
-  <!-- MODAL EDICIÓN DATOS GENERALES DEL ACTIVO -->
-  <dialog id="modalEdicion" class="modal-fullscreen-dialog">
-    <div class="fullscreen-inner" style="max-width: 800px;">
-      <button type="button" class="modal-close-btn" onclick="document.getElementById('modalEdicion').close()">&times;</button>
-      <h2 class="edition-title">Configuración General del Activo</h2>
-      
-      <form class="form-grid" onsubmit="event.preventDefault(); window.CIO.guardarDatosGeneralesActivo();">
-        <div class="span-2 main-info-section">
-          <div class="form-grid-inner">
-            <div><label for="edSiteId">Faena</label><input type="text" id="edSiteId" class="code-font" readonly /></div>
-            <div><label for="edDomain">Dominio</label><select id="edDomain"><option value="planta">🏭 Planta</option><option value="mina">⛏️ Mina</option></select></div>
-            <div><label for="edArea">Área</label><input type="text" id="edArea" required /></div>
-            <div><label for="edTag">Tag Equipo</label><input type="text" id="edTag" class="code-font" required /></div>
-            <div><label for="edTipo">Clase / Tipo</label><input type="text" id="edTipo" /></div>
-            <div>
-              <label for="edEstatusHallazgo">Estatus General</label>
-              <select id="edEstatusHallazgo">
-                <option value="Abierto">🔴 Abierto</option>
-                <option value="En Ejecución">🟠 En Ejecución</option>
-                <option value="En Espera de Parada">🟡 En Espera de Parada</option>
-                <option value="Cerrado / Normal">🟢 Cerrado / Normal</option>
-              </select>
-            </div>
-            <div>
-              <label for="edFechaMedicion">Última Fecha de Medición</label>
-              <input type="date" id="edFechaMedicion" onchange="window.CIO.auditarDiasMedicionForm()" required />
-              <div id="edFeedbackContadorDias" style="margin-top:6px;"></div>
-            </div>
-            <div>
-              <label for="edFechaHallazgo">Fecha de Hallazgo</label>
-              <input type="date" id="edFechaHallazgo" />
-            </div>
-            <div class="span-inner-2">
-              <label>Georreferencia (Latitud, Longitud)</label>
-              <div class="coord-inputs">
-                <input type="text" id="edLat" placeholder="-28.2880" />
-                <input type="text" id="edLng" placeholder="-70.8125" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <footer class="span-2 modal-footer-actions">
-          <button type="button" class="btn-base btn-danger" onclick="window.CIO.eliminarEquipo()">🗑️ Eliminar Activo</button>
-          <button type="submit" class="btn-base btn-success">💾 Guardar Datos Generales</button>
-        </footer>
-      </form>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+      <button class="btn-base" type="button" onclick="document.getElementById('modalEditorInforme').close()">Cancelar</button>
+      <button class="btn-base btn-primary" type="button" onclick="window.CIO.emitirInformeFinalImpresion()">🖨️ Generar PDF Oficial</button>
     </div>
   </dialog>
 
   <canvas id="resizeCanvas" style="display:none;"></canvas>
-  <script src="app.js?v=11"></script>
+
+  <script src="app.js"></script>
 </body>
 </html>
