@@ -740,30 +740,29 @@
   }
 
   // =============================================================
-  // FUNCIÓN MAESTRA DE IMPRESIÓN ROBUSTA MEDIANTE IFRAME
-  // (Elimina definitivamente el bug 'Cargando vista previa' en Brave/Chrome)
+  // FUNCIÓN MAESTRA DE IMPRESIÓN BLINDADA (BLOB URL)
   // =============================================================
-  function imprimirDocumentoSinBloqueo(htmlDocumento) {
-    var frame = document.getElementById('printReportFrame');
-    if (!frame) {
-      frame = document.createElement('iframe');
-      frame.id = 'printReportFrame';
-      frame.style.cssText = 'position:fixed; right:0; bottom:0; width:0; height:0; border:0; visibility:hidden;';
-      document.body.appendChild(frame);
-    }
+  function imprimirMedianteBlob(htmlContent) {
+    try {
+      var blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      var blobUrl = URL.createObjectURL(blob);
+      
+      var win = window.open(blobUrl, '_blank');
+      if (!win) {
+        alert("⚠️ Habilita las ventanas emergentes (pop-ups) en tu navegador para ver el informe.");
+        return;
+      }
 
-    frame.srcdoc = htmlDocumento;
-    frame.onload = function() {
       setTimeout(function() {
-        try {
-          frame.contentWindow.focus();
-          frame.contentWindow.print();
-        } catch (err) {
-          console.error("Error al imprimir frame:", err);
-        }
-      }, 400);
-    };
+        URL.revokeObjectURL(blobUrl);
+      }, 10000);
+    } catch (e) {
+      console.error("Error al generar blob de impresión:", e);
+      alert("❌ No se pudo abrir la vista de impresión.");
+    }
   }
+
+  var reportePendienteImpresion = null;
 
   // =============================================================
   // OBJETO GLOBAL CIO
@@ -1095,7 +1094,7 @@
     },
 
     // -------------------------------------------------------------
-    // GENERADOR DE REPORTES DE RONDA TERRENO (CON SELECT EXCLUSIVO)
+    // GENERADOR DE REPORTES DE RONDA TERRENO (CON VISTA PREVIA EDITABLE)
     // -------------------------------------------------------------
     abrirFiltrosReporteTerreno: function() {
       if (!state.usuarioActivo) {
@@ -1188,9 +1187,9 @@
             listaArchivos.map(function(ev) {
               var src = ev.data || ev.src || ev;
               if (ev.tipo === 'video') {
-                return '<div style="text-align:center;"><video src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc;"></video><div style="font-size:0.65rem; color:#6b7280; font-weight:bold;">VIDEO</div></div>';
+                return '<div style="text-align:center;"><video src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc;"></video><div style="font-size:0.65rem; color:#647280; font-weight:bold;">VIDEO</div></div>';
               } else {
-                return '<div style="text-align:center;"><img src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#6b7280; font-weight:bold;">FOTO</div></div>';
+                return '<div style="text-align:center;"><img src="' + src + '" style="max-height:120px; max-width:180px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#64748b; font-weight:bold;">FOTO</div></div>';
               }
             }).join('') + '</div></div>';
         }
@@ -1214,50 +1213,189 @@
           '</div>';
       }).join('');
 
-      var htmlContent = 
-        '<!DOCTYPE html>' +
-        '<html lang="es">' +
-        '<head>' +
-          '<meta charset="UTF-8">' +
-          '<title>Reporte de Ronda Terreno - CPF</title>' +
-          '<style>' +
-            '@page { size: A4 portrait; margin: 12mm; }' +
-            'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
-            '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }' +
-            '.header-left { display: flex; align-items: center; gap: 14px; }' +
-            '.logo-cpf { height: 44px; width: auto; object-fit: contain; }' +
-            '.header-report h1 { margin: 0; font-size: 1.15rem; color: #0f172a; text-transform: uppercase; }' +
-            '.header-report p { margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b; font-weight: bold; }' +
-            '@media print { body { padding: 0; } }' +
-          '</style>' +
-        '</head>' +
-        '<body>' +
-          '<div class="header-report">' +
-            '<div class="header-left">' +
-              '<img src="logo-cpf.png" class="logo-cpf" alt="CPF Ingeniería" onerror="this.style.display=\'none\'" />' +
-              '<div>' +
-                '<h1>' + sanitize(tituloInforme) + '</h1>' +
-                '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO | CIO</p>' +
-              '</div>' +
-            '</div>' +
-            '<div style="text-align:right; font-size:0.75rem; color:#64748b;">' +
-              '<div>Total Registros: <strong>' + reportes.length + '</strong></div>' +
-              '<div>Emisión: ' + new Date().toLocaleString() + '</div>' +
-            '</div>' +
-          '</div>' +
-          itemsHtml +
-          '<footer style="margin-top:24px; border-top:1px solid #e2e8f0; padding-top:8px; font-size:0.7rem; color:#94a3b8; text-align:center;">' +
-            'Documento Oficial de Ronda de Terreno CIO - Emitido por CPF Ingeniería Ltda.' +
-          '</footer>' +
-        '</body>' +
-        '</html>';
+      document.getElementById('prevTituloReporte').value = tituloInforme;
+      document.getElementById('prevContenidoReporte').value = "Listado consolidado de hallazgos detectados en terreno durante el turno operativo activo.";
 
-      imprimirDocumentoSinBloqueo(htmlContent);
+      reportePendienteImpresion = {
+        tipo: 'ronda_terreno',
+        reportes: reportes,
+        tituloInforme: tituloInforme,
+        itemsHtml: itemsHtml
+      };
+
+      var modalPrev = document.getElementById('modalVistaPreviaImpresion');
+      if (modalPrev) modalPrev.showModal();
     },
 
-    // -------------------------------------------------------------
-    // EDICIÓN DE REPORTE Y TRASPASO DIRECTO A COMPONENTE (NIVEL 3)
-    // -------------------------------------------------------------
+    // =============================================================
+    // EMISIÓN DE INFORME TREN MOTRIZ
+    // =============================================================
+    emitirInformeFinalImpresion: function() {
+      var eq = state.equipos.find(function(e) { return e.id === state.equipoIdNivel3; });
+      if (!eq) return;
+
+      var tagValue = eq.tag || eq.Tag || eq.id || 'S/T';
+      var avisosEditados = document.getElementById('infAvisosSap')?.value.trim() || 'Sin Avisos';
+      var omsEditadas = document.getElementById('infOmSap')?.value.trim() || 'Sin OM';
+      var conclusionGeneral = document.getElementById('infResumenGeneral')?.value.trim() || '';
+
+      var aud = calcularDiasDesdeMedicion(eq.fechaMedicion);
+      var sevGlobal = calcMaxSev(eq.componentes);
+
+      var modalInf = document.getElementById('modalEditorInforme');
+      if (modalInf) modalInf.close();
+
+      var compsHtml = (eq.componentes || []).map(function(c) {
+        var col = SEV_COLOR[c.severidad] || '#4b5563';
+        var fotosHtml = (c.espectros && c.espectros.length > 0)
+          ? '<div style="margin-top:10px;"><strong style="font-size:0.75rem; color:#4b5563;">Evidencias de Respaldo:</strong><div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">' +
+            c.espectros.map(function(item) {
+              var src = typeof item === 'string' ? item : item.src;
+              var tipo = typeof item === 'string' ? 'FFT' : (item.tipo || 'FFT').toUpperCase();
+              return '<div style="text-align:center;"><img src="' + src + '" style="max-height:140px; max-width:220px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#64748b; font-weight:bold; margin-top:2px;">' + tipo + '</div></div>';
+            }).join('') + '</div></div>'
+          : '';
+
+        return '<div style="border:1px solid #d1d5db; border-left:5px solid ' + col + '; border-radius:6px; padding:12px 16px; margin-bottom:12px; page-break-inside:avoid;">' +
+          '<div style="display:flex; justify-content:space-between; font-weight:bold; font-size:0.95rem; margin-bottom:6px;">' +
+            '<span>' + sanitize(c.nombre || 'Componente') + ' | ' + sanitize(c.punto || 'Punto') + '</span>' +
+            '<span style="color:' + col + ';">' + (c.severidad || 'Verde').toUpperCase() + ' (' + (c.rms || '0.0') + ' mm/s)</span>' +
+          '</div>' +
+          '<div style="font-size:0.86rem; color:#1f2937; margin-bottom:6px; line-height:1.4;"><strong>Diagnóstico:</strong><br>' + sanitize(limpiarPrefijosIA(c.analisis) || 'Sin análisis registrado.') + '</div>' +
+          '<div style="font-size:0.86rem; color:#065f46; line-height:1.4;"><strong>Recomendación:</strong><br>' + sanitize(limpiarPrefijosIA(c.recomendacion) || 'Mantener monitoreo.') + '</div>' +
+          fotosHtml +
+        '</div>';
+      }).join('');
+
+      document.getElementById('prevTituloReporte').value = "INFORME OFICIAL DE MONITOREO TREN MOTRIZ - TAG: " + tagValue;
+      document.getElementById('prevContenidoReporte').value = conclusionGeneral;
+
+      reportePendienteImpresion = {
+        tipo: 'tren_motriz',
+        eq: eq,
+        tagValue: tagValue,
+        avisosEditados: avisosEditados,
+        omsEditadas: omsEditadas,
+        sevGlobal: sevGlobal,
+        compsHtml: compsHtml
+      };
+
+      var modalPrev = document.getElementById('modalVistaPreviaImpresion');
+      if (modalPrev) modalPrev.showModal();
+    },
+
+    // =============================================================
+    // CONFIRMACIÓN Y DISPARO DESDE MODAL EDITABLE
+    // =============================================================
+    confirmarEImprimirReporteEditado: function() {
+      if (!reportePendienteImpresion) return;
+
+      var nuevoTitulo = document.getElementById('prevTituloReporte').value.trim();
+      var nuevoContenido = document.getElementById('prevContenidoReporte').value.trim();
+
+      document.getElementById('modalVistaPreviaImpresion').close();
+
+      var htmlDoc = '';
+
+      if (reportePendienteImpresion.tipo === 'tren_motriz') {
+        var r = reportePendienteImpresion;
+        htmlDoc = 
+          '<!DOCTYPE html>' +
+          '<html lang="es">' +
+          '<head>' +
+            '<meta charset="UTF-8">' +
+            '<title>Informe Técnico - ' + r.tagValue + '</title>' +
+            '<style>' +
+              '@page { size: A4 portrait; margin: 12mm; }' +
+              'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
+              '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }' +
+              '.header-left { display: flex; align-items: center; gap: 14px; }' +
+              '.logo-cpf { height: 44px; width: auto; object-fit: contain; }' +
+              '.header-report h1 { margin: 0; font-size: 1.15rem; color: #0f172a; text-transform: uppercase; }' +
+              '.header-report p { margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b; font-weight: bold; }' +
+              '.badge-sev { padding: 5px 12px; border-radius: 6px; font-weight: 800; color: #fff; background: ' + (SEV_COLOR[r.sevGlobal] || '#4b5563') + '; text-transform: uppercase; font-size: 0.85rem; }' +
+              '.data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.8rem; }' +
+              '.data-item strong { display: block; font-size: 0.65rem; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }' +
+              '.section-title { font-size: 0.9rem; color: #0284c7; border-left: 4px solid #0284c7; padding-left: 8px; margin: 16px 0 8px 0; text-transform: uppercase; font-weight: 800; }' +
+              '.box-conclusion { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 12px; }' +
+              '@media print { body { padding: 0; } }' +
+            '</style>' +
+          '</head>' +
+          '<body>' +
+            '<div class="header-report">' +
+              '<div class="header-left">' +
+                '<img src="logo-cpf.png" class="logo-cpf" alt="CPF Ingeniería" onerror="this.style.display=\'none\'" />' +
+                '<div>' +
+                  '<h1>' + sanitize(nuevoTitulo) + '</h1>' +
+                  '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO | CIO</p>' +
+                '</div>' +
+              '</div>' +
+              '<div><span class="badge-sev">CONDICIÓN: ' + r.sevGlobal + '</span></div>' +
+            '</div>' +
+            '<div class="data-grid">' +
+              '<div class="data-item"><strong>Faena Operativa</strong>' + sanitize(r.eq.siteId) + '</div>' +
+              '<div class="data-item"><strong>Área</strong>' + sanitize(r.eq.area) + '</div>' +
+              '<div class="data-item"><strong>Tag Equipo</strong>' + sanitize(r.tagValue) + '</div>' +
+              '<div class="data-item"><strong>Avisos SAP</strong>' + sanitize(r.avisosEditados) + '</div>' +
+              '<div class="data-item"><strong>Órdenes OM</strong>' + sanitize(r.omsEditadas) + '</div>' +
+              '<div class="data-item"><strong>Última Medición</strong>' + (r.eq.fechaMedicion || 'S/F') + '</div>' +
+            '</div>' +
+            '<div class="section-title">1. Resumen Ejecutivo & Conclusiones</div>' +
+            '<div class="box-conclusion">' + sanitize(nuevoContenido) + '</div>' +
+            '<div class="section-title">2. Diagnóstico Técnico por Puntos & Espectros</div>' +
+            r.compsHtml +
+            '<footer style="margin-top:24px; border-top:1px solid #e2e8f0; padding-top:8px; font-size:0.7rem; color:#94a3b8; text-align:center;">' +
+              'Documento Oficial CIO - Emitido por CPF Ingeniería Ltda.' +
+            '</footer>' +
+          '</body>' +
+          '</html>';
+      } else {
+        var r2 = reportePendienteImpresion;
+        htmlDoc = 
+          '<!DOCTYPE html>' +
+          '<html lang="es">' +
+          '<head>' +
+            '<meta charset="UTF-8">' +
+            '<title>Reporte de Ronda Terreno - CPF</title>' +
+            '<style>' +
+              '@page { size: A4 portrait; margin: 12mm; }' +
+              'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; color: #111827; background: #fff; line-height: 1.4; margin: 0; }' +
+              '.header-report { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }' +
+              '.header-left { display: flex; align-items: center; gap: 14px; }' +
+              '.logo-cpf { height: 44px; width: auto; object-fit: contain; }' +
+              '.header-report h1 { margin: 0; font-size: 1.15rem; color: #0f172a; text-transform: uppercase; }' +
+              '.header-report p { margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b; font-weight: bold; }' +
+              '@media print { body { padding: 0; } }' +
+            '</style>' +
+          '</head>' +
+          '<body>' +
+            '<div class="header-report">' +
+              '<div class="header-left">' +
+                '<img src="logo-cpf.png" class="logo-cpf" alt="CPF Ingeniería" onerror="this.style.display=\'none\'" />' +
+                '<div>' +
+                  '<h1>' + sanitize(nuevoTitulo) + '</h1>' +
+                  '<p>CPF INGENIERÍA LTDA | COMPAÑÍA MINERA DEL PACÍFICO | CIO</p>' +
+                '</div>' +
+              '</div>' +
+              '<div style="text-align:right; font-size:0.75rem; color:#64748b;">' +
+                '<div>Total Registros: <strong>' + r2.reportes.length + '</strong></div>' +
+                '<div>Emisión: ' + new Date().toLocaleString() + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; font-size:0.85rem; margin-bottom:14px;">' +
+              '<strong>Nota Operativa:</strong> ' + sanitize(nuevoContenido) +
+            '</div>' +
+            r2.itemsHtml +
+            '<footer style="margin-top:24px; border-top:1px solid #e2e8f0; padding-top:8px; font-size:0.7rem; color:#94a3b8; text-align:center;">' +
+              'Documento Oficial de Ronda de Terreno CIO - Emitido por CPF Ingeniería Ltda.' +
+            '</footer>' +
+          '</body>' +
+          '</html>';
+      }
+
+      imprimirMedianteBlob(htmlDoc);
+    },
+
     abrirModalEditarReporteTerreno: function(reporteId) {
       if (!state.usuarioActivo) {
         alert("🔒 Debes iniciar sesión para editar reportes.");
