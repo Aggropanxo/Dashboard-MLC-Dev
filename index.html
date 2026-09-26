@@ -58,14 +58,15 @@
     </div>
   </header>
 
+  <!-- MARKET TICKER BAR CON NODOS DINÁMICOS -->
   <div class="market-ticker-bar">
-    <div class="ticker-item">💵 USD/CLP: <strong>945.72</strong></div>
+    <div class="ticker-item">💵 USD/CLP: <strong id="tickerUsdClp">945.72</strong></div>
     <span>•</span>
-    <div class="ticker-item">⛏️ Fe 62%: <strong>98.02 USD/t</strong></div>
+    <div class="ticker-item">⛏️ Fe 62%: <strong id="tickerFeUsd">98.02 USD/t</strong></div>
     <span>•</span>
-    <div class="ticker-item">🔄 Hierro/CLP: <strong>92,700 CLP/t</strong></div>
+    <div class="ticker-item">🔄 Hierro/CLP: <strong id="tickerFeClp">92,700 CLP/t</strong></div>
     <span>•</span>
-    <div class="ticker-item">☀️ Clima: <strong>22°C (Vallenar)</strong></div>
+    <div class="ticker-item"><span id="tickerClimaIcon">☀️</span> Clima: <strong id="tickerClimaVal">22°C (Vallenar)</strong></div>
   </div>
 
   <main class="cio-viewport">
@@ -91,7 +92,7 @@
         </div>
 
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <!-- BUSCADOR INTEGRADO EN VIVO -->
+          <!-- BUSCADOR PREDICTIVO EN VIVO -->
           <div class="search-input-wrapper">
             <span class="search-icon-pos">🔍</span>
             <input 
