@@ -94,33 +94,28 @@ body {
 
 @keyframes pulse-radar {
   0% { transform: scale(0.9); opacity: 0.85; }
-  70% { transform: scale(2.3); opacity: 0; }
-  100% { transform: scale(2.6); opacity: 0; }
+  70% { transform: scale(2.4); opacity: 0; }
+  100% { transform: scale(2.8); opacity: 0; }
 }
 
 .anim-rojo { animation: pulseGlowRed 1.8s infinite !important; }
 
-/* Marcadores GIS Leaflet */
+/* Marcadores GIS Leaflet Compactos (Punto sólido limpio sin letras) */
 .pin-marcador-gis {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
+  display: block;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  color: #ffffff;
-  font-weight: 900;
-  font-size: 0.72rem;
   border: 2px solid #ffffff;
-  box-shadow: 0 0 12px rgba(0, 0, 0, 0.65);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.75);
   cursor: pointer;
   transition: transform 0.2s ease;
   z-index: 10;
 }
 
 .pin-marcador-gis:hover {
-  transform: scale(1.25);
+  transform: scale(1.6);
   z-index: 999;
 }
 
@@ -128,10 +123,10 @@ body {
 .pin-marcador-gis.anim-pulso::after {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -2px;
   border-radius: 50%;
   background: inherit;
-  opacity: 0.75;
+  opacity: 0.8;
   z-index: -1;
   animation: pulse-radar 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
 }
