@@ -1,7 +1,6 @@
 (() => {
   'use strict';
 
-  // Configuración Firebase Realtime Database
   var firebaseConfig = {
     apiKey: "AIzaSyBd5MEZdMmgzBs1xCyeGYeKtQx5gJIeY3w",
     authDomain: "dashboard-vulnerabilidades-mlc.firebaseapp.com",
@@ -55,7 +54,8 @@
     capaSite: null,
     equipos: [],
     alertasTerreno: [],
-    tempEspectrosEdicion: []
+    tempEvidenciasEdicion: [],
+    tipoSubidaActual: 'espectro'
   };
 
   function sanitize(str) {
@@ -224,11 +224,6 @@
       container.className = 'grid-container';
       container.innerHTML = '';
 
-      if (sortedAreas.length === 0) {
-        container.innerHTML = '<div class="label-muted" style="padding:20px;">Sin áreas registradas. Realiza una carga masiva.</div>';
-        return;
-      }
-
       sortedAreas.forEach(function(a) {
         var card = document.createElement('article');
         card.className = 'card-area ' + (a.maxSev === 'Rojo' || a.maxSev === 'Naranja' ? 'anim-' + a.maxSev.toLowerCase() : '');
@@ -295,7 +290,7 @@
     }
   }
 
-  // PANTALLA 3: NIVEL 3 (DIRECTO A LAS TARJETAS - SIN CAJA REDUNDANTE)
+  // PANTALLA 3: NIVEL 3 (DIRECTO A TARJETAS)
   function renderScreen3() {
     if (!state.equipoIdNivel3) {
       window.CIO.goScreen(2);
@@ -345,8 +340,8 @@
         }
       };
 
-      var cantEspectros = (c.espectros && c.espectros.length > 0) ? c.espectros.length : 0;
-      var badgeFotos = cantEspectros > 0 ? ('<span class="badge-indicator badge-reportes">📈 ' + cantEspectros + ' FFT</span>') : '';
+      var cantEvidencias = (c.espectros && c.espectros.length > 0) ? c.espectros.length : 0;
+      var badgeFotos = cantEvidencias > 0 ? ('<span class="badge-indicator badge-reportes">📷 ' + cantEvidencias + ' Evidencias</span>') : '';
 
       var sapsCount = (c.paresSap && c.paresSap.length > 0) ? c.paresSap.length : 0;
       var badgeSap = sapsCount > 0 ? ('<div style="font-size:0.65rem; color:#2563eb; font-weight:700;">SAP: ' + sapsCount + ' Par(es)</div>') : '';
@@ -374,7 +369,6 @@
     cardTerreno.style.borderColor = 'rgba(2, 132, 199, 0.4)';
     cardTerreno.onclick = function() { window.CIO.abrirModalHistoricoTerreno(); };
 
-    // Corrección sintáctica aquí en la concatenación de la tarjeta
     cardTerreno.innerHTML = 
       '<div class="card-top-bar">' +
         '<span class="eq-type" style="color:#0284c7; font-weight:bold;">RONDA EN PLANTA</span>' +
@@ -447,8 +441,15 @@
     document.getElementById('indSugAnalisis').value = '';
     document.getElementById('indSugRecom').value = '';
 
-    state.tempEspectrosEdicion = (c.espectros || []).slice();
-    window.CIO.renderMiniaturasEspectrosEdicion();
+    // Normalizar evidencias cargadas previas
+    state.tempEvidenciasEdicion = (c.espectros || []).map(function(item) {
+      if (typeof item === 'string') {
+        return { src: item, tipo: 'espectro' };
+      }
+      return item;
+    });
+
+    window.CIO.renderMiniaturasEvidencias();
 
     var paresBox = document.getElementById('indParesSapContainer');
     if (paresBox) {
@@ -631,10 +632,6 @@
         return;
       }
       window.CIO.abrirEdicionEquipoNuevoAuth();
-    },
-
-    toggleMapModal: function() {
-      window.CIO.toggleSiteMapTab();
     },
 
     toggleSiteMapTab: function() {
@@ -829,8 +826,9 @@
       var galeria = document.getElementById('detCompGaleriaFotos');
       if (galeria) {
         if (c.espectros && c.espectros.length > 0) {
-          galeria.innerHTML = c.espectros.map(function(src) {
-            return '<div class="item-espectro-preview"><img src="' + src + '" alt="Espectro FFT" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" style="max-height:80px; border-radius:4px; cursor:pointer;" /></div>';
+          galeria.innerHTML = c.espectros.map(function(item) {
+            var src = typeof item === 'string' ? item : item.src;
+            return '<div class="item-espectro-preview"><img src="' + src + '" alt="Evidencia" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" style="max-height:80px; border-radius:4px; cursor:pointer;" /></div>';
           }).join('');
         } else {
           galeria.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No hay espectros cargados.</div>';
@@ -906,13 +904,26 @@
       container.appendChild(row);
     },
 
-    procesarSubidaEspectros: function(event) {
+    seleccionarTipoSubida: function(tipo) {
+      state.tipoSubidaActual = tipo;
+      var lbl = document.getElementById('labelZonaSubida');
+      var nombres = {
+        espectro: '📈 Espectro / Cascada FFT',
+        termografia: '🌡️ Imagen Termográfica (IR)',
+        terreno: '🔍 Foto Evidencia de Terreno'
+      };
+      if (lbl) lbl.innerText = '📷 Clic para adjuntar archivo (Tipo: ' + nombres[tipo] + ')';
+      document.getElementById('subirEvidenciasMulti').click();
+    },
+
+    procesarSubidaEvidencias: function(event) {
       var files = Array.from(event.target.files);
       if (!files || files.length === 0) return;
 
       var canvas = document.getElementById('resizeCanvas') || document.createElement('canvas');
       var ctx = canvas.getContext('2d');
       var procesados = 0;
+      var tipoSeleccionado = state.tipoSubidaActual || 'espectro';
 
       files.forEach(function(file) {
         var reader = new FileReader();
@@ -931,11 +942,14 @@
             ctx.drawImage(img, 0, 0, width, height);
 
             var base64 = canvas.toDataURL('image/jpeg', 0.70);
-            state.tempEspectrosEdicion.push(base64);
+            state.tempEvidenciasEdicion.push({
+              src: base64,
+              tipo: tipoSeleccionado
+            });
             procesados++;
 
             if (procesados === files.length) {
-              window.CIO.renderMiniaturasEspectrosEdicion();
+              window.CIO.renderMiniaturasEvidencias();
             }
           };
           img.src = e.target.result;
@@ -946,26 +960,35 @@
       event.target.value = '';
     },
 
-    renderMiniaturasEspectrosEdicion: function() {
+    renderMiniaturasEvidencias: function() {
       var cont = document.getElementById('previewEspectrosContainer');
       if (!cont) return;
 
-      if (state.tempEspectrosEdicion.length === 0) {
-        cont.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No hay espectros cargados para este punto.</div>';
+      if (!state.tempEvidenciasEdicion || state.tempEvidenciasEdicion.length === 0) {
+        cont.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No hay imágenes cargadas para este punto.</div>';
         return;
       }
 
-      cont.innerHTML = state.tempEspectrosEdicion.map(function(src, i) {
+      var badgesTipo = {
+        espectro: '<span style="position:absolute; bottom:4px; left:4px; font-size:0.6rem; background:#0284c7; color:#fff; padding:1px 5px; border-radius:3px;">FFT</span>',
+        termografia: '<span style="position:absolute; bottom:4px; left:4px; font-size:0.6rem; background:#ea580c; color:#fff; padding:1px 5px; border-radius:3px;">TERM</span>',
+        terreno: '<span style="position:absolute; bottom:4px; left:4px; font-size:0.6rem; background:#16a34a; color:#fff; padding:1px 5px; border-radius:3px;">FOTO</span>'
+      };
+
+      cont.innerHTML = state.tempEvidenciasEdicion.map(function(item, i) {
+        var src = typeof item === 'string' ? item : item.src;
+        var tipo = typeof item === 'string' ? 'espectro' : (item.tipo || 'espectro');
         return '<div class="item-espectro-preview">' +
-            '<img src="' + src + '" alt="Espectro" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" />' +
-            '<button type="button" onclick="window.CIO.eliminarFotoEspectroEdicion(' + i + ')">&times;</button>' +
+            '<img src="' + src + '" alt="Evidencia" onclick="window.CIO.abrirFotoEnNuevaPestana(\'' + src + '\')" />' +
+            (badgesTipo[tipo] || '') +
+            '<button type="button" onclick="window.CIO.eliminarFotoEvidencia(' + i + ')">&times;</button>' +
           '</div>';
       }).join('');
     },
 
-    eliminarFotoEspectroEdicion: function(index) {
-      state.tempEspectrosEdicion.splice(index, 1);
-      window.CIO.renderMiniaturasEspectrosEdicion();
+    eliminarFotoEvidencia: function(index) {
+      state.tempEvidenciasEdicion.splice(index, 1);
+      window.CIO.renderMiniaturasEvidencias();
     },
 
     generarDictamenTecnicoIso: async function() {
@@ -1006,29 +1029,33 @@
         }
       }
 
-      if (txtSugDiag) txtSugDiag.value = "⏳ Evaluando espectro y parámetros mecánicos bajo norma ISO 20816-3...";
+      if (txtSugDiag) txtSugDiag.value = "⏳ Evaluando evidencias multimodales y parámetros mecánicos bajo norma ISO 20816-3...";
       if (txtSugRecom) txtSugRecom.value = "⏳ Generando plan de acción pericial...";
 
       try {
-        var promptText = "Actúa como un Ingeniero Analista Especialista en Monitoreo de Condición y Vibraciones Mecánicas categoría ISO 18436-2.\n" +
-          "Equipo/Componente: " + nom + "\n" +
-          "Punto de Inspección: " + punto + "\n" +
-          "Velocidad Global RMS: " + rms + " mm/s (Evaluar bajo norma ISO 20816-3).\n" +
-          "Observación del Analista: " + (textoAnalista || "Sin comentarios previos") + "\n\n" +
-          "REGLA CRÍTICA DE FORMATO:\n" +
-          "NO incluyas corchetes, prefijos como '[IA Predictiva]', ni introducciones como 'Aquí está el diagnóstico'. Comienza DIRECTAMENTE con la redacción técnica como un humano perito.\n\n" +
-          "Responde EXCLUSIVAMENTE con un JSON válido en este formato exacto, sin markdown:\n" +
-          "{\"diagnostico\": \"diagnóstico técnico directo\", \"recomendacion\": \"recomendaciones mecánicas 1), 2), 3)\"}";
+        var promptText = "Actúa como Ingeniero Especialista en Mantenimiento Predictivo, Vibraciones Mecánicas (ISO 18436-2) y Termografía Infrarroja (ISO 18436-7).\n" +
+          "Equipo/Componente: " + nom + " | Punto: " + punto + "\n" +
+          "Velocidad Global RMS: " + rms + " mm/s (Norma ISO 20816-3).\n" +
+          "Comentarios Previos: " + (textoAnalista || "Sin comentarios previos") + "\n\n" +
+          "INSTRUCCIONES MULTIMODALES:\n" +
+          "- Se te proporcionan imágenes adjuntas que pueden incluir: Espectros FFT (frecuencias/amplitudes), Termogramas Infrarrojos (puntos calientes, deltas de temperatura) o Fotografías de Terreno.\n" +
+          "- Correlaciona la severidad RMS con el espectro de vibración, el gradiente térmico observado y la condición visual.\n" +
+          "- NO uses corchetes, prefijos de IA ni introducciones robóticas. Redacta como informe pericial humano.\n\n" +
+          "Responde EXCLUSIVAMENTE con un JSON en este formato:\n" +
+          "{\"diagnostico\": \"diagnóstico pericial correlacionado\", \"recomendacion\": \"recomendaciones mecánicas priorizadas 1), 2), 3)\"}";
 
         var contentsParts = [{ text: promptText }];
 
-        if (state.tempEspectrosEdicion && state.tempEspectrosEdicion.length > 0) {
-          var base64Img = state.tempEspectrosEdicion[0].replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
-          contentsParts.push({
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: base64Img
-            }
+        if (state.tempEvidenciasEdicion && state.tempEvidenciasEdicion.length > 0) {
+          state.tempEvidenciasEdicion.forEach(function(item) {
+            var rawData = typeof item === 'string' ? item : item.src;
+            var base64Img = rawData.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+            contentsParts.push({
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: base64Img
+              }
+            });
           });
         }
 
@@ -1047,8 +1074,7 @@
         if (!response.ok) throw new Error("Error HTTP Gemini: " + response.statusText);
 
         var data = await response.json();
-        var jsonText = data.candidates[0].content.parts[0].text;
-        var resultado = JSON.parse(jsonText);
+        var resultado = JSON.parse(data.candidates[0].content.parts[0].text);
 
         if (txtSugDiag) txtSugDiag.value = limpiarPrefijosIA(resultado.diagnostico);
         if (txtSugRecom) txtSugRecom.value = limpiarPrefijosIA(resultado.recomendacion);
@@ -1130,7 +1156,7 @@
         paresSap: pares,
         analisis: compDiag,
         recomendacion: compRecom,
-        espectros: state.tempEspectrosEdicion.slice()
+        espectros: state.tempEvidenciasEdicion.slice()
       };
 
       if (db) {
@@ -1341,9 +1367,11 @@
       var compsHtml = (eq.componentes || []).map(function(c) {
         var col = SEV_COLOR[c.severidad] || '#4b5563';
         var fotosHtml = (c.espectros && c.espectros.length > 0)
-          ? '<div style="margin-top:10px;"><strong style="font-size:0.75rem; color:#4b5563;">Espectro FFT / Cascada:</strong><div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">' +
-            c.espectros.map(function(src) {
-              return '<img src="' + src + '" style="max-height:160px; max-width:240px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" />';
+          ? '<div style="margin-top:10px;"><strong style="font-size:0.75rem; color:#4b5563;">Evidencias de Respaldo:</strong><div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">' +
+            c.espectros.map(function(item) {
+              var src = typeof item === 'string' ? item : item.src;
+              var tipo = typeof item === 'string' ? 'FFT' : (item.tipo || 'FFT').toUpperCase();
+              return '<div style="text-align:center;"><img src="' + src + '" style="max-height:160px; max-width:240px; border-radius:4px; border:1px solid #ccc; object-fit:contain;" /><div style="font-size:0.65rem; color:#6b7280; font-weight:bold; margin-top:2px;">' + tipo + '</div></div>';
             }).join('') + '</div></div>'
           : '';
 
